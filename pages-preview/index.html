@@ -3,73 +3,12 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>본성뮤직 인트라넷 v1 프리뷰</title>
-    <style>
-      :root { --brand:#245b57; --ink:#1f2933; --line:#d9e2ec; --bg:#f6f8fa; }
-      * { box-sizing: border-box; }
-      body { margin:0; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background:var(--bg); color:var(--ink); }
-      button, select { font: inherit; }
-      .login { min-height:100vh; display:grid; place-items:center; padding:24px; }
-      .login-panel { max-width:920px; width:100%; }
-      .login-grid { display:grid; grid-template-columns:repeat(3, 1fr); gap:16px; margin-top:20px; }
-      .card, .panel, aside, header { background:#fff; border:1px solid var(--line); border-radius:8px; }
-      .card { padding:20px; }
-      .app { display:grid; grid-template-columns:250px 1fr; min-height:100vh; }
-      aside { border-radius:0; border-width:0 1px 0 0; padding:20px; }
-      nav { display:grid; gap:6px; margin-top:20px; }
-      nav button { text-align:left; border:0; border-radius:6px; padding:10px 12px; background:transparent; color:#475569; cursor:pointer; }
-      nav button.active, nav button:hover { background:#eef6f5; color:var(--brand); }
-      header { border-radius:0; border-width:0 0 1px 0; padding:14px 20px; display:flex; justify-content:space-between; align-items:center; position:sticky; top:0; }
-      main { padding:24px; max-width:1280px; width:100%; }
-      h1 { margin:0; font-size:26px; }
-      h2 { margin:0 0 12px; font-size:17px; }
-      p { color:#64748b; line-height:1.5; }
-      .grid { display:grid; gap:16px; }
-      .stats { grid-template-columns:repeat(4, 1fr); margin:20px 0; }
-      .two { grid-template-columns:repeat(2, minmax(0, 1fr)); }
-      .panel { padding:18px; overflow:auto; }
-      table { width:100%; border-collapse:collapse; font-size:14px; }
-      th, td { border-bottom:1px solid var(--line); padding:10px; text-align:left; vertical-align:top; }
-      th { color:#64748b; font-size:12px; background:#f8fafc; }
-      .badge { display:inline-block; border:1px solid #cbd5e1; background:#f8fafc; border-radius:999px; padding:2px 8px; font-size:12px; }
-      .btn { border:0; background:var(--brand); color:#fff; border-radius:6px; padding:10px 12px; cursor:pointer; font-weight:700; }
-      .outline { border:1px solid var(--line); background:#fff; color:#334155; }
-      .form { display:grid; gap:8px; }
-      input, textarea, select { width:100%; border:1px solid var(--line); border-radius:6px; padding:9px 10px; }
-      label { font-size:12px; color:#475569; font-weight:700; }
-      @media (max-width: 900px) { .app { grid-template-columns:1fr; } aside { position:static; } .login-grid, .stats, .two { grid-template-columns:1fr; } }
-    </style>
+    <meta name="theme-color" content="#16635f" />
+    <title>본성뮤직 아카데미 인트라넷</title>
+    <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <div id="root"></div>
-    <script>
-      const data = {
-        students: [["이지훈", "보컬", "재원", "강사 계정", "호흡 안정화와 리듬 훈련 필요"], ["최서연", "피아노", "등록대기", "김건반", "보호자와 시간 조율 중"], ["문하준", "드럼", "상담중", "박드럼", "주 2회 가능 여부 확인"]],
-        consultations: [["문하준", "010-7777-3333", "네이버", "상담예정", "2026-06-09"], ["최서연", "010-7777-2222", "지인추천", "상담완료", "2026-06-08"]],
-        lessons: [["2026. 6. 7. 14:00", "이지훈", "강사 계정", "보컬 개인레슨", "예정"], ["2026. 6. 7. 17:00", "최서연", "김건반", "재즈피아노", "예정"], ["2026. 6. 5. 14:00", "이지훈", "강사 계정", "보컬 개인레슨", "완료"]],
-        attendance: [["이지훈", "출석", "아니오", "정상 출석"], ["최서연", "미처리", "아니오", "오늘 처리 필요"]],
-        notes: [["2026-06-05", "이지훈", "강사 계정", "복식호흡과 기본 스케일 진행", "고음 연결 안정화"]],
-        rooms: [["A 보컬룸", "이지훈", "2026. 6. 7. 18:00~19:00", "예약"], ["B 피아노룸", "최서연", "2026. 6. 8. 16:00~17:00", "예약"]],
-        payments: [["이지훈", "6월 보컬 개인레슨", "280,000원", "청구완료"], ["최서연", "입회비", "50,000원", "미납"]],
-        tasks: [["개원 상담 명단 정리", "운영 스태프", "진행중", "높음"], ["강사 매뉴얼 초안 검토", "원장 관리자", "할일", "보통"]],
-        notices: [["개원 초기 상담 응대 기준", "운영규정", "원장 관리자"], ["강사 레슨노트 작성 기준", "강사매뉴얼", "운영 스태프"]]
-      };
-      const menus = [["dashboard","대시보드"], ["students","학생"], ["guardians","보호자"], ["consultations","상담"], ["enrollments","수강"], ["lessons","수업/시간표"], ["attendance","출결"], ["notes","레슨노트"], ["rooms","연습실"], ["payments","수납"], ["tasks","업무"], ["notices","공지/문서"]];
-      const teacherMenus = new Set(["dashboard","students","lessons","attendance","notes","notices"]);
-      let role = localStorage.getItem("bonsung_role");
-      let page = "dashboard";
-      const root = document.getElementById("root");
-      function login(nextRole) { role = nextRole; localStorage.setItem("bonsung_role", role); render(); }
-      function logout() { role = null; localStorage.removeItem("bonsung_role"); render(); }
-      function setPage(next) { if (role === "teacher" && next === "payments") return; page = next; render(); }
-      function badge(v) { return `<span class="badge">${v}</span>`; }
-      function table(headers, rows) { return `<table><thead><tr>${headers.map(h=>`<th>${h}</th>`).join("")}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join("")}</tr>`).join("")}</tbody></table>`; }
-      function form(title) { return `<div class="panel"><h2>${title} 빠른 등록</h2><div class="form"><label>이름/제목<input placeholder="DB 연결 후 저장 활성화" /></label><label>상태<select><option>예정</option><option>진행중</option><option>완료</option></select></label><label>메모<textarea></textarea></label><button class="btn outline">프리뷰 전용 폼</button></div></div>`; }
-      function dashboard() { const paymentPanel = role === "teacher" ? "" : `<div class="panel"><h2>미납 또는 수납 확인 필요</h2>${table(["학생","항목","금액","상태"], data.payments.map(r=>[r[0],r[1],r[2],badge(r[3])] ))}</div>`; return `<h1>대시보드</h1><p>오늘 운영에 필요한 핵심 정보를 확인합니다.</p><div class="grid stats"><div class="card">오늘 수업<h1>${data.lessons.length}</h1></div><div class="card">상담/후속<h1>${data.consultations.length}</h1></div><div class="card">출결 미처리<h1>1</h1></div><div class="card">미완료 업무<h1>2</h1></div></div><div class="grid two"><div class="panel"><h2>오늘 예정된 수업</h2>${table(["일시","학생","강사","상태"], data.lessons.map(r=>[r[0],r[1],r[2],badge(r[4])] ))}</div><div class="panel"><h2>상담 예정 또는 최근 상담</h2>${table(["학생","연락처","경로","상태"], data.consultations.map(r=>[r[0],r[1],r[2],badge(r[3])] ))}</div><div class="panel"><h2>출결 미처리</h2>${table(["학생","상태","메모"], [["최서연", badge("미처리"), "오늘 처리 필요"]])}</div>${paymentPanel}<div class="panel"><h2>최근 레슨노트</h2>${table(["일자","학생","강사","다음 목표"], data.notes.map(r=>[r[0],r[1],r[2],r[4]]))}</div><div class="panel"><h2>미완료 업무</h2>${table(["업무","담당","상태","우선순위"], data.tasks.map(r=>[r[0],r[1],badge(r[2]),r[3]]))}</div></div>`; }
-      function resource(title, headers, rows) { return `<h1>${title}</h1><p>${title} 정보를 확인하고 v1 입력 흐름을 점검합니다.</p><div class="grid two"><div class="panel">${table(headers, rows)}</div>${form(title)}</div>`; }
-      function content() { if (page === "dashboard") return dashboard(); if (page === "students") return resource("학생 관리", ["이름","전공","상태","담당","메모"], data.students.map(r=>[r[0],r[1],badge(r[2]),r[3],r[4]])); if (page === "guardians") return resource("보호자 관리", ["학생","보호자","관계","연락처"], [["이지훈","이지훈 모","모","010-7777-1111"],["최서연","최서연 부","부","010-7777-2222"]]); if (page === "consultations") return resource("상담 관리", ["학생","연락처","경로","상태","후속"], data.consultations.map(r=>[r[0],r[1],r[2],badge(r[3]),r[4]])); if (page === "enrollments") return resource("수강 관리", ["학생","과목","강사","상태"], [["이지훈","보컬 개인레슨","강사 계정",badge("수강중")],["최서연","재즈피아노","김건반",badge("등록대기")]]); if (page === "lessons") return resource("수업/시간표", ["일시","학생","강사","과목","상태"], data.lessons.map(r=>[r[0],r[1],r[2],r[3],badge(r[4])])); if (page === "attendance") return resource("출결 관리", ["학생","출결","보강 필요","메모"], data.attendance.map(r=>[r[0],badge(r[1]),r[2],r[3]])); if (page === "notes") return resource("레슨노트", ["일자","학생","강사","수업 내용","다음 목표"], data.notes); if (page === "rooms") return resource("연습실 예약", ["연습실","예약자","사용 시간","상태"], data.rooms.map(r=>[r[0],r[1],r[2],badge(r[3])])); if (page === "payments") return resource("수납 상태", ["학생","항목","금액","상태"], data.payments.map(r=>[r[0],r[1],r[2],badge(r[3])])); if (page === "tasks") return resource("내부 업무", ["업무","담당","상태","우선순위"], data.tasks.map(r=>[r[0],r[1],badge(r[2]),r[3]])); return resource("공지/문서", ["제목","분류","작성자"], data.notices); }
-      function render() { if (!role) { root.innerHTML = `<div class="login"><section class="login-panel"><p style="color:var(--brand);font-weight:700">본성뮤직 아카데미</p><h1>인트라넷 v1 GitHub Pages 프리뷰</h1><p>역할을 선택해 화면과 권한별 메뉴를 확인합니다.</p><div class="login-grid">${["admin","staff","teacher"].map(r=>`<div class="card"><h2>${r}</h2><p>${r === "teacher" ? "수납 메뉴 접근이 제한됩니다." : "운영 메뉴를 확인합니다."}</p><button class="btn" onclick="login('${r}')">로그인</button></div>`).join("")}</div></section></div>`; return; } const visibleMenus = menus.filter(([key]) => role !== "teacher" || teacherMenus.has(key)); root.innerHTML = `<div class="app"><aside><h2>본성뮤직</h2><p>Intranet v1 Preview</p><nav>${visibleMenus.map(([key,label])=>`<button class="${page===key?"active":""}" onclick="setPage('${key}')">${label}</button>`).join("")}</nav></aside><section><header><div><strong>${role}</strong><br><span>GitHub Pages 정적 프리뷰</span></div><button class="btn outline" onclick="logout()">로그아웃</button></header><main>${content()}</main></section></div>`; }
-      render();
-    </script>
+    <div id="app"></div>
+    <script src="./app.js" defer></script>
   </body>
 </html>
