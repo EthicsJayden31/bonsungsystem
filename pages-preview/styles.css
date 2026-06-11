@@ -24,8 +24,8 @@ button { cursor: pointer; }
 .error { color: var(--danger); }
 .success { color: var(--success); }
 
-.auth-page { min-height: 100vh; display: grid; grid-template-columns: minmax(320px, 460px) 1fr; }
-.auth-panel { background: var(--surface); padding: clamp(28px, 6vw, 72px); display: flex; flex-direction: column; justify-content: center; }
+.auth-page { min-width: 0; min-height: 100vh; display: grid; grid-template-columns: minmax(320px, 460px) 1fr; }
+.auth-panel { min-width: 0; width: 100%; background: var(--surface); padding: clamp(28px, 6vw, 72px); display: flex; flex-direction: column; justify-content: center; }
 .auth-context { padding: clamp(28px, 6vw, 72px); display: flex; flex-direction: column; justify-content: flex-end; background: #183f3d; color: white; }
 .brand { color: var(--brand); font-size: 20px; font-weight: 800; margin: 0 0 32px; }
 .auth-context .brand { color: white; }
@@ -33,7 +33,7 @@ h1 { margin: 0; font-size: clamp(28px, 4vw, 40px); line-height: 1.25; letter-spa
 h2 { margin: 0; font-size: 18px; letter-spacing: 0; }
 h3 { margin: 0; font-size: 15px; letter-spacing: 0; }
 p { line-height: 1.6; }
-.auth-copy { margin: 12px 0 28px; color: var(--muted); }
+.auth-copy { margin: 12px 0 28px; color: var(--muted); overflow-wrap: anywhere; }
 .auth-context p { color: #d7e6e5; max-width: 620px; }
 .form-stack { display: grid; gap: 16px; }
 .field { display: grid; gap: 7px; }
@@ -48,7 +48,7 @@ textarea { min-height: 90px; resize: vertical; }
 .btn.danger { background: white; border-color: #f0b7b2; color: var(--danger); }
 .btn.small { min-height: 34px; padding: 6px 10px; font-size: 13px; }
 .text-btn { border: 0; background: transparent; color: var(--brand); padding: 6px 0; font-weight: 700; }
-.connection-box { margin-top: 24px; border-top: 1px solid var(--line); padding-top: 20px; }
+.connection-box { min-width: 0; margin-top: 24px; border-top: 1px solid var(--line); padding-top: 20px; }
 .status-line { min-height: 22px; font-size: 13px; }
 
 .shell { min-height: 100vh; display: grid; grid-template-columns: 236px minmax(0, 1fr); }
@@ -116,6 +116,8 @@ td.wrap { min-width: 220px; white-space: normal; line-height: 1.55; }
 }
 
 @media (max-width: 620px) {
+  .auth-panel { padding: 28px 20px; }
+  .auth-panel .btn { width: 100%; max-width: 100%; white-space: normal; }
   .stats { grid-template-columns: 1fr 1fr; }
   .stat { min-height: 92px; padding: 15px; }
   .stat strong { font-size: 23px; }
