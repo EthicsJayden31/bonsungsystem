@@ -143,11 +143,22 @@ async function api(action, payload = {}) {
   if (!state.endpoint || state.endpoint.includes("REPLACE_WITH_DEPLOYMENT_ID")) {
     throw new Error("운영 데이터 서비스가 아직 배포되지 않았습니다.");
   }
-  const response = await fetch(state.endpoint, {
-    method: "POST",
-    headers: { "Content-Type": "text/plain;charset=utf-8" },
-    body: JSON.stringify({ action, token: state.token, ...payload })
-  });
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), 15000);
+  let response;
+  try {
+    response = await fetch(state.endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ action, token: state.token, ...payload }),
+      signal: controller.signal
+    });
+  } catch (error) {
+    if (error.name === "AbortError") throw new Error("운영 데이터 연결 시간이 초과되었습니다.");
+    throw error;
+  } finally {
+    window.clearTimeout(timeout);
+  }
   if (!response.ok) throw new Error(`데이터 서비스 응답 오류 (${response.status})`);
   const result = await response.json();
   if (!result.ok) throw new Error(result.error || "요청을 처리하지 못했습니다.");
