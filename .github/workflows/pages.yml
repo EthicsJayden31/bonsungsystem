@@ -6,6 +6,9 @@ on:
       - main
       - codex/v1-intranet
       - codex/role-dashboards
+  pull_request:
+    branches:
+      - codex/v1-intranet
   workflow_dispatch:
 
 permissions:
