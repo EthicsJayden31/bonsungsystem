@@ -95,6 +95,18 @@ GitHub Actions는 정적 웹앱과 Apps Script의 JavaScript 문법을 검사합
 
 자세한 절차는 [GitHub Pages 배포](docs/github-pages.md)를 참고합니다.
 
+## 운영 기능 v3
+
+등록·재등록, 공간 예약, 직원 직급과 근태, 회의, 통합 캘린더, 다크모드와 로그인 성능 개선은 [운영 기능 v3](docs/v3-operations.md)에 정리되어 있습니다.
+
+운영 데이터와 분리된 로컬 테스트 화면:
+
+```text
+pages-preview/test.html
+```
+
+정적 파일 서버에서 `test.html`을 열면 관리자, 원장, 팀장, 사원, 강사, 수강생 계정으로 즉시 전환하면서 모든 기능을 샘플 데이터로 시험할 수 있습니다.
+
 ## 보안
 
 - `.env`, 비밀번호, API 키, Apps Script `SETUP_KEY`를 커밋하지 않습니다.
