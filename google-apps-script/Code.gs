@@ -17,17 +17,19 @@ const SHEETS = {
   reservations: "공간예약",
   workLogs: "근태",
   meetings: "회의",
-  calendarEvents: "학원일정"
+  calendarEvents: "학원일정",
+  tasks: "업무",
+  classTypes: "수업종류"
 };
 
 const SCHEMA = {
   계정: ["account_id", "login_id", "password_hash", "password_salt", "role", "name", "email", "phone", "linked_student_id", "active", "must_change_password", "created_at", "updated_at", "account_type", "employee_position", "permissions_json", "profile_intro", "theme"],
   수강생: ["student_id", "name", "birth_date", "phone", "guardian_name", "guardian_phone", "major", "goal", "status", "teacher_id", "enrolled_at", "memo", "created_at", "updated_at"],
-  수업일지: ["log_id", "lesson_date", "student_id", "teacher_id", "subject", "lesson_content", "homework", "next_goal", "practice_request", "attendance_status", "internal_memo", "created_at", "updated_at"],
+  수업일지: ["log_id", "lesson_date", "student_id", "teacher_id", "subject", "lesson_content", "homework", "next_goal", "practice_request", "attendance_status", "internal_memo", "created_at", "updated_at", "absence_reason", "makeup_date", "lesson_number"],
   세션: ["token", "account_id", "expires_at", "created_at"],
   설정: ["key", "value", "description", "updated_at"],
   수강등록: ["enrollment_id", "student_id", "teacher_id", "subject", "start_date", "end_date", "status", "weekly_day", "start_time", "duration_minutes", "room", "memo", "created_at", "updated_at"],
-  수업일정: ["lesson_id", "lesson_date", "start_time", "duration_minutes", "student_id", "teacher_id", "subject", "status", "room", "memo", "enrollment_id", "created_at", "updated_at"],
+  수업일정: ["lesson_id", "lesson_date", "start_time", "duration_minutes", "student_id", "teacher_id", "subject", "status", "room", "memo", "enrollment_id", "created_at", "updated_at", "absence_reason", "makeup_date", "lesson_number"],
   이용기록: ["event_id", "occurred_at", "account_id", "role", "action", "target_type", "target_id", "metadata", "date_key"],
   수업일지템플릿: ["template_id", "teacher_id", "title", "subject", "lesson_content", "homework", "next_goal", "practice_request", "active", "created_at", "updated_at", "scope"],
   등록결제: ["registration_id", "student_id", "enrollment_id", "registration_type", "period_start", "period_end", "amount", "paid_at", "next_due_date", "payment_status", "payment_method", "memo", "created_by", "created_at", "updated_at"],
@@ -35,7 +37,9 @@ const SCHEMA = {
   공간예약: ["reservation_id", "room_id", "reserved_by", "reservation_date", "start_time", "end_time", "purpose", "status", "memo", "created_at", "updated_at"],
   근태: ["work_log_id", "account_id", "work_date", "clock_in_at", "clock_out_at", "memo", "created_at", "updated_at"],
   회의: ["meeting_id", "title", "meeting_date", "start_time", "end_time", "location", "agenda", "participant_ids", "created_by", "status", "created_at", "updated_at"],
-  학원일정: ["event_id", "title", "event_date", "start_time", "end_time", "event_type", "audience", "description", "created_by", "status", "created_at", "updated_at"]
+  학원일정: ["event_id", "title", "event_date", "start_time", "end_time", "event_type", "audience", "description", "created_by", "status", "created_at", "updated_at"],
+  업무: ["task_id", "title", "assignee_id", "due_date", "status", "priority", "memo", "created_by", "created_at", "updated_at"],
+  수업종류: ["class_type_id", "name", "category", "active", "sort_order", "created_at", "updated_at"]
 };
 
 const ROLES = ["admin", "staff", "teacher", "student"];
@@ -45,6 +49,8 @@ const ENROLLMENT_STATUSES = ["active", "paused", "completed", "canceled"];
 const LESSON_STATUSES = ["예정", "완료", "결석", "보강예정", "취소"];
 const PAYMENT_STATUSES = ["청구예정", "청구완료", "납부완료", "미납", "환불", "취소"];
 const RESERVATION_STATUSES = ["예약", "사용완료", "취소", "노쇼"];
+const RESERVATION_PURPOSES = ["레슨", "이론수업", "회의", "연습"];
+const CLASS_TYPE_CATEGORIES = ["레슨", "이론수업", "그룹수업"];
 const REQUEST_CACHE = {};
 
 function doGet() {
@@ -72,6 +78,7 @@ function doPost(event) {
     if (action === "listAccounts") return success(listAccounts(currentUser));
     if (action === "createAccount") return success(createAccount(currentUser, request.account));
     if (action === "updateAccountStatus") return success(updateAccountStatus(currentUser, request.accountId, request.active));
+    if (action === "updateAccount") return success(updateAccount(currentUser, request.account));
     if (action === "resetAccountPassword") return success(resetAccountPassword(currentUser, request.accountId, request.password));
     if (action === "changePassword") return success(changePassword(currentUser, request.currentPassword, request.newPassword));
     if (action === "listStudents") return success(listStudents(currentUser));
@@ -81,6 +88,7 @@ function doPost(event) {
     if (action === "createEnrollment") return success(createEnrollment(currentUser, request.enrollment));
     if (action === "listLessons") return success(listLessons(currentUser));
     if (action === "createLesson") return success(createLesson(currentUser, request.lesson));
+    if (action === "updateLesson") return success(updateLesson(currentUser, request.lesson));
     if (action === "listLessonLogs") return success(listLessonLogs(currentUser));
     if (action === "createLessonLog") return success(createLessonLog(currentUser, request.log));
     if (action === "listLessonTemplates") return success(listLessonTemplates(currentUser));
@@ -104,6 +112,11 @@ function doPost(event) {
     if (action === "createCalendarEvent") return success(createCalendarEvent(currentUser, request.calendarEvent));
     if (action === "updateProfile") return success(updateProfile(currentUser, request.profile));
     if (action === "updateAccountPermissions") return success(updateAccountPermissions(currentUser, request.accountId, request.permissions));
+    if (action === "listTasks") return success(listTasks(currentUser, request.accountId));
+    if (action === "createTask") return success(createTask(currentUser, request.task));
+    if (action === "listClassTypes") return success(listClassTypes(currentUser));
+    if (action === "createClassType") return success(createClassType(currentUser, request.classType));
+    if (action === "updateClassType") return success(updateClassType(currentUser, request.classType));
 
     throw new Error("지원하지 않는 작업입니다.");
   } catch (error) {
@@ -193,7 +206,16 @@ function requireSession(token) {
 
 function listAccounts(user) {
   if (!canViewAccounts(user) && !canManageOperations(user)) throw new Error("계정을 조회할 권한이 없습니다.");
-  return rowsAsObjects(SHEETS.accounts).map(publicAccount);
+  const loginEvents = rowsAsObjects(SHEETS.usage).filter((item) => item.action === "login");
+  return rowsAsObjects(SHEETS.accounts).map((account) => {
+    const logins = loginEvents.filter((item) => item.account_id === account.account_id)
+      .sort((a, b) => String(b.occurred_at).localeCompare(String(a.occurred_at)));
+    return Object.assign(publicAccount(account), {
+      last_login_at: logins[0] ? logins[0].occurred_at : "",
+      login_count: logins.length,
+      recent_logins: logins.slice(0, 10).map((item) => item.occurred_at)
+    });
+  });
 }
 
 function createAccount(user, input) {
@@ -245,6 +267,32 @@ function updateAccountStatus(user, accountId, active) {
   if (!active) deleteRowsWhere(SHEETS.sessions, (item) => item.account_id === accountId);
   logEvent(user, active ? "activate_account" : "deactivate_account", "account", accountId, {});
   return true;
+}
+
+function updateAccount(user, input) {
+  if (!canManageAccounts(user)) throw new Error("계정을 관리할 권한이 없습니다.");
+  if (!input || !input.account_id || !input.name || !ROLES.includes(input.role)) throw new Error("계정 정보가 올바르지 않습니다.");
+  const account = findObject(SHEETS.accounts, "account_id", input.account_id);
+  if (!account) throw new Error("계정을 찾을 수 없습니다.");
+  if (normalizedAccountType(account) === "admin" && normalizedAccountType(user) !== "admin") throw new Error("관리자 계정은 변경할 수 없습니다.");
+  if (input.role === "admin" && normalizedAccountType(user) !== "admin") throw new Error("관리자 계정은 관리자만 지정할 수 있습니다.");
+  const accountType = input.role === "admin" ? "admin" : input.role === "student" ? "student" : "staff";
+  const position = input.role === "teacher" ? "teacher" : accountType === "staff" && EMPLOYEE_POSITIONS.includes(input.employee_position) ? input.employee_position : "";
+  const patch = {
+    name: String(input.name).trim(),
+    role: input.role,
+    account_type: accountType,
+    employee_position: position,
+    linked_student_id: accountType === "student" ? input.linked_student_id || "" : "",
+    email: input.email || "",
+    phone: input.phone || "",
+    permissions_json: "{}",
+    updated_at: nowIso()
+  };
+  updateObject(SHEETS.accounts, "account_id", input.account_id, patch);
+  deleteRowsWhere(SHEETS.sessions, (item) => item.account_id === input.account_id);
+  logEvent(user, "update_account", "account", input.account_id, { role: input.role, employee_position: position });
+  return publicAccount(Object.assign({}, account, patch));
 }
 
 function resetAccountPassword(user, accountId, password) {
@@ -302,7 +350,7 @@ function listStudents(user) {
 }
 
 function createStudent(user, input) {
-  requireRole(user, ["admin", "staff"]);
+  if (!capabilitiesFor(user).manageStudents) throw new Error("수강생을 관리할 권한이 없습니다.");
   if (!input || !input.name || !input.major) throw new Error("수강생 이름과 전공을 입력해 주세요.");
   const now = nowIso();
   const student = {
@@ -327,7 +375,7 @@ function createStudent(user, input) {
 }
 
 function updateStudent(user, input) {
-  requireRole(user, ["admin", "staff"]);
+  if (!capabilitiesFor(user).manageStudents) throw new Error("수강생을 관리할 권한이 없습니다.");
   if (!input || !input.student_id || !input.name || !input.major) throw new Error("수강생 이름과 전공을 입력해 주세요.");
   if (!findObject(SHEETS.students, "student_id", input.student_id)) throw new Error("수강생을 찾을 수 없습니다.");
 
@@ -358,7 +406,7 @@ function listEnrollments(user) {
 }
 
 function createEnrollment(user, input) {
-  requireRole(user, ["admin", "staff"]);
+  if (!canManageOperations(user)) throw new Error("수강 등록을 관리할 권한이 없습니다.");
   if (!input || !input.student_id || !input.teacher_id || !input.subject || !input.start_date) {
     throw new Error("수강생, 강사, 과목, 시작일을 입력해 주세요.");
   }
@@ -404,11 +452,11 @@ function listLessons(user) {
     accounts,
     students
   );
-  return explicitLessons.concat(recurringLessons).sort(compareLesson);
+  return assignLessonNumbers(explicitLessons.concat(recurringLessons)).sort(compareLesson);
 }
 
 function createLesson(user, input) {
-  requireRole(user, ["admin", "staff"]);
+  if (!canManageOperations(user)) throw new Error("수업 일정을 관리할 권한이 없습니다.");
   if (!input || !input.lesson_date || !input.start_time || !input.student_id || !input.teacher_id || !input.subject) {
     throw new Error("수업일, 시간, 수강생, 강사, 과목을 입력해 주세요.");
   }
@@ -423,8 +471,11 @@ function createLesson(user, input) {
     subject: String(input.subject).trim(),
     status: LESSON_STATUSES.includes(input.status) ? input.status : "예정",
     room: input.room || "",
+    absence_reason: input.absence_reason || "",
+    makeup_date: input.makeup_date || "",
     memo: input.memo || "",
     enrollment_id: input.enrollment_id || "",
+    lesson_number: Number(input.lesson_number || 0),
     created_at: now,
     updated_at: now
   };
@@ -437,6 +488,25 @@ function createLesson(user, input) {
   return lesson;
 }
 
+function updateLesson(user, input) {
+  if (!input || !input.lesson_id) throw new Error("수업을 찾을 수 없습니다.");
+  const lesson = findObject(SHEETS.lessons, "lesson_id", input.lesson_id);
+  if (!lesson) throw new Error("반복 일정에서 생성된 수업은 개별 수업으로 먼저 등록해야 합니다.");
+  const canEdit = canManageOperations(user) || (normalizedPosition(user) === "teacher" && lesson.teacher_id === user.account_id);
+  if (!canEdit) throw new Error("수업 상태를 변경할 권한이 없습니다.");
+  const status = LESSON_STATUSES.includes(input.status) ? input.status : lesson.status;
+  const patch = {
+    status,
+    absence_reason: ["결석", "취소"].includes(status) ? input.absence_reason || "" : "",
+    makeup_date: ["결석", "취소", "보강예정"].includes(status) ? input.makeup_date || "" : "",
+    memo: input.memo || "",
+    updated_at: nowIso()
+  };
+  updateObject(SHEETS.lessons, "lesson_id", input.lesson_id, patch);
+  logEvent(user, "update_lesson", "lesson", input.lesson_id, { status });
+  return Object.assign({}, lesson, patch);
+}
+
 function listLessonLogs(user) {
   const accounts = rowsAsObjects(SHEETS.accounts);
   const students = rowsAsObjects(SHEETS.students);
@@ -446,13 +516,14 @@ function listLessonLogs(user) {
 
   return logs.map((item) => {
     const copy = enrichLog(item, accounts, students);
+    if (!copy.lesson_number) copy.lesson_number = inferLessonNumber(copy, rowsAsObjects(SHEETS.lessons));
     if (user.role === "student") delete copy.internal_memo;
     return copy;
   }).sort((a, b) => String(b.lesson_date).localeCompare(String(a.lesson_date)));
 }
 
 function createLessonLog(user, input) {
-  requireRole(user, ["admin", "staff", "teacher"]);
+  if (!capabilitiesFor(user).writeLessonLogs) throw new Error("수업일지를 작성할 권한이 없습니다.");
   if (!input || !input.student_id || !input.lesson_date || !input.lesson_content) {
     throw new Error("수강생, 수업일, 수업 내용을 입력해 주세요.");
   }
@@ -478,7 +549,15 @@ function createLessonLog(user, input) {
     next_goal: input.next_goal || "",
     practice_request: input.practice_request || "",
     attendance_status: input.attendance_status || "출석",
+    absence_reason: ["결석", "취소"].includes(input.attendance_status) ? input.absence_reason || "" : "",
+    makeup_date: ["결석", "취소"].includes(input.attendance_status) ? input.makeup_date || "" : "",
     internal_memo: input.internal_memo || "",
+    lesson_number: Number(input.lesson_number || inferLessonNumber({
+      student_id: input.student_id,
+      teacher_id: teacherId,
+      lesson_date: input.lesson_date,
+      subject: input.subject || student.major || ""
+    }, rowsAsObjects(SHEETS.lessons))),
     created_at: now,
     updated_at: now
   };
@@ -542,6 +621,7 @@ function getBootstrapData(user) {
     overview: getMyOverview(user),
     registrations: listRegistrations(user),
     calendar: listCalendar(user),
+    classTypes: listClassTypes(user),
     capabilities: capabilitiesFor(user),
     accountType,
     employeePosition: normalizedPosition(user),
@@ -593,15 +673,16 @@ function createRegistration(user, input) {
   return registration;
 }
 
-function listRooms() {
+function listRooms(user) {
   ensureDefaultRooms();
+  const capabilities = user ? capabilitiesFor(user) : { reserveLessonRoom: true, reservePracticeRoom: true };
   return rowsAsObjects(SHEETS.rooms)
-    .filter((item) => asBoolean(item.active))
+    .filter((item) => asBoolean(item.active) && (item.room_type === "lesson" ? capabilities.reserveLessonRoom : capabilities.reservePracticeRoom))
     .sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0));
 }
 
 function updateRoom(user, input) {
-  if (!canManageOperations(user)) throw new Error("공간을 관리할 권한이 없습니다.");
+  if (!capabilitiesFor(user).manageReservations) throw new Error("공간을 관리할 권한이 없습니다.");
   if (!input || !input.room_id || !String(input.name || "").trim()) throw new Error("공간 이름을 입력해 주세요.");
   updateObject(SHEETS.rooms, "room_id", input.room_id, {
     name: String(input.name).trim(),
@@ -616,6 +697,12 @@ function listReservations(user) {
   const rooms = objectMap(listRooms(), "room_id");
   const accounts = objectMap(rowsAsObjects(SHEETS.accounts), "account_id");
   return rowsAsObjects(SHEETS.reservations)
+    .filter((item) => {
+      const room = rooms[item.room_id];
+      if (!room) return canManageOperations(user);
+      if (normalizedAccountType(user) === "student") return room.room_type === "practice";
+      return true;
+    })
     .map((item) => Object.assign({}, item, {
       room_name: rooms[item.room_id] ? rooms[item.room_id].name : "삭제된 공간",
       room_type: rooms[item.room_id] ? rooms[item.room_id].room_type : "",
@@ -632,9 +719,17 @@ function createReservation(user, input) {
   if (!room || !asBoolean(room.active)) throw new Error("사용할 수 없는 공간입니다.");
   const accountType = normalizedAccountType(user);
   const position = normalizedPosition(user);
+  const capabilities = capabilitiesFor(user);
+  if (room.room_type === "lesson" && !capabilities.reserveLessonRoom) throw new Error("레슨실 예약 권한이 없습니다.");
+  if (room.room_type === "practice" && !capabilities.reservePracticeRoom) throw new Error("연습실 예약 권한이 없습니다.");
   if (accountType === "student" && room.room_type !== "practice") throw new Error("수강생은 연습실만 예약할 수 있습니다.");
-  if (position === "teacher" && room.room_type !== "lesson") throw new Error("강사는 레슨실만 예약할 수 있습니다.");
   if (accountType === "staff" && position !== "teacher" && !canManageOperations(user)) throw new Error("예약 권한이 없습니다.");
+  if (!RESERVATION_PURPOSES.includes(input.purpose)) throw new Error("예약 목적을 선택해 주세요.");
+  if (accountType === "student" && input.purpose !== "연습") throw new Error("수강생은 연습 목적으로만 예약할 수 있습니다.");
+  if (position === "teacher" && !["레슨", "이론수업", "연습"].includes(input.purpose)) throw new Error("강사는 레슨, 이론수업, 연습 목적으로 예약할 수 있습니다.");
+  if (!/^\d{2}:00$/.test(String(input.start_time)) || input.end_time !== addMinutes(input.start_time, 60)) {
+    throw new Error("공간 예약은 정각부터 1시간 단위로만 가능합니다.");
+  }
   const collision = rowsAsObjects(SHEETS.reservations).some((item) =>
     item.room_id === input.room_id && item.reservation_date === input.reservation_date
     && item.status === "예약" && input.start_time < item.end_time && input.end_time > item.start_time
@@ -648,7 +743,7 @@ function createReservation(user, input) {
     reservation_date: input.reservation_date,
     start_time: input.start_time,
     end_time: input.end_time,
-    purpose: input.purpose || (room.room_type === "lesson" ? "레슨" : "개인 연습"),
+    purpose: input.purpose,
     status: "예약",
     memo: input.memo || "",
     created_at: now,
@@ -664,7 +759,7 @@ function updateReservationStatus(user, reservationId, status) {
   const reservation = findObject(SHEETS.reservations, "reservation_id", reservationId);
   if (!reservation) throw new Error("예약을 찾을 수 없습니다.");
   const owner = reservation.reserved_by === user.account_id;
-  if (!owner && !canManageOperations(user)) throw new Error("예약을 변경할 권한이 없습니다.");
+  if (!owner && !capabilitiesFor(user).manageReservations) throw new Error("예약을 변경할 권한이 없습니다.");
   updateObject(SHEETS.reservations, "reservation_id", reservationId, { status, updated_at: nowIso() });
   logEvent(user, "update_reservation", "reservation", reservationId, { status });
   return true;
@@ -726,7 +821,10 @@ function createMeeting(user, input) {
   if (!input || !input.title || !input.meeting_date || !input.start_time || !input.end_time) {
     throw new Error("회의명, 날짜, 시작과 종료 시간을 입력해 주세요.");
   }
-  const participants = Array.isArray(input.participant_ids) ? input.participant_ids : splitIds(input.participant_ids);
+  const accountMap = objectMap(rowsAsObjects(SHEETS.accounts), "account_id");
+  const participants = (Array.isArray(input.participant_ids) ? input.participant_ids : splitIds(input.participant_ids))
+    .filter((id) => accountMap[id] && normalizedAccountType(accountMap[id]) === "staff");
+  if (normalizedAccountType(user) === "staff") participants.push(user.account_id);
   const now = nowIso();
   const meeting = {
     meeting_id: makeId("mtg"),
@@ -736,7 +834,7 @@ function createMeeting(user, input) {
     end_time: input.end_time,
     location: input.location || "",
     agenda: input.agenda || "",
-    participant_ids: unique(participants.concat([user.account_id])).join(","),
+    participant_ids: unique(participants).join(","),
     created_by: user.account_id,
     status: "예정",
     created_at: now,
@@ -756,7 +854,7 @@ function listCalendar(user) {
     date: item.lesson_date,
     start_time: item.start_time,
     end_time: addMinutes(item.start_time, item.duration_minutes || 50),
-    type: "lesson",
+    type: String(item.subject || "").indexOf("이론") >= 0 ? "theory" : "lesson",
     detail: item.room || "",
     owner: item.teacher_name || ""
   }));
@@ -830,6 +928,78 @@ function updateAccountPermissions(user, accountId, permissions) {
   });
   deleteRowsWhere(SHEETS.sessions, (item) => item.account_id === accountId);
   logEvent(user, "update_permissions", "account", accountId, {});
+  return true;
+}
+
+function listTasks(user, accountId) {
+  if (normalizedAccountType(user) === "student") return [];
+  const targetId = accountId || user.account_id;
+  if (targetId !== user.account_id && !canViewAccounts(user)) throw new Error("다른 직원의 업무를 조회할 권한이 없습니다.");
+  return rowsAsObjects(SHEETS.tasks)
+    .filter((item) => item.assignee_id === targetId)
+    .sort((a, b) => String(a.due_date || "9999-12-31").localeCompare(String(b.due_date || "9999-12-31")));
+}
+
+function createTask(user, input) {
+  if (normalizedAccountType(user) === "student") throw new Error("업무를 등록할 권한이 없습니다.");
+  if (!input || !input.title) throw new Error("업무명을 입력해 주세요.");
+  const assigneeId = input.assignee_id || user.account_id;
+  if (assigneeId !== user.account_id && !canManageOperations(user)) throw new Error("다른 직원에게 업무를 배정할 권한이 없습니다.");
+  const now = nowIso();
+  const task = {
+    task_id: makeId("tsk"),
+    title: String(input.title).trim(),
+    assignee_id: assigneeId,
+    due_date: input.due_date || "",
+    status: input.status || "할일",
+    priority: input.priority || "보통",
+    memo: input.memo || "",
+    created_by: user.account_id,
+    created_at: now,
+    updated_at: now
+  };
+  appendObject(SHEETS.tasks, task);
+  logEvent(user, "create_task", "task", task.task_id, { assignee_id: assigneeId });
+  return task;
+}
+
+function listClassTypes(user) {
+  return rowsAsObjects(SHEETS.classTypes)
+    .filter((item) => asBoolean(item.active))
+    .sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0));
+}
+
+function createClassType(user, input) {
+  if (!canManageCalendar(user)) throw new Error("수업 종류를 관리할 권한이 없습니다.");
+  if (!input || !String(input.name || "").trim() || !CLASS_TYPE_CATEGORIES.includes(input.category)) {
+    throw new Error("수업 종류명과 분류를 입력해 주세요.");
+  }
+  const now = nowIso();
+  const classType = {
+    class_type_id: makeId("cls"),
+    name: String(input.name).trim(),
+    category: input.category,
+    active: true,
+    sort_order: Number(input.sort_order || rowsAsObjects(SHEETS.classTypes).length + 1),
+    created_at: now,
+    updated_at: now
+  };
+  appendObject(SHEETS.classTypes, classType);
+  logEvent(user, "create_class_type", "class_type", classType.class_type_id, {});
+  return classType;
+}
+
+function updateClassType(user, input) {
+  if (!canManageCalendar(user)) throw new Error("수업 종류를 관리할 권한이 없습니다.");
+  if (!input || !input.class_type_id) throw new Error("수업 종류를 찾을 수 없습니다.");
+  updateObject(SHEETS.classTypes, "class_type_id", input.class_type_id, {
+    name: String(input.name || "").trim(),
+    category: CLASS_TYPE_CATEGORIES.includes(input.category) ? input.category : "레슨",
+    active: input.active === undefined ? true : asBoolean(input.active),
+    sort_order: Number(input.sort_order || 0),
+    updated_at: nowIso()
+  });
+  logEvent(user, "update_class_type", "class_type", input.class_type_id, {});
   return true;
 }
 
@@ -1090,7 +1260,7 @@ function logEvent(user, action, targetType, targetId, metadata) {
 
 function ensureSchema() {
   const schemaCache = CacheService.getScriptCache();
-  if (schemaCache.get("bonsung-schema-v3-1-ready") === "true") return;
+  if (schemaCache.get("bonsung-schema-v4-ready") === "true") return;
   const spreadsheet = db();
   Object.keys(SCHEMA).forEach((sheetName) => {
     let sheet = spreadsheet.getSheetByName(sheetName);
@@ -1106,13 +1276,14 @@ function ensureSchema() {
     if (sheetName === SHEETS.sessions) sheet.hideSheet();
   });
   ensureDefaultRooms();
+  ensureDefaultClassTypes();
   const schemaSetting = findObject(SHEETS.settings, "key", "schema_version");
   if (schemaSetting) {
-    if (String(schemaSetting.value) !== "3") updateObject(SHEETS.settings, "key", "schema_version", { value: "3", updated_at: nowIso() });
+    if (String(schemaSetting.value) !== "4") updateObject(SHEETS.settings, "key", "schema_version", { value: "4", updated_at: nowIso() });
   } else {
-    appendObject(SHEETS.settings, { key: "schema_version", value: "3", description: "운영 데이터 스키마 버전", updated_at: nowIso() });
+    appendObject(SHEETS.settings, { key: "schema_version", value: "4", description: "운영 데이터 스키마 버전", updated_at: nowIso() });
   }
-  schemaCache.put("bonsung-schema-v3-1-ready", "true", 21600);
+  schemaCache.put("bonsung-schema-v4-ready", "true", 21600);
 }
 
 function db() {
@@ -1244,6 +1415,19 @@ function ensureDefaultRooms() {
   delete REQUEST_CACHE[SHEETS.rooms];
 }
 
+function ensureDefaultClassTypes() {
+  const sheet = db().getSheetByName(SHEETS.classTypes);
+  if (sheet.getLastRow() > 1) return;
+  const now = nowIso();
+  const defaults = [
+    ["cls-instrument", "전공 개인레슨", "레슨", true, 1, now, now],
+    ["cls-theory", "기초 음악이론", "이론수업", true, 2, now, now],
+    ["cls-ensemble", "앙상블", "그룹수업", true, 3, now, now]
+  ];
+  sheet.getRange(2, 1, defaults.length, defaults[0].length).setValues(defaults);
+  delete REQUEST_CACHE[SHEETS.classTypes];
+}
+
 function normalizedAccountType(account) {
   if (ACCOUNT_TYPES.includes(account.account_type)) return account.account_type;
   if (account.role === "admin") return "admin";
@@ -1278,8 +1462,17 @@ function capabilitiesFor(user) {
     manageCalendar: type === "admin" || ["owner", "manager"].includes(position),
     viewPayments: type !== "staff" || position !== "teacher",
     clockWork: type === "staff",
+    viewStudents: type !== "student" || Boolean(user.linked_student_id),
+    manageStudents: type === "admin" || ["owner", "manager", "employee"].includes(position),
+    viewLessonLogs: true,
+    writeLessonLogs: type === "admin" || type === "staff",
+    viewReservations: true,
+    manageReservations: type === "admin" || ["owner", "manager", "employee"].includes(position),
     reserveLessonRoom: type === "admin" || type === "staff",
-    reservePracticeRoom: type === "admin" || type === "student" || ["owner", "manager", "employee"].includes(position)
+    reservePracticeRoom: type === "admin" || type === "student" || type === "staff",
+    viewTeam: type === "admin" || type === "staff",
+    viewMeetings: type === "admin" || type === "staff",
+    viewCalendar: true
   };
   Object.keys(custom).forEach((key) => {
     if (typeof custom[key] === "boolean") defaults[key] = custom[key];
@@ -1378,6 +1571,25 @@ function dateDiffDays(fromDate, toDate) {
 
 function daysFromToday(dateString) {
   return dateDiffDays(todayKey(), dateString);
+}
+
+function assignLessonNumbers(items) {
+  const counters = {};
+  return items.slice().sort(compareLesson).map((item) => {
+    const key = item.enrollment_id || [item.student_id, item.teacher_id, item.subject].join("|");
+    counters[key] = (counters[key] || 0) + 1;
+    return Object.assign({}, item, { lesson_number: Number(item.lesson_number || counters[key]) });
+  });
+}
+
+function inferLessonNumber(log, lessons) {
+  const matching = lessons.filter((item) =>
+    item.student_id === log.student_id
+    && (!log.teacher_id || item.teacher_id === log.teacher_id)
+    && (!log.subject || item.subject === log.subject)
+    && String(item.lesson_date) <= String(log.lesson_date)
+  );
+  return Math.max(1, matching.length);
 }
 
 function compareLesson(a, b) {
