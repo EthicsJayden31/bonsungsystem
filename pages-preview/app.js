@@ -3,7 +3,7 @@ const AUTO_API_ENDPOINT = window.BONSUNG_CONFIG?.apiEndpoint || "";
 const STORAGE = {
   token: "bonsung_session_token",
   user: "bonsung_current_user",
-  demoData: "bonsung_demo_data_v5",
+  demoData: "bonsung_demo_data_v6",
   lessonDraft: "bonsung_lesson_draft_v1",
   theme: "bonsung_theme"
 };
@@ -18,6 +18,13 @@ const ENROLLMENT_STATUS_LABELS = { active: "수강중", paused: "휴강", comple
 const DAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
 const root = document.getElementById("app");
 const TEST_MODE = Boolean(window.BONSUNG_TEST_MODE);
+const DEFAULT_PUBLIC_CONFIG = {
+  login_context_title: "오늘의 수업부터\n수강생 성장 기록까지",
+  login_context_body: "관리자는 운영 흐름을 확인하고, 강사는 수업에 집중하며, 수강생은 자신의 학습 기록을 한곳에서 확인합니다.",
+  login_popup_enabled: true,
+  login_popup_title: "본성뮤직 운영 안내",
+  login_popup_body: "계정이 없는 구성원은 신규 계정 요청을 제출해 주세요. 관리자 승인 후 로그인할 수 있습니다."
+};
 
 const ICONS = {
   home: '<path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10.5V20h13v-9.5"/><path d="M9.5 20v-6h5v6"/>',
@@ -39,16 +46,16 @@ const ICONS = {
   clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
   chevron: '<path d="m9 18 6-6-6-6"/>',
   check: '<path d="m5 12 4 4L19 6"/>',
-  template: '<path d="M4 4h16v16H4zM4 9h16M9 9v11"/>'
-  ,building: '<path d="M3 21h18M6 21V5l6-3 6 3v16M9 9h.01M15 9h.01M9 13h.01M15 13h.01M10 21v-4h4v4"/>'
-  ,credit: '<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20M6 15h4"/>'
-  ,briefcase: '<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V4h8v3M3 12h18"/>'
-  ,meeting: '<path d="M4 4h16v12H8l-4 4V4Z"/><path d="M8 9h8M8 12h5"/>'
-  ,moon: '<path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/>'
-  ,arrowLeft: '<path d="m15 18-6-6 6-6"/>'
-  ,arrowUp: '<path d="m18 15-6-6-6 6"/>'
-  ,list: '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>'
-  ,map: '<path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3V6Z"/><path d="M9 3v15M15 6v15"/>'
+  template: '<path d="M4 4h16v16H4zM4 9h16M9 9v11"/>',
+  building: '<path d="M3 21h18M6 21V5l6-3 6 3v16M9 9h.01M15 9h.01M9 13h.01M15 13h.01M10 21v-4h4v4"/>',
+  credit: '<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20M6 15h4"/>',
+  briefcase: '<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V4h8v3M3 12h18"/>',
+  meeting: '<path d="M4 4h16v12H8l-4 4V4Z"/><path d="M8 9h8M8 12h5"/>',
+  moon: '<path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/>',
+  arrowLeft: '<path d="m15 18-6-6 6-6"/>',
+  arrowUp: '<path d="m18 15-6-6-6 6"/>',
+  list: '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
+  map: '<path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3V6Z"/><path d="M9 3v15M15 6v15"/>'
 };
 
 function icon(name, className = "") {
@@ -79,6 +86,8 @@ const state = {
   calendar: [],
   tasks: [],
   classTypes: [],
+  accountRequests: [],
+  publicConfig: { ...DEFAULT_PUBLIC_CONFIG },
   capabilities: {},
   loaded: {},
   accountType: "",
@@ -96,7 +105,9 @@ const state = {
   calendarFilter: "all",
   reservationFilter: { date: today(), room: "all" },
   lessonDraft: readJson(STORAGE.lessonDraft) || {},
-  theme: localStorage.getItem(STORAGE.theme) || "system"
+  theme: localStorage.getItem(STORAGE.theme) || "system",
+  authDialog: "",
+  publicConfigLoaded: false
 };
 
 applyTheme(state.theme);
@@ -108,7 +119,7 @@ if (state.user) {
 
 const demoSeed = {
   accounts: [
-    { account_id: "acc-admin", login_id: "admin", role: "admin", account_type: "admin", employee_position: "owner", name: "시스템 관리자", email: "admin@bonsung.test", phone: "", linked_student_id: "", active: true, must_change_password: false, theme: "system" },
+    { account_id: "acc-admin", login_id: "admin", role: "admin", account_type: "admin", employee_position: "owner", name: "admin", email: "admin@bonsung.test", phone: "", linked_student_id: "", active: true, must_change_password: false, theme: "system" },
     { account_id: "acc-owner", login_id: "owner", role: "staff", account_type: "staff", employee_position: "owner", name: "한지훈 원장", email: "owner@bonsung.test", phone: "010-1111-1000", linked_student_id: "", active: true, must_change_password: false, theme: "system" },
     { account_id: "acc-manager", login_id: "manager", role: "staff", account_type: "staff", employee_position: "manager", name: "서유진 팀장", email: "manager@bonsung.test", phone: "010-1111-2000", linked_student_id: "", active: true, must_change_password: false, theme: "system" },
     { account_id: "acc-staff", login_id: "employee", role: "staff", account_type: "staff", employee_position: "employee", name: "박서연 사원", email: "staff@bonsung.test", phone: "010-1111-3000", linked_student_id: "", active: true, must_change_password: false, theme: "system" },
@@ -189,7 +200,12 @@ const demoSeed = {
     { class_type_id: "cls-instrument", name: "전공 개인레슨", category: "레슨", active: true, sort_order: 1 },
     { class_type_id: "cls-theory", name: "기초 음악이론", category: "이론수업", active: true, sort_order: 2 },
     { class_type_id: "cls-ensemble", name: "앙상블", category: "그룹수업", active: true, sort_order: 3 }
-  ]
+  ],
+  accountRequests: [
+    { request_id: "req-demo-1", login_id: "vocal.hana", name: "최하나", email: "hana@example.com", phone: "010-2222-3300", requested_role: "student", message: "보컬 수강 등록 후 사용할 계정을 요청합니다.", status: "대기", reviewed_by: "", reviewed_at: "", review_memo: "", created_account_id: "", created_at: "2026-06-15T09:10:00+09:00", updated_at: "2026-06-15T09:10:00+09:00", demo_password: "bonsung1" },
+    { request_id: "req-demo-2", login_id: "guitar.min", name: "오민석", email: "min@example.com", phone: "010-2222-4400", requested_role: "teacher", message: "기타 강사 계정 신청입니다.", status: "대기", reviewed_by: "", reviewed_at: "", review_memo: "", created_account_id: "", created_at: "2026-06-15T08:40:00+09:00", updated_at: "2026-06-15T08:40:00+09:00", demo_password: "bonsung1" }
+  ],
+  publicConfig: { ...DEFAULT_PUBLIC_CONFIG }
 };
 
 const BUILTIN_TEMPLATES = [
@@ -254,10 +270,37 @@ async function api(action, payload = {}) {
 
 function demoApi(action, payload) {
   const data = getDemoData();
-  if (action === "health") return { academyName: "본성뮤직 아카데미", schemaVersion: "2", service: "Demo" };
+  if (action === "health") return { academyName: "본성뮤직 아카데미", schemaVersion: "5", service: "Demo", publicConfig: data.publicConfig || DEFAULT_PUBLIC_CONFIG };
+  if (action === "requestAccount") {
+    const input = payload.accountRequest || {};
+    if (!input.login_id || !input.name || !input.password) throw new Error("이름, 로그인 아이디와 비밀번호를 입력해 주세요.");
+    if (String(input.password).length < 8) throw new Error("비밀번호는 8자 이상이어야 합니다.");
+    if (data.accounts.some((item) => item.login_id.toLowerCase() === String(input.login_id).trim().toLowerCase())) throw new Error("이미 사용 중인 아이디입니다.");
+    if (data.accountRequests.some((item) => item.login_id.toLowerCase() === String(input.login_id).trim().toLowerCase() && item.status === "대기")) throw new Error("같은 아이디로 검토 중인 요청이 있습니다.");
+    const accountRequest = {
+      request_id: uid("req"),
+      login_id: String(input.login_id).trim(),
+      name: String(input.name).trim(),
+      email: input.email || "",
+      phone: input.phone || "",
+      requested_role: ["staff", "teacher", "student"].includes(input.requested_role) ? input.requested_role : "staff",
+      message: input.message || "",
+      status: "대기",
+      reviewed_by: "",
+      reviewed_at: "",
+      review_memo: "",
+      created_account_id: "",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      demo_password: input.password
+    };
+    data.accountRequests.unshift(accountRequest);
+    saveDemoData(data);
+    return { requestId: accountRequest.request_id, status: accountRequest.status };
+  }
   if (action === "login") {
     const account = data.accounts.find((item) => item.login_id === payload.loginId && item.active);
-    if (!account || payload.password !== "bonsung1") throw new Error("아이디 또는 비밀번호가 올바르지 않습니다.");
+    if (!account || payload.password !== (account.demo_password || "bonsung1")) throw new Error("아이디 또는 비밀번호가 올바르지 않습니다.");
     pushDemoEvent(data, account, "login", "account", account.account_id);
     return { token: `demo-${account.account_id}`, user: account };
   }
@@ -442,6 +485,44 @@ function demoApi(action, payload) {
     if (classType) Object.assign(classType, payload.classType);
     saveDemoData(data); return true;
   }
+  if (action === "listAccountRequests") return data.accountRequests.map(({ demo_password: _password, ...item }) => item);
+  if (action === "reviewAccountRequest") {
+    if (!demoCapabilities(user).reviewAccountRequests) throw new Error("계정 요청을 승인할 권한이 없습니다.");
+    const accountRequest = data.accountRequests.find((item) => item.request_id === payload.requestId);
+    if (!accountRequest || accountRequest.status !== "대기") throw new Error("처리할 수 없는 계정 요청입니다.");
+    const now = new Date().toISOString();
+    if (payload.decision === "reject") {
+      Object.assign(accountRequest, { status: "반려", reviewed_by: user.account_id, reviewed_at: now, review_memo: payload.review?.memo || "", updated_at: now });
+      saveDemoData(data);
+      return { status: "반려" };
+    }
+    const role = ["staff", "teacher", "student"].includes(payload.review?.role) ? payload.review.role : accountRequest.requested_role;
+    const account = {
+      account_id: uid("acc"),
+      login_id: accountRequest.login_id,
+      role,
+      account_type: role === "student" ? "student" : "staff",
+      employee_position: role === "teacher" ? "teacher" : role === "staff" ? payload.review?.employee_position || "employee" : "",
+      name: accountRequest.name,
+      email: accountRequest.email,
+      phone: accountRequest.phone,
+      linked_student_id: role === "student" ? payload.review?.linked_student_id || "" : "",
+      active: true,
+      must_change_password: true,
+      theme: "system",
+      demo_password: accountRequest.demo_password || "bonsung1"
+    };
+    data.accounts.push(account);
+    Object.assign(accountRequest, { status: "승인", reviewed_by: user.account_id, reviewed_at: now, review_memo: payload.review?.memo || "", created_account_id: account.account_id, demo_password: "", updated_at: now });
+    saveDemoData(data);
+    return { status: "승인", account };
+  }
+  if (action === "updatePublicSettings") {
+    if (!demoCapabilities(user).managePublicSettings) throw new Error("로그인 화면 설정을 변경할 권한이 없습니다.");
+    data.publicConfig = { ...DEFAULT_PUBLIC_CONFIG, ...payload.settings, login_popup_enabled: Boolean(payload.settings.login_popup_enabled) };
+    saveDemoData(data);
+    return data.publicConfig;
+  }
   throw new Error("지원하지 않는 데모 작업입니다.");
 }
 
@@ -468,6 +549,8 @@ function demoCapabilities(user) {
     viewTeam: type === "admin" || type === "staff",
     viewMeetings: type === "admin" || type === "staff",
     viewCalendar: true,
+    reviewAccountRequests: type === "admin" || position === "owner",
+    managePublicSettings: type === "admin" || position === "owner",
     ...(user.permissions || {})
   };
 }
@@ -480,6 +563,7 @@ function demoAccounts(data) {
 }
 
 function demoBootstrap(data, user) {
+  user = data.accounts.find((item) => item.account_id === user.account_id) || user;
   const capabilities = demoCapabilities(user);
   return {
     user,
@@ -498,6 +582,8 @@ function demoBootstrap(data, user) {
     meetings: demoMeetings(data, user),
     calendar: demoCalendar(data, user),
     classTypes: data.classTypes,
+    accountRequests: capabilities.reviewAccountRequests ? data.accountRequests.map(({ demo_password: _password, ...item }) => item) : [],
+    publicConfig: data.publicConfig || DEFAULT_PUBLIC_CONFIG,
     capabilities,
     accountType: user.account_type || (user.role === "student" ? "student" : user.role === "admin" ? "admin" : "staff"),
     employeePosition: user.employee_position || (user.role === "teacher" ? "teacher" : ""),
@@ -627,7 +713,8 @@ async function initializeApp() {
       render();
       await refreshData(true);
     } else {
-      await api("health");
+      const health = await api("health");
+      applyPublicConfig(health.publicConfig);
       state.loading = false;
       render();
     }
@@ -647,6 +734,13 @@ async function retryConnection() {
   state.connection = "checking";
   state.connectionError = "";
   await initializeApp();
+}
+
+function applyPublicConfig(config) {
+  state.publicConfig = { ...DEFAULT_PUBLIC_CONFIG, ...(config || {}) };
+  state.publicConfig.login_popup_enabled = state.publicConfig.login_popup_enabled !== false;
+  if (!state.publicConfigLoaded && state.publicConfig.login_popup_enabled) state.authDialog = "notice";
+  state.publicConfigLoaded = true;
 }
 
 function startDemo() {
@@ -681,6 +775,39 @@ async function login(event) {
   }
 }
 
+function openAuthDialog(dialog) {
+  state.authDialog = dialog;
+  state.message = "";
+  render();
+}
+
+function closeAuthDialog() {
+  state.authDialog = "";
+  state.message = "";
+  render();
+}
+
+async function submitAccountRequest(event) {
+  event.preventDefault();
+  const accountRequest = Object.fromEntries(new FormData(event.currentTarget));
+  if (accountRequest.password !== accountRequest.confirm_password) {
+    state.message = "비밀번호 확인이 일치하지 않습니다.";
+    render();
+    return;
+  }
+  delete accountRequest.confirm_password;
+  setBusy(true, "");
+  try {
+    await api("requestAccount", { accountRequest });
+    state.loading = false;
+    state.authDialog = "request-success";
+    state.message = "";
+    render();
+  } catch (error) {
+    setBusy(false, error.message);
+  }
+}
+
 function defaultPage(role) {
   if (role === "teacher" || role === "student") return "my-overview";
   return "dashboard";
@@ -698,6 +825,10 @@ async function refreshData(showLoader = true) {
 
 function applyBootstrap(data) {
   Object.assign(state, data, { loading: false });
+  if (data.publicConfig) {
+    state.publicConfig = { ...DEFAULT_PUBLIC_CONFIG, ...data.publicConfig };
+    state.publicConfigLoaded = true;
+  }
   if (data.user) {
     state.user = data.user;
     localStorage.setItem(STORAGE.user, JSON.stringify(data.user));
@@ -732,6 +863,7 @@ function logout(callApi = true) {
   state.calendar = [];
   state.tasks = [];
   state.classTypes = [];
+  state.accountRequests = [];
   state.message = "";
   localStorage.removeItem(STORAGE.token);
   localStorage.removeItem(STORAGE.user);
@@ -780,7 +912,7 @@ function navigate(page) {
 }
 
 function defaultSubview(page) {
-  if (page === "lesson-logs") return state.user?.role === "student" ? "browse" : "browse";
+  if (page === "lesson-logs") return "browse";
   if (page === "reservations") return "schedule";
   if (page === "enrollments") return "history";
   if (page === "accounts") return "list";
@@ -878,6 +1010,10 @@ async function loadPageData(page) {
     tasks.push(api("listAccounts"));
     keys.push("accounts");
   }
+  if (page === "accounts" && state.capabilities.reviewAccountRequests) {
+    tasks.push(api("listAccountRequests"));
+    keys.push("accountRequests");
+  }
   if (["students", "enrollments"].includes(page) && ["admin", "staff"].includes(state.user.role) && !state.loaded.accounts) {
     tasks.push(api("listAccounts"));
     keys.push("accounts");
@@ -933,6 +1069,42 @@ async function createAccount(event) {
     state.message = "계정이 생성되었습니다.";
     render();
   } catch (error) { setBusy(false, error.message); }
+}
+
+async function reviewAccountRequest(event, requestId) {
+  event.preventDefault();
+  const form = new FormData(event.currentTarget);
+  const decision = event.submitter?.value || "approve";
+  const review = Object.fromEntries(form);
+  setBusy(true, "");
+  try {
+    await api("reviewAccountRequest", { requestId, decision, review });
+    const [accounts, accountRequests] = await Promise.all([api("listAccounts"), api("listAccountRequests")]);
+    state.accounts = accounts;
+    state.accountRequests = accountRequests;
+    state.loading = false;
+    state.subview = "requests";
+    state.message = decision === "approve" ? "신규 계정 요청을 승인했습니다." : "신규 계정 요청을 반려했습니다.";
+    render();
+  } catch (error) {
+    setBusy(false, error.message);
+  }
+}
+
+async function updatePublicSettings(event) {
+  event.preventDefault();
+  const form = new FormData(event.currentTarget);
+  const settings = Object.fromEntries(form);
+  settings.login_popup_enabled = form.get("login_popup_enabled") === "on";
+  setBusy(true, "");
+  try {
+    applyPublicConfig(await api("updatePublicSettings", { settings }));
+    state.loading = false;
+    state.message = "로그인 전 화면 설정을 저장했습니다.";
+    render();
+  } catch (error) {
+    setBusy(false, error.message);
+  }
 }
 
 async function createStudent(event) {
@@ -1365,12 +1537,14 @@ function menusFor(role) {
     ["team", "직원·근태", "briefcase", ["admin", "staff", "teacher"]],
     ["meetings", "회의", "meeting", ["admin", "staff", "teacher"]],
     ["accounts", "계정·권한", "userCog", ["admin", "staff"]],
+    ["system-settings", "시스템 설정", "settings", ["admin", "staff"]],
     ["usage", "이용 현황", "chart", ["admin"]],
     ["profile", "환경 설정", "settings", ["admin", "staff", "teacher", "student"]]
   ];
   return all.filter(([key, , , roles]) => {
     if (!roles.includes(role)) return false;
     if (key === "accounts" && !state.capabilities.viewAccounts) return false;
+    if (key === "system-settings" && !state.capabilities.managePublicSettings) return false;
     if (key === "registrations" && !state.capabilities.viewPayments) return false;
     if (key === "meetings" && state.accountType === "student") return false;
     if (key === "students" && !state.capabilities.viewStudents) return false;
@@ -1383,7 +1557,7 @@ function menusFor(role) {
 }
 
 function render() {
-  if (state.connection === "checking" || (state.loading && !state.user)) return renderSplash();
+  if (state.connection === "checking") return renderSplash();
   if (state.connection === "error") return renderConnectionError();
   if (!state.user) return renderAuth();
 
@@ -1458,12 +1632,13 @@ function renderConnectionError() {
 }
 
 function renderAuth() {
+  const config = state.publicConfig || DEFAULT_PUBLIC_CONFIG;
   root.innerHTML = `
     <main class="auth-page">
       <section class="auth-panel">
-        <div class="brand-lockup large"><span class="brand-mark">B</span><div><strong>본성뮤직 아카데미</strong><small>ACADEMY INTRANET</small></div></div>
+        <div class="brand-lockup large"><span class="brand-mark">B</span><div><strong>본성뮤직 아카데미</strong><small>ACADEMY MANAGEMENT SYSTEM</small></div></div>
         <div class="auth-copy">
-          <h1>인트라넷 로그인</h1>
+          <h1>본성 통합 관리 시스템</h1>
           <p>발급받은 아이디와 비밀번호를 입력하세요.</p>
         </div>
         <form class="form-stack auth-form" onsubmit="login(event)">
@@ -1471,18 +1646,44 @@ function renderAuth() {
           <label class="field"><span>비밀번호</span><input name="password" type="password" autocomplete="current-password" placeholder="비밀번호 입력" required /></label>
           <button class="btn login-button" ${state.loading ? "disabled" : ""}>${state.loading ? "확인 중..." : "로그인"}</button>
         </form>
+        <button class="btn secondary account-request-button" onclick="openAuthDialog('request')">${icon("userCog")}신규 계정 요청</button>
         ${state.demo ? `<div class="demo-hint"><strong>데모 계정</strong><span>admin / staff / teacher / student</span><span>비밀번호 bonsung1</span></div>` : ""}
         <p class="status-line error">${escapeHtml(state.message)}</p>
       </section>
       <section class="auth-context">
-        <div class="context-copy"><h2>오늘의 수업부터<br />수강생 성장 기록까지</h2><p>관리자는 운영 흐름을 확인하고, 강사는 수업에 집중하며, 수강생은 자신의 학습 기록을 한곳에서 확인합니다.</p></div>
+        <div class="context-copy"><h2>${multiline(config.login_context_title)}</h2><p>${multiline(config.login_context_body)}</p></div>
+        ${config.login_popup_enabled ? `<button class="login-notice-card" onclick="openAuthDialog('notice')"><span>운영 공지</span><strong>${escapeHtml(config.login_popup_title)}</strong><p>${escapeHtml(config.login_popup_body)}</p><small>자세히 보기 ${icon("chevron")}</small></button>` : ""}
         <div class="context-preview">
           <div><span>오늘 수업</span><strong>6</strong></div>
           <div><span>작성할 일지</span><strong>2</strong></div>
           <div><span>재원 수강생</span><strong>24</strong></div>
         </div>
       </section>
-    </main>`;
+    </main>
+    ${renderAuthDialog()}`;
+}
+
+function renderAuthDialog() {
+  if (!state.authDialog) return "";
+  if (state.authDialog === "request-success") {
+    return `<div class="modal-backdrop auth-modal-backdrop"><article class="modal auth-modal"><header><div><span>신규 계정 요청</span><h2>요청이 접수되었습니다</h2></div><button class="icon-button" onclick="closeAuthDialog()" aria-label="닫기">${icon("close")}</button></header><div class="auth-modal-body"><p>admin 또는 원장(대표)의 승인 후 요청한 아이디로 로그인할 수 있습니다.</p><button class="btn" onclick="closeAuthDialog()">확인</button></div></article></div>`;
+  }
+  if (state.authDialog === "notice") {
+    const config = state.publicConfig || DEFAULT_PUBLIC_CONFIG;
+    return `<div class="modal-backdrop auth-modal-backdrop" onclick="closeAuthDialog()"><article class="modal auth-modal notice-modal" onclick="event.stopPropagation()"><header><div><span>본성뮤직 운영 공지</span><h2>${escapeHtml(config.login_popup_title)}</h2></div><button class="icon-button" onclick="closeAuthDialog()" aria-label="닫기">${icon("close")}</button></header><div class="auth-modal-body"><p>${multiline(config.login_popup_body)}</p><button class="btn" onclick="closeAuthDialog()">확인</button></div></article></div>`;
+  }
+  return `<div class="modal-backdrop auth-modal-backdrop" onclick="closeAuthDialog()"><article class="modal auth-modal" onclick="event.stopPropagation()"><header><div><span>승인 후 이용 가능</span><h2>신규 계정 요청</h2></div><button class="icon-button" onclick="closeAuthDialog()" aria-label="닫기">${icon("close")}</button></header><form class="auth-modal-body form-grid two" onsubmit="submitAccountRequest(event)">
+    <label class="field"><span>이름</span><input name="name" autocomplete="name" required /></label>
+    <label class="field"><span>희망 아이디</span><input name="login_id" pattern="[A-Za-z0-9._-]{4,40}" autocomplete="username" required /></label>
+    <label class="field"><span>계정 유형</span><select name="requested_role"><option value="staff">직원</option><option value="teacher">강사</option><option value="student">수강생</option></select></label>
+    <label class="field"><span>연락처</span><input name="phone" autocomplete="tel" /></label>
+    <label class="field wide"><span>이메일</span><input name="email" type="email" autocomplete="email" /></label>
+    <label class="field"><span>비밀번호</span><input name="password" type="password" minlength="8" autocomplete="new-password" required /></label>
+    <label class="field"><span>비밀번호 확인</span><input name="confirm_password" type="password" minlength="8" autocomplete="new-password" required /></label>
+    <label class="field wide"><span>요청 메모</span><textarea name="message" maxlength="500" placeholder="소속이나 계정이 필요한 이유를 적어주세요."></textarea></label>
+    ${state.message ? `<p class="status-line error wide">${escapeHtml(state.message)}</p>` : ""}
+    <div class="form-actions wide"><button type="button" class="btn secondary" onclick="closeAuthDialog()">취소</button><button class="btn" ${state.loading ? "disabled" : ""}>${state.loading ? "접수 중..." : "요청 제출"}</button></div>
+  </form></article></div>`;
 }
 
 function navButton(key, label, iconName) {
@@ -1498,13 +1699,21 @@ function renderMobileMenu(menus) {
 }
 
 function mobileMenuChildren(page) {
-  const children = {
-    "lesson-logs": [["browse", "일지 조회"], ["create", "일지 작성"]],
-    reservations: [["schedule", "예약 현황"], ["create", "새 예약"], ["rooms", "공간 관리"]],
-    enrollments: [["history", "수강 이력"], ["schedule", "수업 일정"], ["create", "수강 등록"], ["types", "수업 종류"]],
-    accounts: [["list", "계정 목록"], ["create", "계정 생성"]],
-    students: [["list", "수강생 목록"], ["create", "수강생 등록"]]
-  }[page] || [];
+  const childMap = {
+    "lesson-logs": [["browse", "일지 조회"]],
+    reservations: [["schedule", "예약 현황"], ["create", "새 예약"]],
+    enrollments: [["history", "수강 이력"], ["schedule", "수업 일정"]],
+    accounts: [["list", "계정 목록"]],
+    students: [["list", "수강생 목록"]]
+  };
+  if (state.capabilities.writeLessonLogs) childMap["lesson-logs"].push(["create", "일지 작성"]);
+  if (state.capabilities.manageReservations) childMap.reservations.push(["rooms", "공간 관리"]);
+  if (state.capabilities.manageOperations) childMap.enrollments.push(["create", "수강 등록"]);
+  if (state.capabilities.manageCalendar) childMap.enrollments.push(["types", "수업 종류"]);
+  if (state.capabilities.manageStudents) childMap.students.push(["create", "수강생 등록"]);
+  if (state.capabilities.reviewAccountRequests) childMap.accounts.push(["requests", "신규 요청"]);
+  if (state.capabilities.manageAccounts) childMap.accounts.push(["create", "계정 생성"]);
+  const children = childMap[page] || [];
   return children.map(([subview, label]) => `<button class="mobile-child" onclick="navigate('${page}');setSubview('${subview}')">${icon("chevron")}<span>${label}</span></button>`).join("");
 }
 
@@ -1524,6 +1733,7 @@ function renderPage() {
   if (state.page === "my-overview") return renderMyOverview();
   if (state.page === "calendar") return renderCalendar();
   if (state.page === "accounts") return renderAccounts();
+  if (state.page === "system-settings") return renderSystemSettings();
   if (state.page === "students") return renderStudents();
   if (state.page === "enrollments") return renderEnrollments();
   if (state.page === "registrations") return renderRegistrations();
@@ -1650,8 +1860,10 @@ function renderAccounts() {
     ? `<option value="staff">직원</option><option value="teacher">강사</option><option value="student">수강생</option><option value="admin">관리자</option>`
     : `<option value="staff">직원</option><option value="teacher">강사</option><option value="student">수강생</option>`;
   const tabs = [["list", "계정 목록", "list"]];
+  if (state.capabilities.reviewAccountRequests) tabs.push(["requests", `신규 요청 ${pendingAccountRequests().length}`, "userCog"]);
   if (state.capabilities.manageAccounts) tabs.push(["create", "계정 생성", "plus"]);
   const heading = `${pageHeading("계정·권한 관리", "계정 구분, 자동 권한과 로그인 이력을 관리합니다.")}${subviewTabs(tabs)}`;
+  if (state.subview === "requests" && state.capabilities.reviewAccountRequests) return `${heading}${renderAccountRequests()}`;
   if (state.subview !== "create" || !state.capabilities.manageAccounts) return `${heading}<section class="panel"><div class="panel-head"><div><h2>계정 목록</h2><p>${state.accounts.length}명</p></div></div>${accountsTable()}</section>`;
   return `${heading}<section class="panel form-panel focused-panel">
         <div class="panel-head"><div><h2>새 계정</h2><p>첫 로그인 후 비밀번호 변경 필요</p></div></div>
@@ -1667,6 +1879,53 @@ function renderAccounts() {
           <div class="form-actions"><button class="btn">${icon("plus")}계정 생성</button></div>
         </form>
       </section>`;
+}
+
+function pendingAccountRequests() {
+  return state.accountRequests.filter((item) => item.status === "대기");
+}
+
+function renderAccountRequests() {
+  const pending = pendingAccountRequests();
+  const processed = state.accountRequests.filter((item) => item.status !== "대기");
+  return `<div class="request-management">
+    <section class="panel"><div class="panel-head"><div><h2>승인 대기</h2><p>${pending.length}건</p></div></div>${pending.length ? `<div class="account-request-list">${pending.map(accountRequestCard).join("")}</div>` : empty("승인 대기 중인 계정 요청이 없습니다.")}</section>
+    <section class="panel"><div class="panel-head"><div><h2>처리 이력</h2><p>최근 ${processed.length}건</p></div></div>${accountRequestHistory(processed)}</section>
+  </div>`;
+}
+
+function accountRequestCard(item) {
+  return `<article class="account-request-card"><header><div><strong>${escapeHtml(item.name)}</strong><span>${escapeHtml(roleLabel(item.requested_role))} 요청</span></div><time>${escapeHtml(formatDateTime(item.created_at))}</time></header>
+    <dl><div><dt>희망 아이디</dt><dd>${escapeHtml(item.login_id)}</dd></div><div><dt>연락처</dt><dd>${escapeHtml(item.phone || "-")}</dd></div><div><dt>이메일</dt><dd>${escapeHtml(item.email || "-")}</dd></div><div><dt>요청 메모</dt><dd>${escapeHtml(item.message || "-")}</dd></div></dl>
+    <form class="request-review-form" onsubmit="reviewAccountRequest(event,'${item.request_id}')">
+      <label class="field"><span>승인 계정 유형</span><select name="role"><option value="staff" ${item.requested_role === "staff" ? "selected" : ""}>직원</option><option value="teacher" ${item.requested_role === "teacher" ? "selected" : ""}>강사</option><option value="student" ${item.requested_role === "student" ? "selected" : ""}>수강생</option></select></label>
+      <label class="field"><span>직원 직급</span><select name="employee_position"><option value="employee">사원</option><option value="manager">팀장</option><option value="owner">원장(대표)</option><option value="teacher">강사</option></select></label>
+      <label class="field"><span>연결 수강생</span><select name="linked_student_id"><option value="">나중에 연결</option>${state.students.map((student) => `<option value="${student.student_id}">${escapeHtml(student.name)}</option>`).join("")}</select></label>
+      <label class="field wide"><span>검토 메모</span><input name="memo" placeholder="승인 또는 반려 사유" /></label>
+      <div class="form-actions wide"><button class="btn secondary" name="decision" value="reject">반려</button><button class="btn" name="decision" value="approve">${icon("check")}승인 및 계정 생성</button></div>
+    </form>
+  </article>`;
+}
+
+function accountRequestHistory(items) {
+  if (!items.length) return empty("아직 처리된 요청이 없습니다.");
+  return `<div class="table-wrap"><table><thead><tr><th>요청자</th><th>아이디</th><th>요청 유형</th><th>상태</th><th>처리일</th><th>메모</th></tr></thead><tbody>${items.map((item) => `<tr><td>${escapeHtml(item.name)}</td><td>${escapeHtml(item.login_id)}</td><td>${escapeHtml(roleLabel(item.requested_role))}</td><td>${statusBadge(item.status, item.status === "승인" ? "success" : "muted")}</td><td>${escapeHtml(formatDateTime(item.reviewed_at))}</td><td>${escapeHtml(item.review_memo || "-")}</td></tr>`).join("")}</tbody></table></div>`;
+}
+
+function renderSystemSettings() {
+  const config = state.publicConfig || DEFAULT_PUBLIC_CONFIG;
+  return `${pageHeading("로그인 화면 설정", "로그인 전 오른쪽 소개 문구와 운영 공지 팝업을 관리합니다.")}
+    <div class="settings-preview-grid">
+      <section class="panel form-panel"><div class="panel-head"><div><h2>공개 화면 내용</h2><p>저장 즉시 다음 로그인 화면부터 적용됩니다.</p></div></div><form class="panel-body form-grid" onsubmit="updatePublicSettings(event)">
+        <label class="field"><span>오른쪽 제목</span><textarea name="login_context_title" maxlength="120" required>${escapeHtml(config.login_context_title)}</textarea></label>
+        <label class="field"><span>오른쪽 설명</span><textarea name="login_context_body" maxlength="500" required>${escapeHtml(config.login_context_body)}</textarea></label>
+        <label class="switch-field"><input name="login_popup_enabled" type="checkbox" ${config.login_popup_enabled ? "checked" : ""} /><span>로그인 공지 팝업 사용</span></label>
+        <label class="field"><span>팝업 제목</span><input name="login_popup_title" maxlength="80" value="${escapeAttr(config.login_popup_title)}" required /></label>
+        <label class="field"><span>팝업 내용</span><textarea name="login_popup_body" maxlength="500" required>${escapeHtml(config.login_popup_body)}</textarea></label>
+        <div class="form-actions"><button class="btn">${icon("save")}공개 화면 저장</button></div>
+      </form></section>
+      <section class="login-settings-preview"><span>미리보기</span><div class="preview-copy"><h2>${multiline(config.login_context_title)}</h2><p>${multiline(config.login_context_body)}</p></div>${config.login_popup_enabled ? `<div class="preview-notice"><small>운영 공지</small><strong>${escapeHtml(config.login_popup_title)}</strong><p>${escapeHtml(config.login_popup_body)}</p></div>` : `<div class="preview-notice disabled"><strong>공지 팝업 사용 안 함</strong></div>`}</section>
+    </div>`;
 }
 
 function accountsTable() {
@@ -2175,6 +2434,7 @@ function renderProfile() {
       <section class="panel profile-panel">
         <div class="panel-head"><div><h2>프로필과 화면 설정</h2><p>강사 프로필과 개인 환경에 반영됩니다.</p></div></div>
         <form class="panel-body form-grid" onsubmit="updateProfile(event)">
+          ${state.accountType === "admin" ? `<label class="field"><span>관리자 표시 이름</span><input name="name" value="${escapeAttr(state.user.name || "admin")}" maxlength="60" required /></label>` : ""}
           <label class="field"><span>이메일</span><input name="email" type="email" value="${escapeAttr(state.user.email || "")}" autocomplete="email" /></label>
           <label class="field"><span>연락처</span><input name="phone" value="${escapeAttr(state.user.phone || "")}" autocomplete="tel" /></label>
           ${state.user.role === "teacher" ? `<label class="field"><span>강사 소개</span><textarea name="profile_intro" rows="4" placeholder="전공, 지도 분야와 간단한 소개">${escapeHtml(state.user.profile_intro || "")}</textarea></label>` : `<input type="hidden" name="profile_intro" value="${escapeAttr(state.user.profile_intro || "")}" />`}
@@ -2393,6 +2653,14 @@ function accountLabel(account) {
   return POSITION_LABELS[position] || "직원";
 }
 
+function roleLabel(role) {
+  return ROLE_LABELS[role] || role || "-";
+}
+
+function multiline(value) {
+  return escapeHtml(value || "").replace(/\r?\n/g, "<br />");
+}
+
 function rawDateDiff(fromDate, toDate) {
   if (!fromDate || !toDate) return 0;
   return Math.round((new Date(`${toDate}T12:00:00+09:00`) - new Date(`${fromDate}T12:00:00+09:00`)) / 86400000);
@@ -2477,17 +2745,21 @@ function formatAction(action) {
     create_lesson: "수업 일정 등록",
     create_lesson_log: "수업일지 작성",
     create_lesson_template: "수업일지 템플릿 생성",
-    delete_lesson_template: "수업일지 템플릿 삭제"
-    ,create_registration: "등록·재등록 저장"
-    ,create_reservation: "공간 예약"
-    ,update_reservation: "예약 상태 변경"
-    ,clock_in: "출근"
-    ,clock_out: "퇴근"
-    ,create_meeting: "회의 예약"
-    ,create_calendar_event: "학원 일정 등록"
-    ,update_profile: "프로필 수정"
-    ,update_permissions: "권한 변경"
-    ,update_room: "공간 이름 변경"
+    delete_lesson_template: "수업일지 템플릿 삭제",
+    create_registration: "등록·재등록 저장",
+    create_reservation: "공간 예약",
+    update_reservation: "예약 상태 변경",
+    clock_in: "출근",
+    clock_out: "퇴근",
+    create_meeting: "회의 예약",
+    create_calendar_event: "학원 일정 등록",
+    update_profile: "프로필 수정",
+    update_permissions: "권한 변경",
+    update_room: "공간 이름 변경",
+    request_account: "신규 계정 요청",
+    approve_account_request: "계정 요청 승인",
+    reject_account_request: "계정 요청 반려",
+    update_public_settings: "로그인 화면 설정 변경"
   };
   return labels[action] || action || "-";
 }
@@ -2502,11 +2774,14 @@ function actionIcon(action) {
 
 function formatTarget(type, id) {
   if (!type) return "-";
-  const labels = { account: "계정", student: "수강생", enrollment: "수강", lesson: "수업", lesson_log: "수업일지", lesson_template: "템플릿", registration: "등록", reservation: "예약", work_log: "근태", meeting: "회의", calendar_event: "학원 일정", room: "공간", page: "화면" };
+  const labels = { account: "계정", account_request: "계정 요청", settings: "설정", student: "수강생", enrollment: "수강", lesson: "수업", lesson_log: "수업일지", lesson_template: "템플릿", registration: "등록", reservation: "예약", work_log: "근태", meeting: "회의", calendar_event: "학원 일정", room: "공간", page: "화면" };
   return `${labels[type] || type}${id ? ` · ${id}` : ""}`;
 }
 
 window.login = login;
+window.openAuthDialog = openAuthDialog;
+window.closeAuthDialog = closeAuthDialog;
+window.submitAccountRequest = submitAccountRequest;
 window.logout = logout;
 window.retryConnection = retryConnection;
 window.startDemo = startDemo;
@@ -2514,6 +2789,8 @@ window.navigate = navigate;
 window.toggleMobileMenu = toggleMobileMenu;
 window.refreshData = refreshData;
 window.createAccount = createAccount;
+window.reviewAccountRequest = reviewAccountRequest;
+window.updatePublicSettings = updatePublicSettings;
 window.createStudent = createStudent;
 window.updateStudent = updateStudent;
 window.createEnrollment = createEnrollment;
