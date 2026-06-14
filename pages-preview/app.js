@@ -72,6 +72,7 @@ const state = {
   meetings: [],
   calendar: [],
   capabilities: {},
+  loaded: {},
   accountType: "",
   employeePosition: "",
   calendarMonth: today().slice(0, 7),
@@ -86,6 +87,11 @@ const state = {
 };
 
 applyTheme(state.theme);
+if (state.user) {
+  state.capabilities = demoCapabilities(state.user);
+  state.accountType = state.user.account_type || (state.user.role === "admin" ? "admin" : state.user.role === "student" ? "student" : "staff");
+  state.employeePosition = state.user.employee_position || (state.user.role === "teacher" ? "teacher" : "");
+}
 
 const demoSeed = {
   accounts: [
@@ -395,7 +401,8 @@ function demoBootstrap(data, user) {
     calendar: demoCalendar(data, user),
     capabilities,
     accountType: user.account_type || (user.role === "student" ? "student" : user.role === "admin" ? "admin" : "staff"),
-    employeePosition: user.employee_position || (user.role === "teacher" ? "teacher" : "")
+    employeePosition: user.employee_position || (user.role === "teacher" ? "teacher" : ""),
+    loaded: { core: true, accounts: true, usage: true, "lesson-logs": true, reservations: true, team: true, meetings: true, registrations: true, calendar: true }
   };
 }
 
@@ -517,7 +524,9 @@ async function initializeApp() {
     }
     if (state.user && state.token) {
       state.page = defaultPage(state.user.role);
-      await refreshData(false);
+      state.loading = false;
+      render();
+      await refreshData(true);
     } else {
       await api("health");
       state.loading = false;
@@ -559,7 +568,14 @@ async function login(event) {
     localStorage.setItem(STORAGE.token, result.token);
     localStorage.setItem(STORAGE.user, JSON.stringify(result.user));
     if (result.initialData) applyBootstrap(result.initialData);
-    else await refreshData(false);
+    else {
+      state.capabilities = demoCapabilities(result.user);
+      state.accountType = result.user.account_type || (result.user.role === "admin" ? "admin" : result.user.role === "student" ? "student" : "staff");
+      state.employeePosition = result.user.employee_position || (result.user.role === "teacher" ? "teacher" : "");
+      state.loading = false;
+      render();
+      await refreshData(true);
+    }
     api("recordPageView", { page: state.page }).catch(() => {});
   } catch (error) {
     setBusy(false, error.message);
@@ -650,6 +666,72 @@ function navigate(page) {
   state.message = "";
   render();
   api("recordPageView", { page }).catch(() => {});
+  loadPageData(page);
+}
+
+async function loadPageData(page) {
+  if (state.demo || state.loaded[page] || !state.user) return;
+  const tasks = [];
+  const keys = [];
+  if (page === "lesson-logs") {
+    tasks.push(api("listLessonLogs"), state.user.role === "student" ? Promise.resolve([]) : api("listLessonTemplates"));
+    keys.push("lessonLogs", "templates");
+    if (["admin", "staff"].includes(state.user.role) && !state.loaded.accounts) { tasks.push(api("listAccounts")); keys.push("accounts"); }
+  }
+  if (page === "reservations") {
+    tasks.push(api("listRooms"), api("listReservations"));
+    keys.push("rooms", "reservations");
+  }
+  if (page === "team") {
+    tasks.push(api("listWorkLogs"));
+    keys.push("workLogs");
+    if ((state.capabilities.viewAccounts || state.capabilities.manageOperations) && !state.loaded.accounts) { tasks.push(api("listAccounts")); keys.push("accounts"); }
+  }
+  if (page === "meetings") {
+    tasks.push(api("listMeetings"));
+    keys.push("meetings");
+    if (state.capabilities.viewAccounts && !state.loaded.accounts) { tasks.push(api("listAccounts")); keys.push("accounts"); }
+  }
+  if (page === "accounts" && !state.loaded.accounts) {
+    tasks.push(api("listAccounts"));
+    keys.push("accounts");
+  }
+  if (["students", "enrollments"].includes(page) && ["admin", "staff"].includes(state.user.role) && !state.loaded.accounts) {
+    tasks.push(api("listAccounts"));
+    keys.push("accounts");
+  }
+  if (page === "usage" && state.user.role === "admin") {
+    tasks.push(api("getUsageSummary"));
+    keys.push("usage");
+  }
+  if (!tasks.length) {
+    state.loaded[page] = true;
+    return;
+  }
+  state.loading = true;
+  render();
+  try {
+    const results = await Promise.all(tasks);
+    results.forEach((value, index) => { state[keys[index]] = value; });
+    keys.forEach((key) => { if (key === "accounts") state.loaded.accounts = true; });
+    state.loaded[page] = true;
+    state.loading = false;
+    render();
+  } catch (error) {
+    state.loading = false;
+    state.message = error.message;
+    render();
+  }
+}
+
+async function refreshFeature(page, includeCore = false) {
+  if (state.demo) {
+    await refreshData(false);
+    return;
+  }
+  if (includeCore) await refreshData(false);
+  state.loaded[page] = false;
+  await loadPageData(page);
 }
 
 function toggleMobileMenu() {
@@ -665,7 +747,7 @@ async function createAccount(event) {
   setBusy(true, "");
   try {
     await api("createAccount", { account: values });
-    await refreshData(false);
+    await refreshFeature("accounts");
     state.message = "계정이 생성되었습니다.";
     render();
   } catch (error) { setBusy(false, error.message); }
@@ -736,7 +818,7 @@ async function createReservation(event) {
   setBusy(true, "");
   try {
     await api("createReservation", { reservation: Object.fromEntries(new FormData(event.currentTarget)) });
-    await refreshData(false);
+    await refreshFeature("reservations");
     state.message = "공간 예약을 등록했습니다.";
     render();
   } catch (error) { setBusy(false, error.message); }
@@ -746,7 +828,7 @@ async function updateReservationStatus(reservationId, status) {
   setBusy(true, "");
   try {
     await api("updateReservationStatus", { reservationId, status });
-    await refreshData(false);
+    await refreshFeature("reservations");
     state.message = `예약을 ${status} 상태로 변경했습니다.`;
     render();
   } catch (error) { setBusy(false, error.message); }
@@ -756,7 +838,7 @@ async function clockWork(mode) {
   setBusy(true, "");
   try {
     await api("clockWork", { mode });
-    await refreshData(false);
+    await refreshFeature("team");
     state.message = mode === "in" ? "출근 시간이 기록되었습니다." : "퇴근 시간이 기록되었습니다.";
     render();
   } catch (error) { setBusy(false, error.message); }
@@ -770,7 +852,7 @@ async function createMeeting(event) {
   setBusy(true, "");
   try {
     await api("createMeeting", { meeting });
-    await refreshData(false);
+    await refreshFeature("meetings", true);
     state.message = "회의 일정을 등록했습니다.";
     render();
   } catch (error) { setBusy(false, error.message); }
@@ -792,7 +874,7 @@ async function updateRoom(event) {
   setBusy(true, "");
   try {
     await api("updateRoom", { room: Object.fromEntries(new FormData(event.currentTarget)) });
-    await refreshData(false);
+    await refreshFeature("reservations");
     state.message = "공간 이름을 변경했습니다.";
     render();
   } catch (error) { setBusy(false, error.message); }
@@ -820,7 +902,7 @@ async function updatePermissions(event, accountId) {
   setBusy(true, "");
   try {
     await api("updateAccountPermissions", { accountId, permissions });
-    await refreshData(false);
+    await refreshFeature("accounts");
     state.message = "개별 권한을 저장했습니다.";
     render();
   } catch (error) { setBusy(false, error.message); }
@@ -841,7 +923,7 @@ async function toggleAccount(accountId, active) {
   setBusy(true, "");
   try {
     await api("updateAccountStatus", { accountId, active });
-    await refreshData(false);
+    await refreshFeature("accounts");
     state.message = active ? "계정 사용을 재개했습니다." : "계정 사용을 중지했습니다.";
     render();
   } catch (error) { setBusy(false, error.message); }
@@ -853,7 +935,7 @@ async function resetAccountPassword(accountId) {
   setBusy(true, "");
   try {
     await api("resetAccountPassword", { accountId, password });
-    await refreshData(false);
+    await refreshFeature("accounts");
     state.message = "비밀번호를 초기화했습니다.";
     render();
   } catch (error) { setBusy(false, error.message); }
@@ -959,7 +1041,7 @@ async function saveCurrentAsTemplate() {
   setBusy(true, "");
   try {
     await api("createLessonTemplate", { template: { ...values, title } });
-    await refreshData(false);
+    await refreshFeature("lesson-logs");
     state.message = "수업일지 템플릿이 저장되었습니다.";
     render();
   } catch (error) { setBusy(false, error.message); }
@@ -969,7 +1051,7 @@ async function deleteLessonTemplate(templateId) {
   setBusy(true, "");
   try {
     await api("deleteLessonTemplate", { templateId });
-    await refreshData(false);
+    await refreshFeature("lesson-logs");
     state.message = "템플릿을 삭제했습니다.";
     render();
   } catch (error) { setBusy(false, error.message); }
@@ -983,7 +1065,7 @@ async function createLessonLog(event) {
     await api("createLessonLog", { log });
     state.lessonDraft = {};
     localStorage.removeItem(STORAGE.lessonDraft);
-    await refreshData(false);
+    await refreshFeature("lesson-logs", true);
     state.message = "수업일지가 저장되었습니다.";
     render();
   } catch (error) { setBusy(false, error.message); }
@@ -1210,7 +1292,7 @@ function renderDashboard() {
       </section>
       <section class="panel">
         <div class="panel-head"><div><h2>최근 활동</h2><p>운영 데이터 변경 기록</p></div>${state.user.role === "admin" ? `<button class="text-action" onclick="navigate('usage')">이용 현황 ${icon("chevron")}</button>` : ""}</div>
-        ${activityList(state.user.role === "admin" ? state.usage?.recent?.slice(0, 6) || [] : overview.recentLogs || [])}
+        ${activityList(state.user.role === "admin" ? state.usage?.recent?.slice(0, 6) || overview.recentLogs || [] : overview.recentLogs || [])}
       </section>
       <section class="panel wide-panel">
         <div class="panel-head"><div><h2>강사 업무 현황</h2><p>담당 수강생과 최근 기록량</p></div></div>

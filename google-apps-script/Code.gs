@@ -173,7 +173,7 @@ function login(loginId, password) {
     created_at: now.toISOString()
   });
   logEvent(account, "login", "account", account.account_id, {});
-  return { token, user: publicAccount(account), initialData: getBootstrapData(account) };
+  return { token, user: publicAccount(account) };
 }
 
 function logout(user, token) {
@@ -192,7 +192,7 @@ function requireSession(token) {
 }
 
 function listAccounts(user) {
-  if (!canViewAccounts(user)) throw new Error("계정을 조회할 권한이 없습니다.");
+  if (!canViewAccounts(user) && !canManageOperations(user)) throw new Error("계정을 조회할 권한이 없습니다.");
   return rowsAsObjects(SHEETS.accounts).map(publicAccount);
 }
 
@@ -534,26 +534,22 @@ function deleteLessonTemplate(user, templateId) {
 
 function getBootstrapData(user) {
   const accountType = normalizedAccountType(user);
-  const canManage = accountType === "admin" || accountType === "staff";
   return {
     user: publicAccount(user),
     students: listStudents(user),
-    lessonLogs: listLessonLogs(user),
     enrollments: listEnrollments(user),
     lessons: listLessons(user),
-    templates: user.role === "student" ? [] : listLessonTemplates(user),
     overview: getMyOverview(user),
-    accounts: canViewAccounts(user) ? listAccounts(user) : [],
-    usage: normalizedAccountType(user) === "admin" ? getUsageSummary(user) : null,
     registrations: listRegistrations(user),
-    rooms: listRooms(user),
-    reservations: listReservations(user),
-    workLogs: listWorkLogs(user),
-    meetings: listMeetings(user),
     calendar: listCalendar(user),
     capabilities: capabilitiesFor(user),
     accountType,
-    employeePosition: normalizedPosition(user)
+    employeePosition: normalizedPosition(user),
+    loaded: {
+      core: true,
+      registrations: true,
+      calendar: true
+    }
   };
 }
 
