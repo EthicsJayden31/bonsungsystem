@@ -6,7 +6,6 @@ on:
       - main
       - codex/v1-intranet
       - codex/role-dashboards
-      - codex/vocal-programs-demo-data
   pull_request:
     branches:
       - codex/v1-intranet
@@ -41,7 +40,7 @@ jobs:
           path: pages-preview
 
   deploy:
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/codex/v1-intranet' || github.ref == 'refs/heads/codex/vocal-programs-demo-data'
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/codex/v1-intranet'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
