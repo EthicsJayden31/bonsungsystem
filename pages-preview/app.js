@@ -3,7 +3,7 @@ const AUTO_API_ENDPOINT = window.BONSUNG_CONFIG?.apiEndpoint || "";
 const STORAGE = {
   token: "bonsung_session_token",
   user: "bonsung_current_user",
-  demoData: "bonsung_demo_data_v6",
+  demoData: "bonsung_demo_data_v7",
   lessonDraft: "bonsung_lesson_draft_v1",
   theme: "bonsung_theme"
 };
@@ -13,7 +13,13 @@ const POSITION_LABELS = { owner: "원장(대표)", manager: "팀장", employee: 
 const STATUS_OPTIONS = ["상담중", "등록대기", "재원", "휴원", "퇴원"];
 const ATTENDANCE_OPTIONS = ["출석", "지각", "결석", "취소"];
 const RESERVATION_PURPOSES = ["레슨", "이론수업", "회의", "연습"];
-const CLASS_TYPE_CATEGORIES = ["레슨", "이론수업", "그룹수업"];
+const CLASS_TYPE_CATEGORIES = ["보컬"];
+const DEFAULT_REGISTRATION_PROGRAMS = [
+  { class_type_id: "program-senior", name: "시니어", category: "보컬", active: true, sort_order: 1 },
+  { class_type_id: "program-pro", name: "프로 (입시·오디션)", category: "보컬", active: true, sort_order: 2 },
+  { class_type_id: "program-academic", name: "아카데믹 (취미)", category: "보컬", active: true, sort_order: 3 },
+  { class_type_id: "program-event", name: "이벤트 (축가·행사)", category: "보컬", active: true, sort_order: 4 }
+];
 const ENROLLMENT_STATUS_LABELS = { active: "수강중", paused: "휴강", completed: "종료", canceled: "취소" };
 const DAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
 const root = document.getElementById("app");
@@ -117,51 +123,146 @@ if (state.user) {
   state.employeePosition = state.user.employee_position || (state.user.role === "teacher" ? "teacher" : "");
 }
 
+const DEMO_STUDENTS = [
+  ["김도윤", "2008-04-12", "프로 (입시·오디션)", "대학 실용음악과 입시 준비"],
+  ["박서아", "2009-08-20", "프로 (입시·오디션)", "기획사 오디션 곡 완성"],
+  ["이준호", "1964-02-18", "시니어", "호흡과 발성 기초 다지기"],
+  ["최미경", "1958-11-03", "시니어", "애창곡을 안정적으로 부르기"],
+  ["정하은", "1997-06-24", "아카데믹 (취미)", "취미 보컬과 자신감 향상"],
+  ["윤태민", "1992-09-15", "아카데믹 (취미)", "음정 교정과 고음 확장"],
+  ["한지우", "2007-01-30", "프로 (입시·오디션)", "예고 입시 자유곡 준비"],
+  ["오세진", "1988-12-08", "이벤트 (축가·행사)", "결혼식 축가 완성"],
+  ["송유나", "1995-05-19", "이벤트 (축가·행사)", "기업 행사 무대 준비"],
+  ["임재현", "2001-03-11", "아카데믹 (취미)", "밴드 보컬 기본기 강화"],
+  ["강수빈", "2006-10-27", "프로 (입시·오디션)", "대학 수시 실기 준비"],
+  ["배정훈", "1961-07-06", "시니어", "트로트 발성과 리듬 익히기"]
+].map((item, index) => {
+  const number = index + 1;
+  const teacherNumber = (index % 3) + 1;
+  return {
+    student_id: `stu-${number}`,
+    name: item[0],
+    birth_date: item[1],
+    phone: `010-3000-${String(number).padStart(4, "0")}`,
+    guardian_name: number <= 3 ? `${item[0].slice(0, 1)}보호자` : "",
+    guardian_phone: number <= 3 ? `010-4000-${String(number).padStart(4, "0")}` : "",
+    major: "보컬",
+    goal: item[3],
+    status: number === 12 ? "등록대기" : "재원",
+    teacher_id: `acc-teacher-${teacherNumber}`,
+    enrolled_at: `2026-${String(2 + (index % 4)).padStart(2, "0")}-${String(3 + index).padStart(2, "0")}`,
+    memo: `${item[2]} 등록 기준`
+  };
+});
+
+const DEMO_ACCOUNTS = [
+  { account_id: "acc-admin", login_id: "admin", role: "admin", account_type: "admin", employee_position: "owner", name: "admin", email: "admin@bonsung.test", phone: "", linked_student_id: "", active: true, must_change_password: false, theme: "system" },
+  { account_id: "acc-owner", login_id: "owner", role: "staff", account_type: "staff", employee_position: "owner", name: "한지훈 원장", email: "owner@bonsung.test", phone: "010-1111-1000", linked_student_id: "", active: true, must_change_password: false, theme: "system" },
+  { account_id: "acc-manager-1", login_id: "manager1", role: "staff", account_type: "staff", employee_position: "manager", name: "서유진 팀장", email: "manager1@bonsung.test", phone: "010-1111-2001", linked_student_id: "", active: true, must_change_password: false, theme: "system" },
+  { account_id: "acc-manager-2", login_id: "manager2", role: "staff", account_type: "staff", employee_position: "manager", name: "김현우 팀장", email: "manager2@bonsung.test", phone: "010-1111-2002", linked_student_id: "", active: true, must_change_password: false, theme: "system" },
+  { account_id: "acc-staff-1", login_id: "employee1", role: "staff", account_type: "staff", employee_position: "employee", name: "박서연 사원", email: "employee1@bonsung.test", phone: "010-1111-3001", linked_student_id: "", active: true, must_change_password: false, theme: "system" },
+  { account_id: "acc-staff-2", login_id: "employee2", role: "staff", account_type: "staff", employee_position: "employee", name: "이채원 사원", email: "employee2@bonsung.test", phone: "010-1111-3002", linked_student_id: "", active: true, must_change_password: false, theme: "system" },
+  { account_id: "acc-staff-3", login_id: "employee3", role: "staff", account_type: "staff", employee_position: "employee", name: "정민석 사원", email: "employee3@bonsung.test", phone: "010-1111-3003", linked_student_id: "", active: true, must_change_password: false, theme: "system" },
+  { account_id: "acc-teacher-1", login_id: "teacher1", role: "teacher", account_type: "staff", employee_position: "teacher", name: "안지훈 강사", email: "teacher1@bonsung.test", phone: "010-1000-2001", linked_student_id: "", active: true, must_change_password: false, theme: "system" },
+  { account_id: "acc-teacher-2", login_id: "teacher2", role: "teacher", account_type: "staff", employee_position: "teacher", name: "김나연 강사", email: "teacher2@bonsung.test", phone: "010-1000-2002", linked_student_id: "", active: true, must_change_password: false, theme: "system" },
+  { account_id: "acc-teacher-3", login_id: "teacher3", role: "teacher", account_type: "staff", employee_position: "teacher", name: "최도현 강사", email: "teacher3@bonsung.test", phone: "010-1000-2003", linked_student_id: "", active: true, must_change_password: false, theme: "system" },
+  ...DEMO_STUDENTS.map((student, index) => ({
+    account_id: `acc-student-${index + 1}`,
+    login_id: `student${index + 1}`,
+    role: "student",
+    account_type: "student",
+    employee_position: "",
+    name: student.name,
+    email: "",
+    phone: student.phone,
+    linked_student_id: student.student_id,
+    active: true,
+    must_change_password: false,
+    theme: "system"
+  }))
+];
+
+const DEMO_ENROLLMENTS = DEMO_STUDENTS.map((student, index) => ({
+  enrollment_id: `enr-${index + 1}`,
+  student_id: student.student_id,
+  teacher_id: student.teacher_id,
+  subject: DEFAULT_REGISTRATION_PROGRAMS[index % DEFAULT_REGISTRATION_PROGRAMS.length].name,
+  start_date: student.enrolled_at,
+  end_date: "",
+  status: student.status === "재원" ? "active" : "paused",
+  weekly_day: index % 6,
+  start_time: `${String(10 + (index % 8)).padStart(2, "0")}:00`,
+  duration_minutes: 50,
+  room: `소형 레슨실 ${(index % 2) + 1}`,
+  memo: "보컬 정규 수강"
+}));
+
+const DEMO_LESSONS = DEMO_ENROLLMENTS.map((enrollment, index) => ({
+  lesson_id: `les-${index + 1}`,
+  lesson_date: `2026-06-${String(14 + (index % 6)).padStart(2, "0")}`,
+  start_time: enrollment.start_time,
+  duration_minutes: 50,
+  student_id: enrollment.student_id,
+  teacher_id: enrollment.teacher_id,
+  subject: enrollment.subject,
+  status: index === 1 ? "결석" : index < 4 ? "완료" : "예정",
+  room: enrollment.room,
+  enrollment_id: enrollment.enrollment_id,
+  lesson_number: 4 + index,
+  absence_reason: index === 1 ? "학교 일정" : "",
+  makeup_date: index === 1 ? "2026-06-27" : "",
+  memo: index === 1 ? "보강 일정 조율 중" : ""
+}));
+
+const DEMO_LESSON_LOGS = DEMO_LESSONS.slice(0, 9).map((lesson, index) => ({
+  log_id: `log-${index + 1}`,
+  lesson_date: lesson.lesson_date,
+  student_id: lesson.student_id,
+  teacher_id: lesson.teacher_id,
+  subject: lesson.subject,
+  lesson_number: lesson.lesson_number,
+  lesson_content: ["복식호흡과 성대 접지", "음정 이동과 리듬 정확도", "곡 해석과 프레이징"][index % 3],
+  homework: "지정 구간을 하루 15분 녹음하며 연습",
+  next_goal: "원곡 키에서 한 절을 안정적으로 완성",
+  practice_request: "목에 힘이 들어가지 않는지 확인",
+  attendance_status: index === 1 ? "결석" : index === 4 ? "지각" : "출석",
+  absence_reason: index === 1 ? "학교 일정" : "",
+  makeup_date: index === 1 ? "2026-06-27" : "",
+  internal_memo: index % 3 === 0 ? "다음 수업에서 호흡 길이 재확인" : "",
+  created_at: `${lesson.lesson_date}T${lesson.start_time}:00+09:00`
+}));
+
+const DEMO_REGISTRATIONS = DEMO_ENROLLMENTS.map((enrollment, index) => ({
+  registration_id: `reg-${index + 1}`,
+  student_id: enrollment.student_id,
+  enrollment_id: enrollment.enrollment_id,
+  registration_type: index < 4 ? "신규등록" : "재등록",
+  period_start: "2026-06-01",
+  period_end: "2026-06-30",
+  amount: [240000, 280000, 220000, 300000][index % 4],
+  paid_at: index % 4 < 2 ? `2026-06-${String(index + 1).padStart(2, "0")}` : "",
+  next_due_date: `2026-06-${String(18 + (index % 10)).padStart(2, "0")}`,
+  payment_status: ["납부완료", "납부완료", "청구예정", "미납"][index % 4],
+  payment_method: index % 4 < 2 ? (index % 2 ? "계좌이체" : "카드") : "",
+  memo: index % 4 === 3 ? "수납 확인 연락 필요" : ""
+}));
+
 const demoSeed = {
-  accounts: [
-    { account_id: "acc-admin", login_id: "admin", role: "admin", account_type: "admin", employee_position: "owner", name: "admin", email: "admin@bonsung.test", phone: "", linked_student_id: "", active: true, must_change_password: false, theme: "system" },
-    { account_id: "acc-owner", login_id: "owner", role: "staff", account_type: "staff", employee_position: "owner", name: "한지훈 원장", email: "owner@bonsung.test", phone: "010-1111-1000", linked_student_id: "", active: true, must_change_password: false, theme: "system" },
-    { account_id: "acc-manager", login_id: "manager", role: "staff", account_type: "staff", employee_position: "manager", name: "서유진 팀장", email: "manager@bonsung.test", phone: "010-1111-2000", linked_student_id: "", active: true, must_change_password: false, theme: "system" },
-    { account_id: "acc-staff", login_id: "employee", role: "staff", account_type: "staff", employee_position: "employee", name: "박서연 사원", email: "staff@bonsung.test", phone: "010-1111-3000", linked_student_id: "", active: true, must_change_password: false, theme: "system" },
-    { account_id: "acc-teacher", login_id: "teacher", role: "teacher", account_type: "staff", employee_position: "teacher", name: "안지훈 강사", email: "teacher@bonsung.test", phone: "010-1000-2000", linked_student_id: "", active: true, must_change_password: false, theme: "system" },
-    { account_id: "acc-teacher-2", login_id: "teacher2", role: "teacher", account_type: "staff", employee_position: "teacher", name: "김나연 강사", email: "", phone: "", linked_student_id: "", active: true, must_change_password: false, theme: "system" },
-    { account_id: "acc-student", login_id: "student", role: "student", account_type: "student", employee_position: "", name: "이준호", email: "", phone: "", linked_student_id: "stu-1", active: true, must_change_password: false, theme: "system" }
-  ],
-  students: [
-    { student_id: "stu-1", name: "이준호", birth_date: "2008-04-12", phone: "010-0000-0001", guardian_name: "이정민", guardian_phone: "010-0000-1001", major: "드럼", goal: "입시 준비", status: "재원", teacher_id: "acc-teacher", enrolled_at: "2026-03-02", memo: "" },
-    { student_id: "stu-2", name: "김하은", birth_date: "2009-08-20", phone: "010-0000-0002", guardian_name: "김민수", guardian_phone: "010-0000-1002", major: "피아노", goal: "재즈 화성 이해", status: "재원", teacher_id: "acc-teacher-2", enrolled_at: "2026-04-06", memo: "" },
-    { student_id: "stu-3", name: "정민우", birth_date: "2007-12-03", phone: "010-0000-0003", guardian_name: "정소영", guardian_phone: "010-0000-1003", major: "드럼", goal: "밴드 합주", status: "재원", teacher_id: "acc-teacher", enrolled_at: "2026-05-04", memo: "" }
-  ],
-  enrollments: [
-    { enrollment_id: "enr-1", student_id: "stu-1", teacher_id: "acc-teacher", subject: "드럼 중급", start_date: "2026-03-02", end_date: "", status: "active", weekly_day: 0, start_time: "11:00", duration_minutes: 50, room: "레슨실 2", memo: "" },
-    { enrollment_id: "enr-2", student_id: "stu-2", teacher_id: "acc-teacher-2", subject: "피아노 초급", start_date: "2026-04-06", end_date: "", status: "active", weekly_day: 0, start_time: "10:00", duration_minutes: 50, room: "레슨실 1", memo: "" },
-    { enrollment_id: "enr-3", student_id: "stu-3", teacher_id: "acc-teacher", subject: "드럼 초급", start_date: "2026-05-04", end_date: "", status: "active", weekly_day: 0, start_time: "14:00", duration_minutes: 50, room: "레슨실 2", memo: "" }
-  ],
-  lessons: [
-    { lesson_id: "les-0", lesson_date: "2026-06-07", start_time: "11:00", duration_minutes: 50, student_id: "stu-1", teacher_id: "acc-teacher", subject: "드럼 중급", status: "결석", room: "소형 레슨실 1", enrollment_id: "enr-1", lesson_number: 11, absence_reason: "학교 행사 참석", makeup_date: "2026-06-20", memo: "보호자와 보강일 협의 완료" },
-    { lesson_id: "les-1", lesson_date: "2026-06-14", start_time: "11:00", duration_minutes: 50, student_id: "stu-1", teacher_id: "acc-teacher", subject: "드럼 중급", status: "예정", room: "소형 레슨실 1", enrollment_id: "enr-1", lesson_number: 12 },
-    { lesson_id: "les-2", lesson_date: "2026-06-14", start_time: "14:00", duration_minutes: 50, student_id: "stu-3", teacher_id: "acc-teacher", subject: "드럼 초급", status: "예정", room: "소형 레슨실 2", enrollment_id: "enr-3", lesson_number: 6 },
-    { lesson_id: "les-3", lesson_date: "2026-06-15", start_time: "10:00", duration_minutes: 50, student_id: "stu-2", teacher_id: "acc-teacher-2", subject: "피아노 초급", status: "예정", room: "중형 레슨실 1", enrollment_id: "enr-2", lesson_number: 9 }
-  ],
-  lessonLogs: [
-    { log_id: "log-1", lesson_date: "2026-06-13", student_id: "stu-1", teacher_id: "acc-teacher", subject: "드럼 중급", lesson_number: 11, lesson_content: "리듬 필인 연결과 8비트 그루브 연습", homework: "메트로놈 80 BPM 4비트 필인 연습", next_goal: "16비트 필인 안정화", practice_request: "하루 10분 녹음", attendance_status: "출석", absence_reason: "", makeup_date: "", internal_memo: "하이햇 타이밍 다음 수업에서 재확인", created_at: "2026-06-13T11:55:00+09:00" },
-    { log_id: "log-2", lesson_date: "2026-06-12", student_id: "stu-3", teacher_id: "acc-teacher", subject: "드럼 초급", lesson_number: 5, lesson_content: "스틱 컨트롤과 기본 4비트 패턴", homework: "싱글 스트로크 60 BPM", next_goal: "베이스 드럼 조합", practice_request: "손목 힘 빼기", attendance_status: "지각", absence_reason: "", makeup_date: "", internal_memo: "", created_at: "2026-06-12T15:00:00+09:00" },
-    { log_id: "log-3", lesson_date: "2026-06-11", student_id: "stu-2", teacher_id: "acc-teacher-2", subject: "피아노 초급", lesson_number: 8, lesson_content: "메이저 스케일과 기본 보이싱", homework: "C, F, G 스케일", next_goal: "2-5-1 진행", practice_request: "양손 천천히", attendance_status: "출석", absence_reason: "", makeup_date: "", internal_memo: "", created_at: "2026-06-11T10:55:00+09:00" }
-  ],
+  accounts: DEMO_ACCOUNTS,
+  students: DEMO_STUDENTS,
+  enrollments: DEMO_ENROLLMENTS,
+  lessons: DEMO_LESSONS,
+  lessonLogs: DEMO_LESSON_LOGS,
   templates: [
-    { template_id: "tpl-1", teacher_id: "acc-teacher", title: "기본 레슨", subject: "드럼", lesson_content: "지난 과제 확인\n기초 테크닉 점검\n곡 적용 연습", homework: "메트로놈 연습", next_goal: "다음 단계 패턴 연결", practice_request: "매일 짧게라도 녹음", active: true, scope: "personal" },
-    { template_id: "tpl-2", teacher_id: "acc-teacher", title: "곡 연습", subject: "드럼", lesson_content: "곡 구조 분석\n구간별 리듬 점검\n처음부터 끝까지 연주", homework: "어려운 구간 반복", next_goal: "원곡 템포 완주", practice_request: "연습 영상 1회 촬영", active: true, scope: "personal" }
+    { template_id: "tpl-1", teacher_id: "acc-teacher-1", title: "보컬 기본기", subject: "보컬", lesson_content: "호흡 확인\n발성 점검\n곡 적용", homework: "립트릴과 허밍 연습", next_goal: "한 절 안정적으로 연결", practice_request: "매일 짧게 녹음", active: true, scope: "personal" },
+    { template_id: "tpl-2", teacher_id: "acc-teacher-2", title: "곡 완성", subject: "보컬", lesson_content: "곡 구조 분석\n구간별 프레이징\n전체 연결", homework: "어려운 구간 반복", next_goal: "원곡 템포 완창", practice_request: "연습 영상 1회 촬영", active: true, scope: "personal" }
   ],
   usage: [
     { event_id: "evt-1", occurred_at: "2026-06-14T09:10:00+09:00", account_id: "acc-admin", role: "admin", action: "login", target_type: "account", target_id: "acc-admin", date_key: "2026-06-14" },
-    { event_id: "evt-2", occurred_at: "2026-06-14T09:15:00+09:00", account_id: "acc-teacher", role: "teacher", action: "page_view", target_type: "page", target_id: "my-overview", date_key: "2026-06-14" },
-    { event_id: "evt-3", occurred_at: "2026-06-14T09:20:00+09:00", account_id: "acc-staff", role: "staff", action: "create_student", target_type: "student", target_id: "stu-3", date_key: "2026-06-14" }
+    { event_id: "evt-2", occurred_at: "2026-06-14T09:15:00+09:00", account_id: "acc-teacher-1", role: "teacher", action: "page_view", target_type: "page", target_id: "my-overview", date_key: "2026-06-14" },
+    { event_id: "evt-3", occurred_at: "2026-06-14T09:20:00+09:00", account_id: "acc-staff-1", role: "staff", action: "create_student", target_type: "student", target_id: "stu-3", date_key: "2026-06-14" }
   ],
-  registrations: [
-    { registration_id: "reg-1", student_id: "stu-1", enrollment_id: "enr-1", registration_type: "신규등록", period_start: "2026-03-02", period_end: "2026-06-30", amount: 240000, paid_at: "2026-03-02", next_due_date: "2026-06-25", payment_status: "납부완료", payment_method: "카드", memo: "" },
-    { registration_id: "reg-2", student_id: "stu-2", enrollment_id: "enr-2", registration_type: "재등록", period_start: "2026-06-01", period_end: "2026-06-30", amount: 220000, paid_at: "2026-06-01", next_due_date: "2026-06-27", payment_status: "납부완료", payment_method: "계좌이체", memo: "" },
-    { registration_id: "reg-3", student_id: "stu-3", enrollment_id: "enr-3", registration_type: "재등록", period_start: "2026-06-01", period_end: "2026-06-30", amount: 240000, paid_at: "", next_due_date: "2026-06-18", payment_status: "청구예정", payment_method: "", memo: "보호자에게 6/16 안내" }
-  ],
+  registrations: DEMO_REGISTRATIONS,
   rooms: [
     { room_id: "room-lesson-large-1", room_type: "lesson", name: "대형 레슨실 1", active: true, sort_order: 1 },
     { room_id: "room-lesson-medium-1", room_type: "lesson", name: "중형 레슨실 1", active: true, sort_order: 2 },
@@ -172,38 +273,34 @@ const demoSeed = {
     { room_id: "room-practice-c", room_type: "practice", name: "연습실 C", active: true, sort_order: 7 }
   ],
   reservations: [
-    { reservation_id: "rsv-1", room_id: "room-lesson-small-1", reserved_by: "acc-teacher", reservation_date: "2026-06-14", start_time: "13:00", end_time: "14:00", purpose: "레슨", status: "예약", memo: "이준호 보강" },
-    { reservation_id: "rsv-2", room_id: "room-practice-a", reserved_by: "acc-student", reservation_date: "2026-06-14", start_time: "16:00", end_time: "17:00", purpose: "연습", status: "예약", memo: "드럼 개인 연습" },
-    { reservation_id: "rsv-3", room_id: "room-practice-b", reserved_by: "acc-student", reservation_date: "2026-06-13", start_time: "18:00", end_time: "19:00", purpose: "연습", status: "사용완료", memo: "과제 연습" },
-    { reservation_id: "rsv-4", room_id: "room-lesson-medium-1", reserved_by: "acc-manager", reservation_date: "2026-06-15", start_time: "09:00", end_time: "10:00", purpose: "회의", status: "예약", memo: "주간 운영회의" },
-    { reservation_id: "rsv-5", room_id: "room-practice-c", reserved_by: "acc-teacher", reservation_date: "2026-06-14", start_time: "19:00", end_time: "20:00", purpose: "연습", status: "예약", memo: "개인 연습" }
+    { reservation_id: "rsv-1", room_id: "room-lesson-small-1", reserved_by: "acc-teacher-1", reservation_date: "2026-06-14", start_time: "13:00", end_time: "14:00", purpose: "레슨", status: "예약", memo: "김도윤 보강" },
+    { reservation_id: "rsv-2", room_id: "room-practice-a", reserved_by: "acc-student-1", reservation_date: "2026-06-14", start_time: "16:00", end_time: "17:00", purpose: "연습", status: "예약", memo: "오디션 곡 연습" },
+    { reservation_id: "rsv-3", room_id: "room-practice-b", reserved_by: "acc-student-2", reservation_date: "2026-06-13", start_time: "18:00", end_time: "19:00", purpose: "연습", status: "사용완료", memo: "과제 연습" },
+    { reservation_id: "rsv-4", room_id: "room-lesson-medium-1", reserved_by: "acc-manager-1", reservation_date: "2026-06-15", start_time: "09:00", end_time: "10:00", purpose: "회의", status: "예약", memo: "주간 운영회의" },
+    { reservation_id: "rsv-5", room_id: "room-practice-c", reserved_by: "acc-teacher-3", reservation_date: "2026-06-14", start_time: "19:00", end_time: "20:00", purpose: "연습", status: "예약", memo: "레슨 시범곡 준비" }
   ],
   workLogs: [
     { work_log_id: "wrk-1", account_id: "acc-owner", work_date: "2026-06-14", clock_in_at: "2026-06-14T08:45:00+09:00", clock_out_at: "", memo: "" },
-    { work_log_id: "wrk-2", account_id: "acc-manager", work_date: "2026-06-14", clock_in_at: "2026-06-14T09:05:00+09:00", clock_out_at: "", memo: "" },
-    { work_log_id: "wrk-3", account_id: "acc-teacher", work_date: "2026-06-13", clock_in_at: "2026-06-13T10:30:00+09:00", clock_out_at: "2026-06-13T18:40:00+09:00", memo: "" }
+    { work_log_id: "wrk-2", account_id: "acc-manager-1", work_date: "2026-06-14", clock_in_at: "2026-06-14T09:05:00+09:00", clock_out_at: "", memo: "" },
+    { work_log_id: "wrk-3", account_id: "acc-teacher-1", work_date: "2026-06-13", clock_in_at: "2026-06-13T10:30:00+09:00", clock_out_at: "2026-06-13T18:40:00+09:00", memo: "" }
   ],
   meetings: [
-    { meeting_id: "mtg-1", title: "개원 운영 점검", meeting_date: "2026-06-15", start_time: "09:30", end_time: "10:20", location: "중형 레슨실 1", agenda: "신규 문의 대응과 첫 주 운영 점검", participant_ids: "acc-owner,acc-manager,acc-staff,acc-teacher", created_by: "acc-owner", status: "예정" },
-    { meeting_id: "mtg-2", title: "강사 수업 운영 회의", meeting_date: "2026-06-18", start_time: "19:00", end_time: "19:40", location: "대형 레슨실 1", agenda: "수업일지 작성 기준 공유", participant_ids: "acc-manager,acc-teacher,acc-teacher-2", created_by: "acc-manager", status: "예정" }
+    { meeting_id: "mtg-1", title: "개원 운영 점검", meeting_date: "2026-06-15", start_time: "09:30", end_time: "10:20", location: "중형 레슨실 1", agenda: "신규 문의 대응과 첫 주 운영 점검", participant_ids: "acc-owner,acc-manager-1,acc-staff-1,acc-teacher-1", created_by: "acc-owner", status: "예정" },
+    { meeting_id: "mtg-2", title: "강사 수업 운영 회의", meeting_date: "2026-06-18", start_time: "19:00", end_time: "19:40", location: "대형 레슨실 1", agenda: "수업일지 작성 기준 공유", participant_ids: "acc-manager-2,acc-teacher-1,acc-teacher-2,acc-teacher-3", created_by: "acc-manager-2", status: "예정" }
   ],
   calendarEvents: [
     { event_id: "cal-1", title: "학원 정기 휴무", event_date: "2026-06-21", start_time: "", end_time: "", event_type: "휴무", audience: "전체", description: "정기 휴무일", status: "예정" },
     { event_id: "cal-2", title: "월말 미니 콘서트", event_date: "2026-06-28", start_time: "17:00", end_time: "19:00", event_type: "행사", audience: "전체", description: "수강생 자유 참가", status: "예정" }
   ],
   tasks: [
-    { task_id: "tsk-1", title: "신규 문의자 후속 연락", assignee_id: "acc-staff", due_date: "2026-06-15", status: "진행중", priority: "높음", memo: "오후 2시 이후 연락" },
-    { task_id: "tsk-2", title: "강사 계약서 정리", assignee_id: "acc-manager", due_date: "2026-06-18", status: "할일", priority: "보통", memo: "" },
-    { task_id: "tsk-3", title: "수업일지 작성", assignee_id: "acc-teacher", due_date: "2026-06-14", status: "진행중", priority: "높음", memo: "오늘 수업 2건" }
+    { task_id: "tsk-1", title: "신규 문의자 후속 연락", assignee_id: "acc-staff-1", due_date: "2026-06-15", status: "진행중", priority: "높음", memo: "오후 2시 이후 연락" },
+    { task_id: "tsk-2", title: "강사 계약서 정리", assignee_id: "acc-manager-1", due_date: "2026-06-18", status: "할일", priority: "보통", memo: "" },
+    { task_id: "tsk-3", title: "수업일지 작성", assignee_id: "acc-teacher-1", due_date: "2026-06-14", status: "진행중", priority: "높음", memo: "오늘 수업 2건" }
   ],
-  classTypes: [
-    { class_type_id: "cls-instrument", name: "전공 개인레슨", category: "레슨", active: true, sort_order: 1 },
-    { class_type_id: "cls-theory", name: "기초 음악이론", category: "이론수업", active: true, sort_order: 2 },
-    { class_type_id: "cls-ensemble", name: "앙상블", category: "그룹수업", active: true, sort_order: 3 }
-  ],
+  classTypes: DEFAULT_REGISTRATION_PROGRAMS,
   accountRequests: [
     { request_id: "req-demo-1", login_id: "vocal.hana", name: "최하나", email: "hana@example.com", phone: "010-2222-3300", requested_role: "student", message: "보컬 수강 등록 후 사용할 계정을 요청합니다.", status: "대기", reviewed_by: "", reviewed_at: "", review_memo: "", created_account_id: "", created_at: "2026-06-15T09:10:00+09:00", updated_at: "2026-06-15T09:10:00+09:00", demo_password: "bonsung1" },
-    { request_id: "req-demo-2", login_id: "guitar.min", name: "오민석", email: "min@example.com", phone: "010-2222-4400", requested_role: "teacher", message: "기타 강사 계정 신청입니다.", status: "대기", reviewed_by: "", reviewed_at: "", review_memo: "", created_account_id: "", created_at: "2026-06-15T08:40:00+09:00", updated_at: "2026-06-15T08:40:00+09:00", demo_password: "bonsung1" }
+    { request_id: "req-demo-2", login_id: "vocal.min", name: "오민석", email: "min@example.com", phone: "010-2222-4400", requested_role: "teacher", message: "보컬 강사 계정 신청입니다.", status: "대기", reviewed_by: "", reviewed_at: "", review_memo: "", created_account_id: "", created_at: "2026-06-15T08:40:00+09:00", updated_at: "2026-06-15T08:40:00+09:00", demo_password: "bonsung1" }
   ],
   publicConfig: { ...DEFAULT_PUBLIC_CONFIG }
 };
@@ -270,7 +367,7 @@ async function api(action, payload = {}) {
 
 function demoApi(action, payload) {
   const data = getDemoData();
-  if (action === "health") return { academyName: "본성뮤직 아카데미", schemaVersion: "5", service: "Demo", publicConfig: data.publicConfig || DEFAULT_PUBLIC_CONFIG };
+  if (action === "health") return { academyName: "본성뮤직 아카데미", schemaVersion: "6", service: "Demo", publicConfig: data.publicConfig || DEFAULT_PUBLIC_CONFIG };
   if (action === "requestAccount") {
     const input = payload.accountRequest || {};
     if (!input.login_id || !input.name || !input.password) throw new Error("이름, 로그인 아이디와 비밀번호를 입력해 주세요.");
@@ -348,13 +445,13 @@ function demoApi(action, payload) {
   }
   if (action === "createStudent") {
     if (!demoCapabilities(user).manageStudents) throw new Error("수강생을 관리할 권한이 없습니다.");
-    const student = { ...payload.student, student_id: uid("stu"), created_at: new Date().toISOString() };
+    const student = { ...payload.student, major: "보컬", student_id: uid("stu"), created_at: new Date().toISOString() };
     data.students.push(student); pushDemoEvent(data, user, "create_student", "student", student.student_id); return student;
   }
   if (action === "updateStudent") {
     const index = data.students.findIndex((item) => item.student_id === payload.student.student_id);
     if (index < 0) throw new Error("수강생을 찾을 수 없습니다.");
-    data.students[index] = { ...data.students[index], ...payload.student };
+    data.students[index] = { ...data.students[index], ...payload.student, major: "보컬" };
     pushDemoEvent(data, user, "update_student", "student", payload.student.student_id); return data.students[index];
   }
   if (action === "listEnrollments") return enrichDemoRows(demoVisible(data.enrollments), data);
@@ -594,7 +691,11 @@ function demoBootstrap(data, user) {
 function demoRegistrations(data, user) {
   if (user.role === "teacher") return [];
   const rows = user.role === "student" ? data.registrations.filter((item) => item.student_id === user.linked_student_id) : data.registrations;
-  return rows.map((item) => ({ ...item, student_name: studentById(data, item.student_id)?.name || "" }));
+  return rows.map((item) => ({
+    ...item,
+    student_name: studentById(data, item.student_id)?.name || "",
+    program_name: data.enrollments.find((enrollment) => enrollment.enrollment_id === item.enrollment_id)?.subject || ""
+  }));
 }
 
 function enrichDemoReservations(data) {
@@ -1225,7 +1326,7 @@ async function createClassType(event) {
     await api("createClassType", { classType: Object.fromEntries(new FormData(event.currentTarget)) });
     state.classTypes = await api("listClassTypes");
     state.loading = false;
-    state.message = "수업 종류를 추가했습니다.";
+    state.message = "등록 기준을 추가했습니다.";
     render();
   } catch (error) { setBusy(false, error.message); }
 }
@@ -1237,7 +1338,7 @@ async function updateClassType(event) {
     await api("updateClassType", { classType: Object.fromEntries(new FormData(event.currentTarget)) });
     state.classTypes = await api("listClassTypes");
     state.loading = false;
-    state.message = "수업 종류를 변경했습니다.";
+    state.message = "등록 기준을 변경했습니다.";
     render();
   } catch (error) { setBusy(false, error.message); }
 }
@@ -1709,7 +1810,7 @@ function mobileMenuChildren(page) {
   if (state.capabilities.writeLessonLogs) childMap["lesson-logs"].push(["create", "일지 작성"]);
   if (state.capabilities.manageReservations) childMap.reservations.push(["rooms", "공간 관리"]);
   if (state.capabilities.manageOperations) childMap.enrollments.push(["create", "수강 등록"]);
-  if (state.capabilities.manageCalendar) childMap.enrollments.push(["types", "수업 종류"]);
+  if (state.capabilities.manageCalendar) childMap.enrollments.push(["types", "등록 기준"]);
   if (state.capabilities.manageStudents) childMap.students.push(["create", "수강생 등록"]);
   if (state.capabilities.reviewAccountRequests) childMap.accounts.push(["requests", "신규 요청"]);
   if (state.capabilities.manageAccounts) childMap.accounts.push(["create", "계정 생성"]);
@@ -1752,7 +1853,7 @@ function subviewTabs(items) {
 
 function renderTestToolbar() {
   const data = getDemoData();
-  return `<aside class="test-toolbar"><strong>로컬 기능 테스트</strong><label>계정 전환 <select onchange="switchTestAccount(this.value)">${data.accounts.filter((item) => ["admin", "owner", "manager", "employee", "teacher", "student"].includes(item.login_id)).map((item) => `<option value="${item.account_id}" ${item.account_id === state.user.account_id ? "selected" : ""}>${escapeHtml(item.name)} · ${escapeHtml(accountLabel(item))}</option>`).join("")}</select></label><span>모든 변경은 이 브라우저에만 저장됩니다.</span><button class="btn secondary small" onclick="resetTestData()">${icon("refresh")}초기화</button></aside>`;
+  return `<aside class="test-toolbar"><strong>로컬 기능 테스트</strong><label>계정 전환 <select onchange="switchTestAccount(this.value)">${data.accounts.filter((item) => item.active).map((item) => `<option value="${item.account_id}" ${item.account_id === state.user.account_id ? "selected" : ""}>${escapeHtml(item.name)} · ${escapeHtml(accountLabel(item))}</option>`).join("")}</select></label><span>원장 1명 · 팀장 2명 · 사원 3명 · 강사 3명 · 수강생 12명</span><button class="btn secondary small" onclick="resetTestData()">${icon("refresh")}초기화</button></aside>`;
 }
 
 function pageHeading(title, description, action = "") {
@@ -1962,7 +2063,7 @@ function renderStudents() {
 
 function studentsTable(canEdit) {
   if (!state.students.length) return empty("등록된 수강생이 없습니다.");
-  return `<div class="table-wrap"><table><thead><tr><th>이름</th><th>전공</th><th>상태</th><th>${canEdit ? "보호자" : "목표"}</th><th>연락처</th><th>담당 강사</th>${canEdit ? "<th>관리</th>" : ""}</tr></thead><tbody>${state.students.map((item) => `<tr><td>${entityLink("student", item.student_id, item.name)}</td><td>${escapeHtml(item.major || "-")}</td><td>${statusBadge(item.status, item.status === "재원" ? "success" : "muted")}</td><td>${escapeHtml(canEdit ? item.guardian_name || "-" : item.goal || "-")}</td><td>${escapeHtml(canEdit ? item.guardian_phone || item.phone || "-" : item.phone || "-")}</td><td>${entityLink("account", item.teacher_id, accountName(item.teacher_id) || enrollmentTeacherName(item.student_id) || "-")}</td>${canEdit ? `<td><button class="btn secondary small" onclick="beginStudentEdit('${item.student_id}')">수정</button></td>` : ""}</tr>`).join("")}</tbody></table></div>`;
+  return `<div class="table-wrap"><table><thead><tr><th>이름</th><th>분야</th><th>상태</th><th>${canEdit ? "보호자" : "목표"}</th><th>연락처</th><th>담당 강사</th>${canEdit ? "<th>관리</th>" : ""}</tr></thead><tbody>${state.students.map((item) => `<tr><td>${entityLink("student", item.student_id, item.name)}</td><td>${escapeHtml(item.major || "보컬")}</td><td>${statusBadge(item.status, item.status === "재원" ? "success" : "muted")}</td><td>${escapeHtml(canEdit ? item.guardian_name || "-" : item.goal || "-")}</td><td>${escapeHtml(canEdit ? item.guardian_phone || item.phone || "-" : item.phone || "-")}</td><td>${entityLink("account", item.teacher_id, accountName(item.teacher_id) || enrollmentTeacherName(item.student_id) || "-")}</td>${canEdit ? `<td><button class="btn secondary small" onclick="beginStudentEdit('${item.student_id}')">수정</button></td>` : ""}</tr>`).join("")}</tbody></table></div>`;
 }
 
 function studentForm(student, teachers, editing) {
@@ -1971,7 +2072,7 @@ function studentForm(student, teachers, editing) {
     <label class="field"><span>이름</span><input name="name" value="${escapeAttr(student.name || "")}" required /></label>
     <label class="field"><span>생년월일</span><input name="birth_date" type="date" value="${escapeAttr(dateInputValue(student.birth_date))}" /></label>
     <label class="field"><span>연락처</span><input name="phone" value="${escapeAttr(student.phone || "")}" autocomplete="tel" /></label>
-    <label class="field"><span>전공</span><input name="major" value="${escapeAttr(student.major || "")}" required /></label>
+    <label class="field"><span>분야</span><input name="major" value="보컬" readonly /></label>
     <label class="field"><span>보호자 이름</span><input name="guardian_name" value="${escapeAttr(student.guardian_name || "")}" /></label>
     <label class="field"><span>보호자 연락처</span><input name="guardian_phone" value="${escapeAttr(student.guardian_phone || "")}" autocomplete="tel" /></label>
     <label class="field"><span>상태</span><select name="status">${STATUS_OPTIONS.map((item) => `<option ${student.status === item ? "selected" : ""}>${item}</option>`).join("")}</select></label>
@@ -1989,7 +2090,7 @@ function renderEnrollments() {
   const studentOptions = activeStudents.map((item) => `<option value="${item.student_id}">${escapeHtml(item.name)} · ${escapeHtml(item.major)}</option>`).join("");
   const teacherOptions = teachers.map((item) => `<option value="${item.account_id}">${escapeHtml(item.name)}</option>`).join("");
   const tabs = [["history", "수강 이력", "list"], ["schedule", "수업 일정", "calendar"], ["create", "수강·수업 등록", "plus"]];
-  if (state.capabilities.manageCalendar) tabs.push(["types", "수업 종류", "settings"]);
+  if (state.capabilities.manageCalendar) tabs.push(["types", "등록 기준", "settings"]);
   const heading = `${pageHeading("수강·일정 관리", "수강 이력, 수업 일정과 등록 업무를 각각 확인합니다.")}${subviewTabs(tabs)}`;
   if (state.subview === "history") return `${heading}<section class="panel"><div class="panel-head"><div><h2>수강 이력</h2><p>${state.enrollments.length}건</p></div></div>${enrollmentsTable(state.enrollments)}</section>`;
   if (state.subview === "schedule") return `${heading}<section class="panel"><div class="panel-head"><div><h2>수업 일정</h2><p>${state.lessons.length}건</p></div></div>${lessonsTable(state.lessons.sort(compareLessons))}</section>`;
@@ -2013,7 +2114,7 @@ function renderEnrollments() {
           <form class="panel-body form-grid two" onsubmit="createEnrollment(event)">
             <label class="field wide"><span>수강생</span><select name="student_id" required><option value="">선택</option>${studentOptions}</select></label>
             <label class="field"><span>담당 강사</span><select name="teacher_id" required><option value="">선택</option>${teacherOptions}</select></label>
-            <label class="field"><span>과목·수업 종류</span><input name="subject" list="enrollment-class-types" required /><datalist id="enrollment-class-types">${state.classTypes.map((item) => `<option value="${escapeAttr(item.name)}">${escapeHtml(item.category)}</option>`).join("")}</datalist></label>
+            <label class="field"><span>등록 기준</span><input name="subject" list="enrollment-class-types" required /><datalist id="enrollment-class-types">${state.classTypes.map((item) => `<option value="${escapeAttr(item.name)}">${escapeHtml(item.category)}</option>`).join("")}</datalist></label>
             <label class="field"><span>시작일</span><input name="start_date" type="date" value="${today()}" required /></label>
             <label class="field"><span>종료일</span><input name="end_date" type="date" /></label>
             <label class="field"><span>매주 요일</span><select name="weekly_day">${DAY_LABELS.map((day, index) => `<option value="${index}">${day}요일</option>`).join("")}</select></label>
@@ -2030,7 +2131,7 @@ function renderEnrollments() {
           <form class="panel-body form-grid two" onsubmit="createLesson(event)">
             <label class="field wide"><span>수강생</span><select name="student_id" required><option value="">선택</option>${studentOptions}</select></label>
             <label class="field"><span>담당 강사</span><select name="teacher_id" required><option value="">선택</option>${teacherOptions}</select></label>
-            <label class="field"><span>과목·수업 종류</span><input name="subject" list="lesson-class-types" required /><datalist id="lesson-class-types">${state.classTypes.map((item) => `<option value="${escapeAttr(item.name)}">${escapeHtml(item.category)}</option>`).join("")}</datalist></label>
+            <label class="field"><span>등록 기준</span><input name="subject" list="lesson-class-types" required /><datalist id="lesson-class-types">${state.classTypes.map((item) => `<option value="${escapeAttr(item.name)}">${escapeHtml(item.category)}</option>`).join("")}</datalist></label>
             <label class="field"><span>수업일</span><input name="lesson_date" type="date" value="${today()}" required /></label>
             <label class="field"><span>시작 시간</span><input name="start_time" type="time" required /></label>
             <label class="field"><span>수업 시간</span><input name="duration_minutes" type="number" min="10" step="10" value="50" /></label>
@@ -2045,7 +2146,7 @@ function renderEnrollments() {
 }
 
 function renderClassTypes() {
-  return `<div class="management-grid"><section class="panel"><div class="panel-head"><div><h2>수업 종류</h2><p>${state.classTypes.length}개</p></div></div><div class="class-type-list">${state.classTypes.map((item) => `<form onsubmit="updateClassType(event)"><input type="hidden" name="class_type_id" value="${item.class_type_id}" /><input name="name" value="${escapeAttr(item.name)}" required /><select name="category">${CLASS_TYPE_CATEGORIES.map((category) => `<option ${item.category === category ? "selected" : ""}>${category}</option>`).join("")}</select><input type="number" name="sort_order" value="${item.sort_order || 0}" min="0" /><input type="hidden" name="active" value="true" /><button class="icon-button" aria-label="저장">${icon("save")}</button></form>`).join("")}</div></section><section class="panel form-panel"><div class="panel-head"><div><h2>수업 종류 추가</h2><p>레슨·이론·그룹 수업</p></div></div><form class="panel-body form-grid" onsubmit="createClassType(event)"><label class="field"><span>이름</span><input name="name" required /></label><label class="field"><span>분류</span><select name="category">${CLASS_TYPE_CATEGORIES.map((item) => `<option>${item}</option>`).join("")}</select></label><div class="form-actions"><button class="btn">${icon("plus")}추가</button></div></form></section></div>`;
+  return `<div class="management-grid"><section class="panel"><div class="panel-head"><div><h2>등록 기준</h2><p>${state.classTypes.length}개 · 이름은 언제든 변경할 수 있습니다.</p></div></div><div class="class-type-list">${state.classTypes.map((item) => `<form onsubmit="updateClassType(event)"><input type="hidden" name="class_type_id" value="${item.class_type_id}" /><input name="name" value="${escapeAttr(item.name)}" required /><select name="category">${CLASS_TYPE_CATEGORIES.map((category) => `<option ${item.category === category ? "selected" : ""}>${category}</option>`).join("")}</select><input type="number" name="sort_order" value="${item.sort_order || 0}" min="0" /><input type="hidden" name="active" value="true" /><button class="icon-button" aria-label="저장">${icon("save")}</button></form>`).join("")}</div></section><section class="panel form-panel"><div class="panel-head"><div><h2>등록 기준 추가</h2><p>보컬 수강 목적에 맞게 자유롭게 추가합니다.</p></div></div><form class="panel-body form-grid" onsubmit="createClassType(event)"><label class="field"><span>이름</span><input name="name" required /></label><label class="field"><span>분야</span><select name="category">${CLASS_TYPE_CATEGORIES.map((item) => `<option>${item}</option>`).join("")}</select></label><div class="form-actions"><button class="btn">${icon("plus")}추가</button></div></form></section></div>`;
 }
 
 function renderRegistrations() {
@@ -2382,7 +2483,7 @@ function renderStudentProfile(studentId, back) {
   const enrollments = state.enrollments.filter((item) => item.student_id === studentId);
   const lessons = state.lessons.filter((item) => item.student_id === studentId).sort(compareLessons);
   const logs = state.lessonLogs.filter((item) => item.student_id === studentId);
-  return `${pageHeading(student.name, `${student.major || "전공 미정"} · ${student.status}`, back)}
+  return `${pageHeading(student.name, `${student.major || "보컬"} · ${student.status}`, back)}
     <section class="profile-hero"><span class="avatar large">${escapeHtml(student.name.slice(0, 1))}</span><div><h2>${escapeHtml(student.name)}</h2><p>${escapeHtml(student.goal || "목표 미등록")}</p></div></section>
     <div class="overview-grid"><section class="panel"><div class="panel-head"><div><h2>예정 수업</h2><p>${lessons.filter((item) => item.lesson_date >= today()).length}건</p></div></div>${lessonsTable(lessons.filter((item) => item.lesson_date >= today()))}</section><section class="panel"><div class="panel-head"><div><h2>수강 이력</h2><p>${enrollments.length}건</p></div></div>${enrollmentsTable(enrollments)}</section><section class="panel full-span"><div class="panel-head"><div><h2>수업일지</h2><p>${logs.length}건</p></div></div>${logsTable(logs)}</section></div>`;
 }
@@ -2489,7 +2590,7 @@ function logsCompactList(items) {
 
 function enrollmentsTable(items) {
   if (!items.length) return empty("등록된 수강 정보가 없습니다.");
-  return `<div class="table-wrap"><table><thead><tr><th>수강생</th><th>과목</th><th>강사</th><th>기간</th><th>반복 일정</th><th>상태</th></tr></thead><tbody>${items.map((item) => `<tr><td>${entityLink("student", item.student_id, item.student_name || studentName(item.student_id))}</td><td>${escapeHtml(item.subject)}</td><td>${entityLink("account", item.teacher_id, item.teacher_name || accountName(item.teacher_id))}</td><td>${escapeHtml(formatDate(item.start_date))} ~ ${item.end_date ? escapeHtml(formatDate(item.end_date)) : "계속"}</td><td>${DAY_LABELS[Number(item.weekly_day)] || "-"} ${escapeHtml(item.start_time || "")}</td><td>${statusBadge(ENROLLMENT_STATUS_LABELS[item.status] || item.status, item.status === "active" ? "success" : "muted")}</td></tr>`).join("")}</tbody></table></div>`;
+  return `<div class="table-wrap"><table><thead><tr><th>수강생</th><th>등록 기준</th><th>강사</th><th>기간</th><th>반복 일정</th><th>상태</th></tr></thead><tbody>${items.map((item) => `<tr><td>${entityLink("student", item.student_id, item.student_name || studentName(item.student_id))}</td><td>${escapeHtml(item.subject)}</td><td>${entityLink("account", item.teacher_id, item.teacher_name || accountName(item.teacher_id))}</td><td>${escapeHtml(formatDate(item.start_date))} ~ ${item.end_date ? escapeHtml(formatDate(item.end_date)) : "계속"}</td><td>${DAY_LABELS[Number(item.weekly_day)] || "-"} ${escapeHtml(item.start_time || "")}</td><td>${statusBadge(ENROLLMENT_STATUS_LABELS[item.status] || item.status, item.status === "active" ? "success" : "muted")}</td></tr>`).join("")}</tbody></table></div>`;
 }
 
 function lessonsTable(items) {
@@ -2499,7 +2600,7 @@ function lessonsTable(items) {
 
 function registrationsTable(items) {
   if (!items.length) return empty("등록 이력이 없습니다.");
-  return `<div class="table-wrap"><table><thead><tr><th>수강생</th><th>구분</th><th>등록 기간</th><th>금액</th><th>납부 상태</th><th>다음 결제 예정</th></tr></thead><tbody>${items.map((item) => `<tr><td><strong>${escapeHtml(item.student_name || studentName(item.student_id) || state.user.name)}</strong></td><td>${escapeHtml(item.registration_type || "-")}</td><td>${escapeHtml(formatDate(item.period_start))} ~ ${item.period_end ? escapeHtml(formatDate(item.period_end)) : "계속"}</td><td>${formatMoney(item.amount)}</td><td>${statusBadge(item.payment_status || "-", item.payment_status === "납부완료" ? "success" : ["미납", "청구예정"].includes(item.payment_status) ? "warning" : "muted")}</td><td><strong>${escapeHtml(formatDate(item.next_due_date))}</strong></td></tr>`).join("")}</tbody></table></div>`;
+  return `<div class="table-wrap"><table><thead><tr><th>수강생</th><th>등록 기준</th><th>구분</th><th>등록 기간</th><th>금액</th><th>납부 상태</th><th>다음 결제 예정</th></tr></thead><tbody>${items.map((item) => `<tr><td><strong>${escapeHtml(item.student_name || studentName(item.student_id) || state.user.name)}</strong></td><td>${escapeHtml(item.program_name || "-")}</td><td>${escapeHtml(item.registration_type || "-")}</td><td>${escapeHtml(formatDate(item.period_start))} ~ ${item.period_end ? escapeHtml(formatDate(item.period_end)) : "계속"}</td><td>${formatMoney(item.amount)}</td><td>${statusBadge(item.payment_status || "-", item.payment_status === "납부완료" ? "success" : ["미납", "청구예정"].includes(item.payment_status) ? "warning" : "muted")}</td><td><strong>${escapeHtml(formatDate(item.next_due_date))}</strong></td></tr>`).join("")}</tbody></table></div>`;
 }
 
 function registrationDueSoon() {

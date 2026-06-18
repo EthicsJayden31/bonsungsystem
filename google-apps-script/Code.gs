@@ -52,7 +52,13 @@ const LESSON_STATUSES = ["예정", "완료", "결석", "보강예정", "취소"]
 const PAYMENT_STATUSES = ["청구예정", "청구완료", "납부완료", "미납", "환불", "취소"];
 const RESERVATION_STATUSES = ["예약", "사용완료", "취소", "노쇼"];
 const RESERVATION_PURPOSES = ["레슨", "이론수업", "회의", "연습"];
-const CLASS_TYPE_CATEGORIES = ["레슨", "이론수업", "그룹수업"];
+const CLASS_TYPE_CATEGORIES = ["보컬"];
+const DEFAULT_REGISTRATION_PROGRAMS = [
+  ["program-senior", "시니어", "보컬", true, 1],
+  ["program-pro", "프로 (입시·오디션)", "보컬", true, 2],
+  ["program-academic", "아카데믹 (취미)", "보컬", true, 3],
+  ["program-event", "이벤트 (축가·행사)", "보컬", true, 4]
+];
 const PUBLIC_SETTING_DEFAULTS = {
   login_context_title: "오늘의 수업부터\n수강생 성장 기록까지",
   login_context_body: "관리자는 운영 흐름을 확인하고, 강사는 수업에 집중하며, 수강생은 자신의 학습 기록을 한곳에서 확인합니다.",
@@ -142,7 +148,7 @@ function health() {
   const settings = rowsAsObjects(SHEETS.settings);
   return {
     academyName: settingValue(settings, "academy_name") || "본성뮤직 아카데미",
-    schemaVersion: settingValue(settings, "schema_version") || "5",
+    schemaVersion: settingValue(settings, "schema_version") || "6",
     service: "Bonsung Music Intranet API",
     publicConfig: publicSettings(settings)
   };
@@ -502,7 +508,7 @@ function listStudents(user) {
 
 function createStudent(user, input) {
   if (!capabilitiesFor(user).manageStudents) throw new Error("수강생을 관리할 권한이 없습니다.");
-  if (!input || !input.name || !input.major) throw new Error("수강생 이름과 전공을 입력해 주세요.");
+  if (!input || !input.name) throw new Error("수강생 이름을 입력해 주세요.");
   const now = nowIso();
   const student = {
     student_id: makeId("stu"),
@@ -511,7 +517,7 @@ function createStudent(user, input) {
     phone: input.phone || "",
     guardian_name: input.guardian_name || "",
     guardian_phone: input.guardian_phone || "",
-    major: input.major || "",
+    major: "보컬",
     goal: input.goal || "",
     status: input.status || "상담중",
     teacher_id: input.teacher_id || "",
@@ -527,7 +533,7 @@ function createStudent(user, input) {
 
 function updateStudent(user, input) {
   if (!capabilitiesFor(user).manageStudents) throw new Error("수강생을 관리할 권한이 없습니다.");
-  if (!input || !input.student_id || !input.name || !input.major) throw new Error("수강생 이름과 전공을 입력해 주세요.");
+  if (!input || !input.student_id || !input.name) throw new Error("수강생 이름을 입력해 주세요.");
   if (!findObject(SHEETS.students, "student_id", input.student_id)) throw new Error("수강생을 찾을 수 없습니다.");
 
   const updated = {
@@ -536,7 +542,7 @@ function updateStudent(user, input) {
     phone: input.phone || "",
     guardian_name: input.guardian_name || "",
     guardian_phone: input.guardian_phone || "",
-    major: String(input.major).trim(),
+    major: "보컬",
     goal: input.goal || "",
     status: input.status || "상담중",
     teacher_id: input.teacher_id || "",
@@ -791,10 +797,12 @@ function listRegistrations(user) {
   if (user.role === "teacher") return [];
   const students = rowsAsObjects(SHEETS.students);
   const studentMap = objectMap(students, "student_id");
+  const enrollmentMap = objectMap(rowsAsObjects(SHEETS.enrollments), "enrollment_id");
   let rows = rowsAsObjects(SHEETS.registrations);
   if (user.role === "student") rows = rows.filter((item) => item.student_id === user.linked_student_id);
   return rows.map((item) => Object.assign({}, item, {
-    student_name: studentMap[item.student_id] ? studentMap[item.student_id].name : ""
+    student_name: studentMap[item.student_id] ? studentMap[item.student_id].name : "",
+    program_name: enrollmentMap[item.enrollment_id] ? enrollmentMap[item.enrollment_id].subject : ""
   })).sort((a, b) => String(b.period_start).localeCompare(String(a.period_start)));
 }
 
@@ -1141,9 +1149,9 @@ function listClassTypes(user) {
 }
 
 function createClassType(user, input) {
-  if (!canManageCalendar(user)) throw new Error("수업 종류를 관리할 권한이 없습니다.");
+  if (!canManageCalendar(user)) throw new Error("등록 기준을 관리할 권한이 없습니다.");
   if (!input || !String(input.name || "").trim() || !CLASS_TYPE_CATEGORIES.includes(input.category)) {
-    throw new Error("수업 종류명과 분류를 입력해 주세요.");
+    throw new Error("등록 기준 이름과 분야를 입력해 주세요.");
   }
   const now = nowIso();
   const classType = {
@@ -1161,11 +1169,11 @@ function createClassType(user, input) {
 }
 
 function updateClassType(user, input) {
-  if (!canManageCalendar(user)) throw new Error("수업 종류를 관리할 권한이 없습니다.");
-  if (!input || !input.class_type_id) throw new Error("수업 종류를 찾을 수 없습니다.");
+  if (!canManageCalendar(user)) throw new Error("등록 기준을 관리할 권한이 없습니다.");
+  if (!input || !input.class_type_id) throw new Error("등록 기준을 찾을 수 없습니다.");
   updateObject(SHEETS.classTypes, "class_type_id", input.class_type_id, {
     name: String(input.name || "").trim(),
-    category: CLASS_TYPE_CATEGORIES.includes(input.category) ? input.category : "레슨",
+    category: CLASS_TYPE_CATEGORIES.includes(input.category) ? input.category : "보컬",
     active: input.active === undefined ? true : asBoolean(input.active),
     sort_order: Number(input.sort_order || 0),
     updated_at: nowIso()
@@ -1431,7 +1439,7 @@ function logEvent(user, action, targetType, targetId, metadata) {
 
 function ensureSchema() {
   const schemaCache = CacheService.getScriptCache();
-  if (schemaCache.get("bonsung-schema-v5-ready") === "true") return;
+  if (schemaCache.get("bonsung-schema-v6-ready") === "true") return;
   const spreadsheet = db();
   Object.keys(SCHEMA).forEach((sheetName) => {
     let sheet = spreadsheet.getSheetByName(sheetName);
@@ -1450,13 +1458,14 @@ function ensureSchema() {
   ensureDefaultClassTypes();
   ensurePublicSettings();
   migrateAdminIdentity();
+  migrateVocalPrograms();
   const schemaSetting = findObject(SHEETS.settings, "key", "schema_version");
   if (schemaSetting) {
-    if (String(schemaSetting.value) !== "5") updateObject(SHEETS.settings, "key", "schema_version", { value: "5", updated_at: nowIso() });
+    if (String(schemaSetting.value) !== "6") updateObject(SHEETS.settings, "key", "schema_version", { value: "6", updated_at: nowIso() });
   } else {
-    appendObject(SHEETS.settings, { key: "schema_version", value: "5", description: "운영 데이터 스키마 버전", updated_at: nowIso() });
+    appendObject(SHEETS.settings, { key: "schema_version", value: "6", description: "운영 데이터 스키마 버전", updated_at: nowIso() });
   }
-  schemaCache.put("bonsung-schema-v5-ready", "true", 21600);
+  schemaCache.put("bonsung-schema-v6-ready", "true", 21600);
 }
 
 function db() {
@@ -1592,11 +1601,7 @@ function ensureDefaultClassTypes() {
   const sheet = db().getSheetByName(SHEETS.classTypes);
   if (sheet.getLastRow() > 1) return;
   const now = nowIso();
-  const defaults = [
-    ["cls-instrument", "전공 개인레슨", "레슨", true, 1, now, now],
-    ["cls-theory", "기초 음악이론", "이론수업", true, 2, now, now],
-    ["cls-ensemble", "앙상블", "그룹수업", true, 3, now, now]
-  ];
+  const defaults = DEFAULT_REGISTRATION_PROGRAMS.map((item) => item.concat([now, now]));
   sheet.getRange(2, 1, defaults.length, defaults[0].length).setValues(defaults);
   delete REQUEST_CACHE[SHEETS.classTypes];
 }
@@ -1625,6 +1630,52 @@ function migrateAdminIdentity() {
     value: "true",
     description: "시스템 관리자 표시 이름 1회 정리",
     updated_at: nowIso()
+  });
+}
+
+function migrateVocalPrograms() {
+  if (findObject(SHEETS.settings, "key", "vocal_programs_migrated_v1")) return;
+  const now = nowIso();
+  rowsAsObjects(SHEETS.students).forEach((student) => {
+    if (String(student.major || "") !== "보컬") {
+      updateObject(SHEETS.students, "student_id", student.student_id, { major: "보컬", updated_at: now });
+    }
+  });
+
+  const legacyIds = ["cls-instrument", "cls-theory", "cls-ensemble"];
+  legacyIds.forEach((id, index) => {
+    if (findObject(SHEETS.classTypes, "class_type_id", id)) {
+      const program = DEFAULT_REGISTRATION_PROGRAMS[index];
+      updateObject(SHEETS.classTypes, "class_type_id", id, {
+        name: program[1],
+        category: program[2],
+        active: true,
+        sort_order: program[4],
+        updated_at: now
+      });
+    }
+  });
+
+  DEFAULT_REGISTRATION_PROGRAMS.forEach((program) => {
+    const existingByName = rowsAsObjects(SHEETS.classTypes).find((item) => item.name === program[1]);
+    if (!existingByName) {
+      appendObject(SHEETS.classTypes, {
+        class_type_id: program[0],
+        name: program[1],
+        category: program[2],
+        active: program[3],
+        sort_order: program[4],
+        created_at: now,
+        updated_at: now
+      });
+    }
+  });
+
+  appendObject(SHEETS.settings, {
+    key: "vocal_programs_migrated_v1",
+    value: "true",
+    description: "보컬 전용 등록 기준 전환 완료",
+    updated_at: now
   });
 }
 
