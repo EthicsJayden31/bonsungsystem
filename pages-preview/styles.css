@@ -651,8 +651,8 @@ td.wrap { min-width: 210px; white-space: normal; line-height: 1.5; }
 @media (max-width: 720px) {
   input, select, textarea { font-size: 16px; }
   .test-toolbar { align-items: stretch; flex-direction: column; gap: 7px; }
-  .test-toolbar label { justify-content: space-between; }
-  .test-toolbar select { width: min(100%, 360px); }
+  .test-toolbar label { align-items: stretch; flex-direction: column; gap: 5px; justify-content: flex-start; }
+  .test-toolbar select { width: 100%; max-width: none; }
   .test-toolbar > span { display: none; }
   .auth-page { grid-template-columns: 1fr; }
   .auth-panel { min-height: 100vh; padding: 32px 22px; }
