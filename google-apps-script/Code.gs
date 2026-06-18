@@ -24,7 +24,7 @@ const SHEETS = {
 };
 
 const SCHEMA = {
-  계정: ["account_id", "login_id", "password_hash", "password_salt", "role", "name", "email", "phone", "linked_student_id", "active", "must_change_password", "created_at", "updated_at", "account_type", "employee_position", "permissions_json", "profile_intro", "theme"],
+  계정: ["account_id", "login_id", "password_hash", "password_salt", "role", "name", "email", "phone", "linked_student_id", "active", "must_change_password", "created_at", "updated_at", "account_type", "employee_position", "permissions_json", "profile_intro", "theme", "default_page", "ui_density", "dashboard_prefs_json"],
   수강생: ["student_id", "name", "birth_date", "phone", "guardian_name", "guardian_phone", "major", "goal", "status", "teacher_id", "enrolled_at", "memo", "created_at", "updated_at"],
   수업일지: ["log_id", "lesson_date", "student_id", "teacher_id", "subject", "lesson_content", "homework", "next_goal", "practice_request", "attendance_status", "internal_memo", "created_at", "updated_at", "absence_reason", "makeup_date", "lesson_number"],
   세션: ["token", "account_id", "expires_at", "created_at"],
@@ -180,7 +180,10 @@ function bootstrapAdmin(request) {
     employee_position: "owner",
     permissions_json: "{}",
     profile_intro: "",
-    theme: "system"
+    theme: "system",
+    default_page: "dashboard",
+    ui_density: "comfortable",
+    dashboard_prefs_json: ""
   };
   appendObject(SHEETS.accounts, account);
   PropertiesService.getScriptProperties().deleteProperty("SETUP_KEY");
@@ -266,7 +269,10 @@ function createAccount(user, input) {
     employee_position: input.role === "teacher" ? "teacher" : input.employee_position || (input.role === "admin" ? "owner" : "employee"),
     permissions_json: JSON.stringify(input.permissions || {}),
     profile_intro: "",
-    theme: "system"
+    theme: "system",
+    default_page: "",
+    ui_density: "comfortable",
+    dashboard_prefs_json: ""
   };
   appendObject(SHEETS.accounts, account);
   logEvent(user, "create_account", "account", account.account_id, { role: account.role });
@@ -374,7 +380,10 @@ function reviewAccountRequest(user, requestId, decision, review) {
     employee_position: employeePosition,
     permissions_json: "{}",
     profile_intro: "",
-    theme: "system"
+    theme: "system",
+    default_page: "",
+    ui_density: "comfortable",
+    dashboard_prefs_json: ""
   };
   appendObject(SHEETS.accounts, account);
   updateObject(SHEETS.accountRequests, "request_id", requestId, {
@@ -1067,6 +1076,7 @@ function createCalendarEvent(user, input) {
 }
 
 function updateProfile(user, input) {
+  const allowedPages = ["dashboard", "my-overview", "calendar", "students", "enrollments", "registrations", "reservations", "lesson-logs", "team", "meetings"];
   const patch = {
     name: normalizedAccountType(user) === "admin" && input && String(input.name || "").trim()
       ? String(input.name).trim().slice(0, 60)
@@ -1075,6 +1085,9 @@ function updateProfile(user, input) {
     phone: input && input.phone ? String(input.phone).trim() : "",
     profile_intro: input && input.profile_intro ? String(input.profile_intro).slice(0, 500) : "",
     theme: input && ["system", "light", "dark"].includes(input.theme) ? input.theme : "system",
+    default_page: input && allowedPages.includes(input.default_page) ? input.default_page : "",
+    ui_density: input && input.ui_density === "compact" ? "compact" : "comfortable",
+    dashboard_prefs_json: input && input.dashboard_prefs_json ? String(input.dashboard_prefs_json).slice(0, 1000) : "",
     updated_at: nowIso()
   };
   updateObject(SHEETS.accounts, "account_id", user.account_id, patch);
@@ -1576,7 +1589,10 @@ function publicAccount(account) {
     employee_position: normalizedPosition(account),
     permissions: parsePermissions(account.permissions_json),
     profile_intro: account.profile_intro || "",
-    theme: account.theme || "system"
+    theme: account.theme || "system",
+    default_page: account.default_page || "",
+    ui_density: account.ui_density || "comfortable",
+    dashboard_prefs_json: account.dashboard_prefs_json || ""
   };
 }
 

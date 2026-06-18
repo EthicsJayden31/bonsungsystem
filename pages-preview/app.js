@@ -3,9 +3,10 @@ const AUTO_API_ENDPOINT = window.BONSUNG_CONFIG?.apiEndpoint || "";
 const STORAGE = {
   token: "bonsung_session_token",
   user: "bonsung_current_user",
-  demoData: "bonsung_demo_data_v7",
+  demoData: "bonsung_demo_data_v8",
   lessonDraft: "bonsung_lesson_draft_v1",
-  theme: "bonsung_theme"
+  theme: "bonsung_theme",
+  density: "bonsung_density"
 };
 
 const ROLE_LABELS = { admin: "관리자", staff: "직원", teacher: "강사", student: "수강생" };
@@ -30,6 +31,20 @@ const DEFAULT_PUBLIC_CONFIG = {
   login_popup_enabled: true,
   login_popup_title: "본성뮤직 운영 안내",
   login_popup_body: "계정이 없는 구성원은 신규 계정 요청을 제출해 주세요. 관리자 승인 후 로그인할 수 있습니다."
+};
+
+const DEFAULT_ADMIN_WIDGETS = ["stats", "calendar", "today", "activity", "workload", "registrations"];
+const DEFAULT_PERSONAL_WIDGETS = ["stats", "calendar", "upcoming", "enrollments", "logs"];
+const DASHBOARD_WIDGET_LABELS = {
+  stats: "핵심 지표",
+  calendar: "다가오는 일정",
+  today: "오늘 수업",
+  activity: "최근 활동",
+  workload: "강사 현황",
+  registrations: "재등록 확인",
+  upcoming: "다가오는 수업",
+  enrollments: "현재 수강/담당 과목",
+  logs: "최근 수업일지"
 };
 
 const ICONS = {
@@ -107,20 +122,27 @@ const state = {
   mobileMenu: false,
   loading: false,
   message: "",
-  logFilters: { query: "", teacher: "", student: "", subject: "", from: "", to: "" },
+  studentFilters: { query: "", status: "", teacher: "", sort: "nameAsc" },
+  logFilters: { query: "", teacher: "", student: "", subject: "", from: "", to: "", sort: "dateDesc" },
+  meetingFilters: { query: "", participant: "", status: "", from: "", to: "", sort: "dateAsc" },
+  calendarSearch: "",
+  calendarSort: "dateAsc",
   calendarFilter: "all",
   reservationFilter: { date: today(), room: "all" },
   lessonDraft: readJson(STORAGE.lessonDraft) || {},
   theme: localStorage.getItem(STORAGE.theme) || "system",
+  density: localStorage.getItem(STORAGE.density) || "comfortable",
   authDialog: "",
   publicConfigLoaded: false
 };
 
 applyTheme(state.theme);
+applyDensity(state.density);
 if (state.user) {
   state.capabilities = demoCapabilities(state.user);
   state.accountType = state.user.account_type || (state.user.role === "admin" ? "admin" : state.user.role === "student" ? "student" : "staff");
   state.employeePosition = state.user.employee_position || (state.user.role === "teacher" ? "teacher" : "");
+  applyUserPreferences(state.user);
 }
 
 const DEMO_STUDENTS = [
@@ -408,7 +430,7 @@ function demoApi(action, payload) {
   if (action === "createAccount") {
     if (data.accounts.some((item) => item.login_id === payload.account.login_id)) throw new Error("이미 사용 중인 아이디입니다.");
     const { password: _password, ...accountInput } = payload.account;
-    const account = { ...accountInput, account_id: uid("acc"), active: true, must_change_password: true, account_type: accountInput.role === "admin" ? "admin" : accountInput.role === "student" ? "student" : "staff", employee_position: accountInput.role === "teacher" ? "teacher" : accountInput.employee_position || "" };
+    const account = { ...accountInput, account_id: uid("acc"), active: true, must_change_password: true, account_type: accountInput.role === "admin" ? "admin" : accountInput.role === "student" ? "student" : "staff", employee_position: accountInput.role === "teacher" ? "teacher" : accountInput.employee_position || "", theme: "system", default_page: "", ui_density: "comfortable", dashboard_prefs_json: "" };
     data.accounts.push(account); pushDemoEvent(data, user, "create_account", "account", account.account_id); return account;
   }
   if (action === "updateAccountStatus") {
@@ -607,6 +629,9 @@ function demoApi(action, payload) {
       active: true,
       must_change_password: true,
       theme: "system",
+      default_page: "",
+      ui_density: "comfortable",
+      dashboard_prefs_json: "",
       demo_password: accountRequest.demo_password || "bonsung1"
     };
     data.accounts.push(account);
@@ -804,12 +829,12 @@ async function initializeApp() {
       const data = getDemoData();
       state.user = data.accounts.find((item) => item.login_id === "admin");
       state.token = `demo-${state.user.account_id}`;
-      state.page = "dashboard";
+      state.page = requestedTestPage() || "dashboard";
       applyBootstrap(demoBootstrap(data, state.user));
       return;
     }
     if (state.user && state.token) {
-      state.page = defaultPage(state.user.role);
+      state.page = preferredPage(state.user);
       state.loading = false;
       render();
       await refreshData(true);
@@ -850,6 +875,11 @@ function startDemo() {
   location.href = url.toString();
 }
 
+function requestedTestPage() {
+  const page = new URLSearchParams(location.search).get("page");
+  return page ? page : "";
+}
+
 async function login(event) {
   event.preventDefault();
   const form = new FormData(event.currentTarget);
@@ -858,7 +888,10 @@ async function login(event) {
     const result = await api("login", { loginId: form.get("loginId"), password: form.get("password") });
     state.token = result.token;
     state.user = result.user;
-    state.page = result.user.must_change_password ? "profile" : defaultPage(result.user.role);
+    state.capabilities = demoCapabilities(result.user);
+    state.accountType = result.user.account_type || (result.user.role === "admin" ? "admin" : result.user.role === "student" ? "student" : "staff");
+    state.employeePosition = result.user.employee_position || (result.user.role === "teacher" ? "teacher" : "");
+    state.page = result.user.must_change_password ? "profile" : preferredPage(result.user);
     localStorage.setItem(STORAGE.token, result.token);
     localStorage.setItem(STORAGE.user, JSON.stringify(result.user));
     if (result.initialData) applyBootstrap(result.initialData);
@@ -914,6 +947,18 @@ function defaultPage(role) {
   return "dashboard";
 }
 
+function preferredPage(user = state.user) {
+  if (!user) return "dashboard";
+  const fallback = defaultPage(user.role);
+  const candidate = user.default_page || fallback;
+  return pageAllowed(candidate, user) ? candidate : fallback;
+}
+
+function pageAllowed(page, user = state.user) {
+  if (!user) return false;
+  return menusFor(user.role).some(([key]) => key === page);
+}
+
 async function refreshData(showLoader = true) {
   if (showLoader) setBusy(true, "");
   try {
@@ -933,7 +978,7 @@ function applyBootstrap(data) {
   if (data.user) {
     state.user = data.user;
     localStorage.setItem(STORAGE.user, JSON.stringify(data.user));
-    if (data.user.theme) setTheme(data.user.theme, false);
+    applyUserPreferences(data.user);
   }
   render();
 }
@@ -978,7 +1023,7 @@ function switchTestAccount(accountId) {
   if (!account) return;
   state.user = account;
   state.token = `demo-${account.account_id}`;
-  state.page = defaultPage(account.role);
+  state.page = preferredPage(account);
   state.subview = "";
   state.selectedEntity = null;
   state.navigationStack = [];
@@ -993,7 +1038,7 @@ function resetTestData() {
   const account = data.accounts.find((item) => item.login_id === "admin");
   state.user = account;
   state.token = `demo-${account.account_id}`;
-  state.page = "dashboard";
+  state.page = preferredPage(account);
   applyBootstrap(demoBootstrap(data, account));
 }
 
@@ -1044,7 +1089,7 @@ function appBack() {
     loadPageData(state.page);
     return;
   }
-  navigate(defaultPage(state.user.role));
+  navigate(preferredPage(state.user));
 }
 
 function scrollTopPage() {
@@ -1408,11 +1453,14 @@ async function updateProfile(event) {
   event.preventDefault();
   setBusy(true, "");
   try {
-    const profile = Object.fromEntries(new FormData(event.currentTarget));
+    const form = new FormData(event.currentTarget);
+    const profile = Object.fromEntries(form);
+    profile.dashboard_prefs_json = JSON.stringify({ widgets: form.getAll("dashboard_widgets") });
+    delete profile.dashboard_widgets;
     const user = await api("updateProfile", { profile });
     state.user = user;
     localStorage.setItem(STORAGE.user, JSON.stringify(user));
-    setTheme(user.theme || profile.theme || "system", false);
+    applyUserPreferences(user);
     state.message = "프로필과 환경 설정을 저장했습니다.";
     setBusy(false, state.message);
   } catch (error) { setBusy(false, error.message); }
@@ -1441,6 +1489,22 @@ function setTheme(theme, persist = true) {
 function applyTheme(theme) {
   document.documentElement.dataset.theme = theme === "system" ? "" : theme;
   document.documentElement.style.colorScheme = theme === "system" ? "light dark" : theme;
+}
+
+function setDensity(density, persist = true) {
+  state.density = density === "compact" ? "compact" : "comfortable";
+  if (persist) localStorage.setItem(STORAGE.density, state.density);
+  applyDensity(state.density);
+}
+
+function applyDensity(density) {
+  document.documentElement.dataset.density = density === "compact" ? "compact" : "";
+}
+
+function applyUserPreferences(user = state.user) {
+  if (!user) return;
+  setTheme(user.theme || "system", false);
+  setDensity(user.ui_density || "comfortable", false);
 }
 
 async function toggleAccount(accountId, active) {
@@ -1478,7 +1542,7 @@ async function changePassword(event) {
     await api("changePassword", { currentPassword: values.currentPassword, newPassword: values.newPassword });
     state.user.must_change_password = false;
     localStorage.setItem(STORAGE.user, JSON.stringify(state.user));
-    state.page = defaultPage(state.user.role);
+    state.page = preferredPage(state.user);
     state.message = "비밀번호가 변경되었습니다.";
     await refreshData(false);
   } catch (error) { setBusy(false, error.message); }
@@ -1599,6 +1663,22 @@ async function createLessonLog(event) {
   } catch (error) { setBusy(false, error.message); }
 }
 
+function setStudentFilter(key, value) {
+  state.studentFilters[key] = value;
+  render();
+}
+
+function applyStudentSearch(event) {
+  event.preventDefault();
+  state.studentFilters.query = new FormData(event.currentTarget).get("query").trim();
+  render();
+}
+
+function resetStudentFilters() {
+  state.studentFilters = { query: "", status: "", teacher: "", sort: "nameAsc" };
+  render();
+}
+
 function setLogFilter(key, value) {
   state.logFilters[key] = value;
   render();
@@ -1611,7 +1691,41 @@ function applyLogSearch(event) {
 }
 
 function resetLogFilters() {
-  state.logFilters = { query: "", teacher: "", student: "", subject: "", from: "", to: "" };
+  state.logFilters = { query: "", teacher: "", student: "", subject: "", from: "", to: "", sort: "dateDesc" };
+  render();
+}
+
+function setMeetingFilter(key, value) {
+  state.meetingFilters[key] = value;
+  render();
+}
+
+function applyMeetingSearch(event) {
+  event.preventDefault();
+  state.meetingFilters.query = new FormData(event.currentTarget).get("query").trim();
+  render();
+}
+
+function resetMeetingFilters() {
+  state.meetingFilters = { query: "", participant: "", status: "", from: "", to: "", sort: "dateAsc" };
+  render();
+}
+
+function applyCalendarSearch(event) {
+  event.preventDefault();
+  state.calendarSearch = new FormData(event.currentTarget).get("query").trim();
+  render();
+}
+
+function setCalendarSort(value) {
+  state.calendarSort = value;
+  render();
+}
+
+function resetCalendarFilters() {
+  state.calendarSearch = "";
+  state.calendarSort = "dateAsc";
+  state.calendarFilter = "all";
   render();
 }
 
@@ -1664,7 +1778,7 @@ function render() {
 
   const menus = menusFor(state.user.role);
   if (state.user.must_change_password) state.page = "profile";
-  if (!menus.some(([key]) => key === state.page)) state.page = defaultPage(state.user.role);
+  if (!menus.some(([key]) => key === state.page)) state.page = preferredPage(state.user);
   if (!state.subview) state.subview = defaultSubview(state.page);
   const primaryMobile = menus.filter(([key]) => key !== "profile").slice(0, 3);
 
@@ -1864,36 +1978,57 @@ function statItem(label, value, suffix = "", tone = "") {
   return `<div class="stat ${tone}"><span>${label}</span><strong>${escapeHtml(value)}${suffix ? `<small>${suffix}</small>` : ""}</strong></div>`;
 }
 
+function dashboardPrefs(user = state.user) {
+  const defaults = user?.role === "teacher" || user?.role === "student" ? DEFAULT_PERSONAL_WIDGETS : DEFAULT_ADMIN_WIDGETS;
+  try {
+    const parsed = JSON.parse(user?.dashboard_prefs_json || "{}");
+    const widgets = Array.isArray(parsed.widgets) && parsed.widgets.length ? parsed.widgets.filter((item) => defaults.includes(item)) : defaults;
+    return { widgets };
+  } catch (_error) {
+    return { widgets: defaults };
+  }
+}
+
+function dashboardWidgetEnabled(key) {
+  return dashboardPrefs().widgets.includes(key);
+}
+
+function dashboardWidgetOptions() {
+  const defaults = state.user?.role === "teacher" || state.user?.role === "student" ? DEFAULT_PERSONAL_WIDGETS : DEFAULT_ADMIN_WIDGETS;
+  const selected = dashboardPrefs().widgets;
+  return `<fieldset class="field wide preference-field"><legend>홈 화면 구성</legend><div>${defaults.map((key) => `<label><input type="checkbox" name="dashboard_widgets" value="${key}" ${selected.includes(key) ? "checked" : ""} /><span>${DASHBOARD_WIDGET_LABELS[key]}</span></label>`).join("")}</div></fieldset>`;
+}
+
 function renderDashboard() {
   const overview = state.overview || { stats: {}, todayLessons: [], workload: [], recentLogs: [] };
   const stats = overview.stats || {};
   const dueSoon = registrationDueSoon();
   return `
     ${pageHeading("오늘의 운영", `${formatFullDate(new Date())} 기준 학원 운영 현황입니다.`, `<button class="btn secondary small" onclick="refreshData()">${icon("refresh")}새로고침</button>`)}
-    <section class="stats">
+    ${dashboardWidgetEnabled("stats") ? `<section class="stats">
       ${statItem("재원 수강생", stats.activeStudents || 0, "명")}
       ${statItem("활성 계정", stats.activeAccounts || 0, "명")}
       ${statItem("이번 달 수업일지", stats.thisMonthLogs || 0, "건")}
       ${statItem("재등록 예정", dueSoon.length, "명", dueSoon.length ? "warning" : "")}
-    </section>
-    ${calendarSummary()}
+    </section>` : ""}
+    ${dashboardWidgetEnabled("calendar") ? calendarSummary() : ""}
     <div class="dashboard-grid">
-      <section class="panel schedule-panel">
+      ${dashboardWidgetEnabled("today") ? `<section class="panel schedule-panel">
         <div class="panel-head"><div><h2>오늘 수업 일정</h2><p>${overview.todayLessons?.length || 0}개의 수업</p></div><button class="text-action" onclick="navigate('enrollments')">전체 일정 ${icon("chevron")}</button></div>
         ${scheduleTimeline(overview.todayLessons || [])}
-      </section>
-      <section class="panel">
+      </section>` : ""}
+      ${dashboardWidgetEnabled("activity") ? `<section class="panel">
         <div class="panel-head"><div><h2>최근 활동</h2><p>운영 데이터 변경 기록</p></div>${state.user.role === "admin" ? `<button class="text-action" onclick="navigate('usage')">이용 현황 ${icon("chevron")}</button>` : ""}</div>
         ${activityList(state.user.role === "admin" ? state.usage?.recent?.slice(0, 6) || overview.recentLogs || [] : overview.recentLogs || [])}
-      </section>
-      <section class="panel wide-panel">
+      </section>` : ""}
+      ${dashboardWidgetEnabled("workload") ? `<section class="panel wide-panel">
         <div class="panel-head"><div><h2>강사 업무 현황</h2><p>담당 수강생과 최근 기록량</p></div></div>
         ${teacherWorkloadTable(overview.workload || [])}
-      </section>
-      <section class="panel progress-panel">
+      </section>` : ""}
+      ${dashboardWidgetEnabled("registrations") ? `<section class="panel progress-panel">
         <div class="panel-head"><div><h2>재등록 확인</h2><p>14일 이내 결제 예정</p></div><button class="text-action" onclick="navigate('registrations')">전체 보기 ${icon("chevron")}</button></div>
         ${registrationDueList(dueSoon)}
-      </section>
+      </section>` : ""}
     </div>`;
 }
 
@@ -1905,26 +2040,26 @@ function renderMyOverview() {
   const description = teacher ? "담당 수업과 수강생, 최근 기록을 한눈에 확인합니다." : "수강 과목과 다음 수업, 학습 기록을 확인합니다.";
   return `
     ${pageHeading(title, description, teacher ? `<button class="btn" onclick="navigate('lesson-logs')">${icon("plus")}수업일지 작성</button>` : "")}
-    <section class="stats">
+    ${dashboardWidgetEnabled("stats") ? `<section class="stats">
       ${teacher ? statItem("담당 수강생", stats.activeStudents || 0, "명") : statItem("수강 과목", stats.activeCourses || 0, "개")}
       ${teacher ? statItem("담당 과목", stats.subjects || 0, "개") : statItem("수강 기간", durationText(stats.enrolledDays || 0))}
       ${teacher ? statItem("이번 주 수업", stats.thisWeekLessons || 0, "회") : statItem("예정 수업", stats.upcomingLessons || 0, "회")}
       ${teacher ? statItem("이번 달 일지", stats.thisMonthLogs || 0, "건") : statItem("학습 기록", stats.lessonLogs || 0, "건")}
-    </section>
-    ${calendarSummary()}
+    </section>` : ""}
+    ${dashboardWidgetEnabled("calendar") ? calendarSummary() : ""}
     <div class="overview-grid">
-      <section class="panel schedule-panel">
+      ${dashboardWidgetEnabled("upcoming") ? `<section class="panel schedule-panel">
         <div class="panel-head"><div><h2>다가오는 수업</h2><p>앞으로 예정된 일정</p></div></div>
         ${scheduleTimeline((overview.upcoming || []).slice(0, 8))}
-      </section>
-      <section class="panel">
+      </section>` : ""}
+      ${dashboardWidgetEnabled("enrollments") ? `<section class="panel">
         <div class="panel-head"><div><h2>${teacher ? "담당 과목" : "현재 수강"}</h2><p>${(overview.enrollments || []).length}개 등록</p></div></div>
         ${enrollmentCards(overview.enrollments || [], teacher)}
-      </section>
-      <section class="panel full-span">
+      </section>` : ""}
+      ${dashboardWidgetEnabled("logs") ? `<section class="panel full-span">
         <div class="panel-head"><div><h2>최근 수업일지</h2><p>최근 학습 흐름</p></div><button class="text-action" onclick="navigate('lesson-logs')">전체 보기 ${icon("chevron")}</button></div>
         ${logsCompactList(overview.recentLogs || [])}
-      </section>
+      </section>` : ""}
     </div>`;
 }
 
@@ -2052,18 +2187,44 @@ function renderStudents() {
   const teachers = state.accounts.filter((item) => item.role === "teacher" && item.active);
   const editingStudent = state.students.find((item) => item.student_id === state.editingStudentId);
   const formStudent = editingStudent || {};
+  const filtered = filteredStudents();
   const tabs = [["list", "수강생 목록", "list"]];
   if (canEdit) tabs.push(["create", "수강생 등록", "plus"]);
   if (editingStudent) tabs.push(["edit", "정보 수정", "settings"]);
   const heading = `${pageHeading(canEdit ? "수강생 관리" : "담당 수강생", canEdit ? "목록, 등록과 수정을 작업별로 분리했습니다." : "수업에 필요한 담당 수강생 정보만 표시합니다.")}${subviewTabs(tabs)}`;
   if (state.subview === "create" && canEdit) return `${heading}${studentForm({}, teachers, false)}`;
   if (state.subview === "edit" && canEdit && editingStudent) return `${heading}${studentForm(formStudent, teachers, true)}`;
-  return `${heading}<section class="panel"><div class="panel-head"><div><h2>수강생 목록</h2><p>${state.students.length}명</p></div></div>${studentsTable(canEdit)}</section>`;
+  return `${heading}<section class="panel"><div class="panel-head"><div><h2>수강생 목록</h2><p>${filtered.length}명 / 전체 ${state.students.length}명</p></div></div>${studentFilters(teachers)}${studentsTable(canEdit, filtered)}</section>`;
 }
 
-function studentsTable(canEdit) {
-  if (!state.students.length) return empty("등록된 수강생이 없습니다.");
-  return `<div class="table-wrap"><table><thead><tr><th>이름</th><th>분야</th><th>상태</th><th>${canEdit ? "보호자" : "목표"}</th><th>연락처</th><th>담당 강사</th>${canEdit ? "<th>관리</th>" : ""}</tr></thead><tbody>${state.students.map((item) => `<tr><td>${entityLink("student", item.student_id, item.name)}</td><td>${escapeHtml(item.major || "보컬")}</td><td>${statusBadge(item.status, item.status === "재원" ? "success" : "muted")}</td><td>${escapeHtml(canEdit ? item.guardian_name || "-" : item.goal || "-")}</td><td>${escapeHtml(canEdit ? item.guardian_phone || item.phone || "-" : item.phone || "-")}</td><td>${entityLink("account", item.teacher_id, accountName(item.teacher_id) || enrollmentTeacherName(item.student_id) || "-")}</td>${canEdit ? `<td><button class="btn secondary small" onclick="beginStudentEdit('${item.student_id}')">수정</button></td>` : ""}</tr>`).join("")}</tbody></table></div>`;
+function studentFilters(teachers) {
+  return `<div class="filter-bar">
+    <form class="search-box" onsubmit="applyStudentSearch(event)">${icon("search")}<input name="query" value="${escapeAttr(state.studentFilters.query)}" placeholder="이름, 연락처, 목표 검색" /><button type="submit" class="sr-only">검색</button></form>
+    <select aria-label="상태 필터" onchange="setStudentFilter('status', this.value)"><option value="">전체 상태</option>${STATUS_OPTIONS.map((item) => `<option ${state.studentFilters.status === item ? "selected" : ""}>${item}</option>`).join("")}</select>
+    <select aria-label="담당 강사 필터" onchange="setStudentFilter('teacher', this.value)"><option value="">전체 강사</option>${teachers.map((item) => `<option value="${item.account_id}" ${state.studentFilters.teacher === item.account_id ? "selected" : ""}>${escapeHtml(item.name)}</option>`).join("")}</select>
+    <select aria-label="정렬" onchange="setStudentFilter('sort', this.value)"><option value="nameAsc" ${state.studentFilters.sort === "nameAsc" ? "selected" : ""}>이름순</option><option value="enrolledDesc" ${state.studentFilters.sort === "enrolledDesc" ? "selected" : ""}>최근 등록순</option><option value="status" ${state.studentFilters.sort === "status" ? "selected" : ""}>상태순</option><option value="teacher" ${state.studentFilters.sort === "teacher" ? "selected" : ""}>강사순</option></select>
+    <button type="button" class="btn ghost small" onclick="resetStudentFilters()">${icon("refresh")}초기화</button>
+  </div>`;
+}
+
+function filteredStudents() {
+  const filters = state.studentFilters;
+  return state.students.filter((item) => {
+    const text = [item.name, item.phone, item.guardian_name, item.guardian_phone, item.major, item.goal, item.memo, accountName(item.teacher_id)].join(" ").toLowerCase();
+    return (!filters.query || text.includes(filters.query.toLowerCase()))
+      && (!filters.status || item.status === filters.status)
+      && (!filters.teacher || item.teacher_id === filters.teacher);
+  }).sort((a, b) => {
+    if (filters.sort === "enrolledDesc") return String(b.enrolled_at || "").localeCompare(String(a.enrolled_at || ""));
+    if (filters.sort === "status") return `${a.status}${a.name}`.localeCompare(`${b.status}${b.name}`, "ko");
+    if (filters.sort === "teacher") return `${accountName(a.teacher_id) || ""}${a.name}`.localeCompare(`${accountName(b.teacher_id) || ""}${b.name}`, "ko");
+    return String(a.name || "").localeCompare(String(b.name || ""), "ko");
+  });
+}
+
+function studentsTable(canEdit, items = state.students) {
+  if (!items.length) return empty("조건에 맞는 수강생이 없습니다.", "검색어와 필터를 조정하면 다시 표시됩니다.");
+  return `<div class="table-wrap"><table><thead><tr><th>이름</th><th>분야</th><th>상태</th><th>${canEdit ? "보호자" : "목표"}</th><th>연락처</th><th>담당 강사</th>${canEdit ? "<th>관리</th>" : ""}</tr></thead><tbody>${items.map((item) => `<tr><td>${entityLink("student", item.student_id, item.name)}</td><td>${escapeHtml(item.major || "보컬")}</td><td>${statusBadge(item.status, item.status === "재원" ? "success" : "muted")}</td><td>${escapeHtml(canEdit ? item.guardian_name || "-" : item.goal || "-")}</td><td>${escapeHtml(canEdit ? item.guardian_phone || item.phone || "-" : item.phone || "-")}</td><td>${entityLink("account", item.teacher_id, accountName(item.teacher_id) || enrollmentTeacherName(item.student_id) || "-")}</td>${canEdit ? `<td><button class="btn secondary small" onclick="beginStudentEdit('${item.student_id}')">수정</button></td>` : ""}</tr>`).join("")}</tbody></table></div>`;
 }
 
 function studentForm(student, teachers, editing) {
@@ -2284,10 +2445,10 @@ function renderTeam() {
 }
 
 function renderMeetings() {
-  const upcoming = state.meetings.filter((item) => item.meeting_date >= today());
+  const upcoming = filteredMeetings();
   return `${pageHeading("회의 예약·관리", "나에게 예정된 회의와 참석자를 확인합니다.")}
     <div class="${state.capabilities.manageMeetings ? "management-grid" : ""}">
-      <section class="panel"><div class="panel-head"><div><h2>예정 회의</h2><p>${upcoming.length}건</p></div></div>${meetingsList(upcoming)}</section>
+      <section class="panel"><div class="panel-head"><div><h2>회의 목록</h2><p>${upcoming.length}건 / 전체 ${state.meetings.length}건</p></div></div>${meetingFilters()}${meetingsList(upcoming)}</section>
       ${state.capabilities.manageMeetings ? `<section class="panel form-panel"><div class="panel-head"><div><h2>회의 예약</h2><p>참석자를 선택해 일정을 공유합니다.</p></div></div>
         <form class="panel-body form-grid two" onsubmit="createMeeting(event)">
           <label class="field wide"><span>회의명</span><input name="title" required /></label>
@@ -2302,12 +2463,44 @@ function renderMeetings() {
     </div>`;
 }
 
+function meetingFilters() {
+  const participants = uniqueBy(state.accounts.filter((item) => item.account_type === "staff" && item.active).map((item) => ({ id: item.account_id, name: item.name })), "id");
+  const statuses = unique(state.meetings.map((item) => item.status || "예정")).sort();
+  return `<div class="filter-bar">
+    <form class="search-box" onsubmit="applyMeetingSearch(event)">${icon("search")}<input name="query" value="${escapeAttr(state.meetingFilters.query)}" placeholder="회의명, 안건, 장소 검색" /><button type="submit" class="sr-only">검색</button></form>
+    <select aria-label="참석자 필터" onchange="setMeetingFilter('participant', this.value)"><option value="">전체 참석자</option>${participants.map((item) => `<option value="${item.id}" ${state.meetingFilters.participant === item.id ? "selected" : ""}>${escapeHtml(item.name)}</option>`).join("")}</select>
+    <select aria-label="상태 필터" onchange="setMeetingFilter('status', this.value)"><option value="">전체 상태</option>${statuses.map((item) => `<option ${state.meetingFilters.status === item ? "selected" : ""}>${escapeHtml(item)}</option>`).join("")}</select>
+    <input aria-label="시작일" type="date" value="${escapeAttr(state.meetingFilters.from)}" onchange="setMeetingFilter('from', this.value)" />
+    <input aria-label="종료일" type="date" value="${escapeAttr(state.meetingFilters.to)}" onchange="setMeetingFilter('to', this.value)" />
+    <select aria-label="정렬" onchange="setMeetingFilter('sort', this.value)"><option value="dateAsc" ${state.meetingFilters.sort === "dateAsc" ? "selected" : ""}>빠른 일정순</option><option value="dateDesc" ${state.meetingFilters.sort === "dateDesc" ? "selected" : ""}>최근 일정순</option><option value="title" ${state.meetingFilters.sort === "title" ? "selected" : ""}>회의명순</option></select>
+    <button type="button" class="btn ghost small" onclick="resetMeetingFilters()">${icon("refresh")}초기화</button>
+  </div>`;
+}
+
+function filteredMeetings() {
+  const filters = state.meetingFilters;
+  return state.meetings.filter((item) => {
+    const participantIds = String(item.participant_ids || "").split(",");
+    const text = [item.title, item.agenda, item.location, item.status, ...(item.participant_names || [])].join(" ").toLowerCase();
+    return (!filters.query || text.includes(filters.query.toLowerCase()))
+      && (!filters.participant || participantIds.includes(filters.participant))
+      && (!filters.status || (item.status || "예정") === filters.status)
+      && (!filters.from || item.meeting_date >= filters.from)
+      && (!filters.to || item.meeting_date <= filters.to);
+  }).sort((a, b) => {
+    if (filters.sort === "dateDesc") return `${b.meeting_date}${b.start_time || ""}`.localeCompare(`${a.meeting_date}${a.start_time || ""}`);
+    if (filters.sort === "title") return String(a.title || "").localeCompare(String(b.title || ""), "ko");
+    return `${a.meeting_date}${a.start_time || ""}`.localeCompare(`${b.meeting_date}${b.start_time || ""}`);
+  });
+}
+
 function renderCalendar() {
   const month = state.calendarMonth;
+  const list = filteredCalendarEvents();
   return `${pageHeading("통합 캘린더", "수업, 회의, 학원 행사와 휴무를 한곳에서 확인합니다.", `<div class="month-controls"><button class="icon-button" onclick="moveCalendarMonth(-1)" aria-label="이전 달">${icon("chevron", "flip")}</button><strong>${month.replace("-", ".")}</strong><button class="icon-button" onclick="moveCalendarMonth(1)" aria-label="다음 달">${icon("chevron")}</button></div>`)}
     <div class="calendar-filters">${[["all","전체"],["lesson","레슨"],["theory","이론수업"],["meeting","회의"],["academy","학원 일정"]].map(([value,label]) => `<button class="${state.calendarFilter === value ? "active" : ""}" onclick="setCalendarFilter('${value}')">${label}</button>`).join("")}</div>
     <div class="${state.capabilities.manageCalendar ? "calendar-layout" : ""}">
-      <section class="panel calendar-panel">${calendarGrid(month)}</section>
+      <section class="panel calendar-panel">${calendarSearchBar()}${calendarGrid(month)}<div class="calendar-result-list"><div class="panel-head compact-head"><div><h2>검색된 일정</h2><p>${list.length}건</p></div></div>${calendarEventList(list)}</div></section>
       ${state.capabilities.manageCalendar ? `<section class="panel form-panel"><div class="panel-head"><div><h2>학원 일정 추가</h2><p>휴무일·행사·전체 공지 일정</p></div></div>
         <form class="panel-body form-grid two" onsubmit="createCalendarEvent(event)">
           <label class="field wide"><span>일정명</span><input name="title" required /></label>
@@ -2320,6 +2513,30 @@ function renderCalendar() {
           <div class="form-actions wide"><button class="btn">${icon("plus")}일정 추가</button></div>
         </form></section>` : ""}
     </div>`;
+}
+
+function calendarSearchBar() {
+  return `<div class="filter-bar">
+    <form class="search-box" onsubmit="applyCalendarSearch(event)">${icon("search")}<input name="query" value="${escapeAttr(state.calendarSearch)}" placeholder="일정명, 수강생, 강사, 장소 검색" /><button type="submit" class="sr-only">검색</button></form>
+    <select aria-label="일정 정렬" onchange="setCalendarSort(this.value)"><option value="dateAsc" ${state.calendarSort === "dateAsc" ? "selected" : ""}>빠른 날짜순</option><option value="dateDesc" ${state.calendarSort === "dateDesc" ? "selected" : ""}>최근 날짜순</option><option value="title" ${state.calendarSort === "title" ? "selected" : ""}>이름순</option></select>
+    <button type="button" class="btn ghost small" onclick="resetCalendarFilters()">${icon("refresh")}초기화</button>
+  </div>`;
+}
+
+function filteredCalendarEvents() {
+  return state.calendar.filter((item) => {
+    const text = [item.title, item.detail, item.type, item.date, item.start_time].join(" ").toLowerCase();
+    return calendarFilterMatch(item) && (!state.calendarSearch || text.includes(state.calendarSearch.toLowerCase()));
+  }).sort((a, b) => {
+    if (state.calendarSort === "dateDesc") return `${b.date}${b.start_time || ""}`.localeCompare(`${a.date}${a.start_time || ""}`);
+    if (state.calendarSort === "title") return String(a.title || "").localeCompare(String(b.title || ""), "ko");
+    return `${a.date}${a.start_time || ""}`.localeCompare(`${b.date}${b.start_time || ""}`);
+  });
+}
+
+function calendarEventList(items) {
+  if (!items.length) return empty("조건에 맞는 일정이 없습니다.", "검색어 또는 유형 필터를 조정해 주세요.");
+  return `<div class="calendar-list">${items.slice(0, 80).map((item) => `<button onclick="${["lesson","meeting"].includes(String(item.calendar_id).split(":")[0]) ? `openCalendarEvent('${escapeAttr(item.calendar_id)}')` : "navigate('calendar')"}"><time>${formatDate(item.date)} ${escapeHtml(item.start_time || "종일")}</time><span class="event-dot ${calendarTone(item.type)}"></span><div><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.detail || item.type || "-")}</small></div>${icon("chevron")}</button>`).join("")}</div>`;
 }
 
 function setCalendarFilter(value) {
@@ -2348,7 +2565,8 @@ function lessonLogFilters() {
     <select aria-label="과목 필터" onchange="setLogFilter('subject', this.value)"><option value="">전체 과목</option>${subjects.map((item) => `<option ${state.logFilters.subject === item ? "selected" : ""}>${escapeHtml(item)}</option>`).join("")}</select>
     <input aria-label="시작일" type="date" value="${escapeAttr(state.logFilters.from)}" onchange="setLogFilter('from', this.value)" />
     <input aria-label="종료일" type="date" value="${escapeAttr(state.logFilters.to)}" onchange="setLogFilter('to', this.value)" />
-    <button class="btn ghost small" onclick="resetLogFilters()">${icon("refresh")}초기화</button>
+    <select aria-label="정렬" onchange="setLogFilter('sort', this.value)"><option value="dateDesc" ${state.logFilters.sort === "dateDesc" ? "selected" : ""}>최근 수업순</option><option value="dateAsc" ${state.logFilters.sort === "dateAsc" ? "selected" : ""}>오래된 수업순</option><option value="student" ${state.logFilters.sort === "student" ? "selected" : ""}>수강생순</option><option value="teacher" ${state.logFilters.sort === "teacher" ? "selected" : ""}>강사순</option><option value="subject" ${state.logFilters.sort === "subject" ? "selected" : ""}>과목순</option></select>
+    <button type="button" class="btn ghost small" onclick="resetLogFilters()">${icon("refresh")}초기화</button>
   </div>`;
 }
 
@@ -2362,7 +2580,13 @@ function filteredLessonLogs() {
       && (!filters.subject || item.subject === filters.subject)
       && (!filters.from || item.lesson_date >= filters.from)
       && (!filters.to || item.lesson_date <= filters.to);
-  }).sort((a, b) => String(b.lesson_date).localeCompare(String(a.lesson_date)));
+  }).sort((a, b) => {
+    if (filters.sort === "dateAsc") return String(a.lesson_date).localeCompare(String(b.lesson_date));
+    if (filters.sort === "student") return String(a.student_name || studentName(a.student_id) || "").localeCompare(String(b.student_name || studentName(b.student_id) || ""), "ko");
+    if (filters.sort === "teacher") return String(a.teacher_name || accountName(a.teacher_id) || "").localeCompare(String(b.teacher_name || accountName(b.teacher_id) || ""), "ko");
+    if (filters.sort === "subject") return String(a.subject || "").localeCompare(String(b.subject || ""), "ko");
+    return String(b.lesson_date).localeCompare(String(a.lesson_date));
+  });
 }
 
 function renderLessonLogComposer() {
@@ -2525,6 +2749,8 @@ function taskForm(accountId) {
 }
 
 function renderProfile() {
+  const availableMenus = menusFor(state.user.role).filter(([key]) => !["profile", "usage", "system-settings", "accounts"].includes(key));
+  const defaultPageValue = state.user.default_page || defaultPage(state.user.role);
   return `
     ${pageHeading("환경 설정", "개인 프로필, 화면 모드와 로그인 비밀번호를 관리합니다.")}
     <div class="profile-grid">
@@ -2540,6 +2766,9 @@ function renderProfile() {
           <label class="field"><span>연락처</span><input name="phone" value="${escapeAttr(state.user.phone || "")}" autocomplete="tel" /></label>
           ${state.user.role === "teacher" ? `<label class="field"><span>강사 소개</span><textarea name="profile_intro" rows="4" placeholder="전공, 지도 분야와 간단한 소개">${escapeHtml(state.user.profile_intro || "")}</textarea></label>` : `<input type="hidden" name="profile_intro" value="${escapeAttr(state.user.profile_intro || "")}" />`}
           <div class="field"><span>화면 모드</span><div class="theme-options">${["system", "light", "dark"].map((value) => `<label><input type="radio" name="theme" value="${value}" ${state.theme === value ? "checked" : ""} onchange="setTheme('${value}')"/><span>${value === "system" ? "기기 설정" : value === "light" ? "라이트" : "다크"}</span></label>`).join("")}</div></div>
+          <label class="field"><span>로그인 후 시작 화면</span><select name="default_page">${availableMenus.map(([key, label]) => `<option value="${key}" ${defaultPageValue === key ? "selected" : ""}>${escapeHtml(label)}</option>`).join("")}</select></label>
+          <div class="field"><span>화면 밀도</span><div class="theme-options">${[["comfortable","기본"],["compact","촘촘하게"]].map(([value, label]) => `<label><input type="radio" name="ui_density" value="${value}" ${state.density === value ? "checked" : ""} onchange="setDensity('${value}')"/><span>${label}</span></label>`).join("")}</div></div>
+          ${dashboardWidgetOptions()}
           <div class="form-actions"><button class="btn">${icon("save")}설정 저장</button></div>
         </form>
       </section>
@@ -2906,6 +3135,7 @@ window.updateRoom = updateRoom;
 window.updateProfile = updateProfile;
 window.updatePermissions = updatePermissions;
 window.setTheme = setTheme;
+window.setDensity = setDensity;
 window.moveCalendarMonth = moveCalendarMonth;
 window.switchTestAccount = switchTestAccount;
 window.resetTestData = resetTestData;
@@ -2922,9 +3152,18 @@ window.loadPreviousLessonLog = loadPreviousLessonLog;
 window.saveCurrentAsTemplate = saveCurrentAsTemplate;
 window.deleteLessonTemplate = deleteLessonTemplate;
 window.createLessonLog = createLessonLog;
+window.setStudentFilter = setStudentFilter;
+window.applyStudentSearch = applyStudentSearch;
+window.resetStudentFilters = resetStudentFilters;
 window.setLogFilter = setLogFilter;
 window.applyLogSearch = applyLogSearch;
 window.resetLogFilters = resetLogFilters;
+window.setMeetingFilter = setMeetingFilter;
+window.applyMeetingSearch = applyMeetingSearch;
+window.resetMeetingFilters = resetMeetingFilters;
+window.applyCalendarSearch = applyCalendarSearch;
+window.setCalendarSort = setCalendarSort;
+window.resetCalendarFilters = resetCalendarFilters;
 window.viewLog = viewLog;
 window.closeLog = closeLog;
 
