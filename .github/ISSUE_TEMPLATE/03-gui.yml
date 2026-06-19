@@ -1,0 +1,39 @@
+name: 페이지 디자인 및 GUI 조정
+description: 레이아웃, 모바일 화면, 버튼, 입력폼, 문구, 시각적 사용성 개선
+title: "[GUI] "
+labels: ["area:gui", "priority:normal", "needs:chrome-check"]
+body:
+  - type: textarea
+    id: request
+    attributes:
+      label: 요청 내용
+      description: 조정할 화면 디자인이나 GUI 문제를 적어주세요.
+      placeholder: 예) 모바일 수강생 상세 화면에서 버튼이 너무 좁아 눌리기 어렵습니다.
+    validations:
+      required: true
+  - type: textarea
+    id: target-screen
+    attributes:
+      label: 대상 화면
+      description: 화면 이름, URL, 메뉴 위치를 적어주세요.
+  - type: textarea
+    id: desired
+    attributes:
+      label: 원하는 방향
+      description: 원하는 느낌, 배치, 문구, 사용 흐름을 적어주세요.
+  - type: checkboxes
+    id: viewport
+    attributes:
+      label: 확인할 화면 크기
+      options:
+        - label: 데스크톱
+        - label: 모바일 390px
+        - label: 모바일 320px
+  - type: checkboxes
+    id: verification
+    attributes:
+      label: 검증 요청
+      options:
+        - label: Chrome에서 스크린샷으로 확인해주세요.
+        - label: 가로 스크롤이 생기지 않게 해주세요.
+        - label: 버튼과 입력칸 텍스트가 잘리지 않게 해주세요.
