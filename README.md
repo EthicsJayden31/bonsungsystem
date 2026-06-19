@@ -39,9 +39,14 @@ google-apps-script/
 docs/
   google-sheets-setup.md  운영 데이터와 Apps Script 연결
   github-pages.md         검증 및 배포 절차
+  project/                작업 지시와 GitHub 연동 운영 문서
 ```
 
 저장소의 Next.js·Prisma 코드는 장기 확장용 초기 구조로 유지합니다. 현재 GitHub Pages 운영 경로는 `pages-preview/`와 `google-apps-script/`입니다.
+
+## 프로젝트 운영
+
+작업 지시 분류, GitHub Issue 작성 방식, 로컬 작업 템플릿은 [프로젝트 운영 문서](docs/project/README.md)를 기준으로 관리합니다.
 
 ## Google Sheets
 
