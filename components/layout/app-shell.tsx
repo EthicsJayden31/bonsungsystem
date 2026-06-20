@@ -20,6 +20,7 @@ const navItems = [
   { href: "/lesson-notes", label: "레슨노트", area: "lesson-notes" },
   { href: "/practice-rooms", label: "연습실", area: "practice-rooms" },
   { href: "/payments", label: "수납", area: "payments" },
+  { href: "/data-quality", label: "데이터 점검", area: "data-quality" },
   { href: "/tasks", label: "업무", area: "tasks" },
   { href: "/notices", label: "공지/문서", area: "notices" }
 ];
@@ -35,6 +36,7 @@ const pageCopy: Record<string, { title: string; description: string; action: str
   "lesson-notes": { title: "레슨노트", description: "수업 내용, 과제, 다음 목표를 일관되게 남깁니다.", action: "노트 추가" },
   "practice-rooms": { title: "연습실 예약", description: "연습실 예약 상태와 사용 시간을 관리합니다.", action: "예약 추가" },
   payments: { title: "수납 상태", description: "청구, 입금, 미납, 환불 상태를 분리해 확인합니다.", action: "결제 등록" },
+  "data-quality": { title: "데이터 점검", description: "Google Sheets 운영 데이터의 누락, 중복, 참조 오류, 예약 충돌을 확인합니다.", action: "점검 새로고침" },
   tasks: { title: "내부 업무", description: "운영 업무의 담당자, 마감일, 우선순위를 관리합니다.", action: "업무 추가" },
   notices: { title: "공지/문서", description: "운영 기준과 강사 매뉴얼을 정리합니다.", action: "문서 작성" }
 };

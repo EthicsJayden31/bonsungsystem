@@ -15,7 +15,7 @@ export const users: Record<Role, CurrentUser> = {
 
 export function canAccess(role: Role, area: string) {
   if (role === "admin") return true;
-  if (role === "teacher" && area === "payments") return false;
+  if (role === "teacher" && ["payments", "data-quality"].includes(area)) return false;
   if (role === "teacher") {
     return ["dashboard", "students", "lessons", "attendance", "lesson-notes", "notices"].includes(area);
   }

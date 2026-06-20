@@ -90,6 +90,7 @@ function doPost(event) {
 
     const currentUser = requireSession(request.token);
     if (action === "bootstrap") return success(getBootstrapData(currentUser));
+    if (action === "getDataQualityReport") return success(getDataQualityReport(currentUser));
     if (action === "logout") return success(logout(currentUser, request.token));
     if (action === "listAccounts") return success(listAccounts(currentUser));
     if (action === "createAccount") return success(createAccount(currentUser, request.account));
@@ -775,6 +776,144 @@ function deleteLessonTemplate(user, templateId) {
   updateObject(SHEETS.templates, "template_id", templateId, { active: false, updated_at: nowIso() });
   logEvent(user, "delete_lesson_template", "lesson_template", templateId, {});
   return true;
+}
+
+
+
+function getDataQualityReport(user) {
+  if (!canManageOperations(user)) throw new Error("데이터 점검은 운영 관리 권한이 필요합니다.");
+  const report = buildDataQualityReport();
+  logEvent(user, "get_data_quality_report", "system", "data_quality", { issue_count: report.summary.totalIssues });
+  return report;
+}
+
+function buildDataQualityReport() {
+  const accounts = rowsAsObjects(SHEETS.accounts);
+  const students = rowsAsObjects(SHEETS.students);
+  const enrollments = rowsAsObjects(SHEETS.enrollments);
+  const lessons = rowsAsObjects(SHEETS.lessons);
+  const lessonLogs = rowsAsObjects(SHEETS.lessonLogs);
+  const registrations = rowsAsObjects(SHEETS.registrations);
+  const rooms = rowsAsObjects(SHEETS.rooms);
+  const reservations = rowsAsObjects(SHEETS.reservations);
+  const issues = [];
+
+  const studentIds = indexById(students, "student_id");
+  const accountIds = indexById(accounts, "account_id");
+  const enrollmentIds = indexById(enrollments, "enrollment_id");
+  const roomIds = indexById(rooms, "room_id");
+
+  checkRequiredFields(issues, "학생", students, "student_id", ["student_id", "name", "status"]);
+  checkRequiredFields(issues, "수강", enrollments, "enrollment_id", ["enrollment_id", "student_id", "teacher_id", "subject", "status"]);
+  checkRequiredFields(issues, "수업", lessons, "lesson_id", ["lesson_id", "lesson_date", "start_time", "student_id", "teacher_id", "subject", "status"]);
+  checkRequiredFields(issues, "레슨노트", lessonLogs, "log_id", ["log_id", "lesson_date", "student_id", "teacher_id", "lesson_content"]);
+  checkRequiredFields(issues, "수납", registrations, "registration_id", ["registration_id", "student_id", "amount", "payment_status", "next_due_date"]);
+  checkRequiredFields(issues, "예약", reservations, "reservation_id", ["reservation_id", "room_id", "reserved_by", "reservation_date", "start_time", "end_time", "status"]);
+
+  checkDuplicateKeys(issues, "학생", students, "student_id", "학생 ID 중복");
+  checkDuplicateKeys(issues, "수강", enrollments, "enrollment_id", "수강 ID 중복");
+  checkDuplicateKeys(issues, "수업", lessons, "lesson_id", "수업 ID 중복");
+  checkDuplicateKeys(issues, "레슨노트", lessonLogs, "log_id", "레슨노트 ID 중복");
+  checkDuplicateKeys(issues, "수납", registrations, "registration_id", "수납 ID 중복");
+  checkDuplicateKeys(issues, "예약", reservations, "reservation_id", "예약 ID 중복");
+
+  enrollments.forEach((item) => {
+    checkReference(issues, "수강", item.enrollment_id, "student_id", item.student_id, studentIds, "존재하지 않는 학생을 참조합니다.");
+    checkReference(issues, "수강", item.enrollment_id, "teacher_id", item.teacher_id, accountIds, "존재하지 않는 강사를 참조합니다.");
+  });
+  lessons.forEach((item) => {
+    checkReference(issues, "수업", item.lesson_id, "student_id", item.student_id, studentIds, "존재하지 않는 학생을 참조합니다.");
+    checkReference(issues, "수업", item.lesson_id, "teacher_id", item.teacher_id, accountIds, "존재하지 않는 강사를 참조합니다.");
+    if (item.enrollment_id) checkReference(issues, "수업", item.lesson_id, "enrollment_id", item.enrollment_id, enrollmentIds, "존재하지 않는 수강을 참조합니다.");
+  });
+  lessonLogs.forEach((item) => {
+    checkReference(issues, "레슨노트", item.log_id, "student_id", item.student_id, studentIds, "존재하지 않는 학생을 참조합니다.");
+    checkReference(issues, "레슨노트", item.log_id, "teacher_id", item.teacher_id, accountIds, "존재하지 않는 강사를 참조합니다.");
+  });
+  registrations.forEach((item) => {
+    checkReference(issues, "수납", item.registration_id, "student_id", item.student_id, studentIds, "존재하지 않는 학생을 참조합니다.");
+    if (Number(item.amount) < 0) addQualityIssue(issues, "blocking", "수납", item.registration_id, "금액 오류", "수납 금액이 0보다 작습니다.");
+  });
+  reservations.forEach((item) => {
+    checkReference(issues, "예약", item.reservation_id, "room_id", item.room_id, roomIds, "존재하지 않는 공간을 참조합니다.");
+    checkReference(issues, "예약", item.reservation_id, "reserved_by", item.reserved_by, accountIds, "존재하지 않는 예약자를 참조합니다.");
+    if (timeToMinutes(item.start_time) >= timeToMinutes(item.end_time)) addQualityIssue(issues, "blocking", "예약", item.reservation_id, "예약 시간 오류", "시작 시간이 종료 시간보다 늦거나 같습니다.");
+  });
+  checkReservationCollisions(issues, reservations);
+
+  const summary = issues.reduce((acc, issue) => {
+    acc.totalIssues += 1;
+    acc[issue.severity] += 1;
+    return acc;
+  }, { totalIssues: 0, blocking: 0, warning: 0, info: 0 });
+
+  return {
+    generatedAt: nowIso(),
+    summary: Object.assign(summary, {
+      checkedSheets: ["학생", "수강", "수업", "레슨노트", "수납", "예약"],
+      checkedRecords: students.length + enrollments.length + lessons.length + lessonLogs.length + registrations.length + reservations.length
+    }),
+    issues: issues.slice(0, 200)
+  };
+}
+
+function checkRequiredFields(issues, area, rows, idField, requiredFields) {
+  rows.forEach((row, index) => {
+    const recordId = row[idField] || area + "#" + (index + 2);
+    requiredFields.forEach((field) => {
+      if (isBlank(row[field])) addQualityIssue(issues, "blocking", area, recordId, "필수값 누락", field + " 값이 비어 있습니다.");
+    });
+  });
+}
+
+function checkDuplicateKeys(issues, area, rows, keyField, title) {
+  const seen = {};
+  rows.forEach((row) => {
+    const key = String(row[keyField] || "").trim();
+    if (!key) return;
+    if (seen[key]) addQualityIssue(issues, "blocking", area, key, title, keyField + " 값이 중복됩니다.");
+    seen[key] = true;
+  });
+}
+
+function checkReference(issues, area, recordId, field, value, index, message) {
+  if (isBlank(value)) return;
+  if (!index[String(value)]) addQualityIssue(issues, "warning", area, recordId || "-", "참조 불일치", field + ": " + value + " - " + message);
+}
+
+function checkReservationCollisions(issues, reservations) {
+  const active = reservations.filter((item) => String(item.status || "") !== "취소");
+  active.forEach((current, index) => {
+    active.slice(index + 1).forEach((other) => {
+      if (current.room_id !== other.room_id || current.reservation_date !== other.reservation_date) return;
+      if (timeRangesOverlap(current.start_time, current.end_time, other.start_time, other.end_time)) addQualityIssue(issues, "blocking", "예약", current.reservation_id, "예약 시간 충돌", other.reservation_id + " 예약과 같은 공간/시간이 겹칩니다.");
+    });
+  });
+}
+
+function addQualityIssue(issues, severity, area, recordId, title, detail) {
+  issues.push({ severity: severity, area: area, recordId: String(recordId || "-"), title: title, detail: detail });
+}
+
+function indexById(rows, field) {
+  return rows.reduce((acc, row) => {
+    const key = String(row[field] || "").trim();
+    if (key) acc[key] = true;
+    return acc;
+  }, {});
+}
+
+function isBlank(value) {
+  return value === null || value === undefined || String(value).trim() === "";
+}
+
+function timeRangesOverlap(startA, endA, startB, endB) {
+  return timeToMinutes(startA) < timeToMinutes(endB) && timeToMinutes(startB) < timeToMinutes(endA);
+}
+
+function timeToMinutes(value) {
+  const parts = String(value || "00:00").split(":");
+  return Number(parts[0] || 0) * 60 + Number(parts[1] || 0);
 }
 
 function getBootstrapData(user) {

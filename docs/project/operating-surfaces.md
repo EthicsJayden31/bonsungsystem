@@ -48,3 +48,11 @@
 3. 저장 기능은 `createStudent`, `createEnrollment`, `createLesson`, `createLessonLog`, `createReservation`, `createRegistration` 순서로 연결.
 4. `getDataQualityReport`를 추가해 중복, 누락, 상태 불일치, 참조 깨짐, 예약 충돌을 점검한다.
 5. 모든 저장 기능이 Next UI로 이관되기 전까지 `/legacy-preview/`는 유지한다.
+
+## 7. 데이터 점검 화면
+
+- `/data-quality`는 admin/staff 전용 운영 점검 화면이다.
+- Apps Script 세션 토큰이 있으면 `getDataQualityReport`를 호출해 Google Sheets 원본을 점검한다.
+- 점검 항목은 필수값 누락, ID 중복, 학생/강사/수강/공간 참조 불일치, 수납 음수 금액, 예약 시간 오류와 예약 충돌이다.
+- Preview 모드에서는 실제 원본 점검 결과를 꾸며내지 않고 실사용 로그인 필요 안내만 표시한다.
+- teacher 권한에는 메뉴와 경로 접근을 노출하지 않는다.

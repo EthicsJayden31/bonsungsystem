@@ -44,6 +44,27 @@ const SESSION_TOKEN_KEY = "bonsung_session_token";
 
 export type DataSource = "loading" | "live" | "preview" | "fallback";
 
+export type DataQualityIssue = {
+  severity: "blocking" | "warning" | "info";
+  area: string;
+  recordId: string;
+  title: string;
+  detail: string;
+};
+
+export type DataQualityReport = {
+  generatedAt: string;
+  summary: {
+    totalIssues: number;
+    blocking: number;
+    warning: number;
+    info: number;
+    checkedSheets: string[];
+    checkedRecords: number;
+  };
+  issues: DataQualityIssue[];
+};
+
 export type OperationsData = {
   teachers: Teacher[];
   students: Student[];
@@ -92,6 +113,14 @@ type BootstrapPayload = {
 export type OperationsState = {
   source: DataSource;
   data: OperationsData;
+  error: string;
+  hasLiveSession: boolean;
+  endpoint: string;
+};
+
+export type DataQualityState = {
+  source: DataSource;
+  report: DataQualityReport | null;
   error: string;
   hasLiveSession: boolean;
   endpoint: string;
@@ -164,6 +193,38 @@ export function useOperationsData(role: Role | null): OperationsState {
       active = false;
     };
   }, [previewData, role]);
+
+  return state;
+}
+
+
+export function useDataQualityReport(): DataQualityState {
+  const [state, setState] = useState<DataQualityState>({ source: "loading", report: null, error: "", hasLiveSession: false, endpoint: APPS_SCRIPT_ENDPOINT });
+
+  useEffect(() => {
+    let active = true;
+    const token = window.localStorage.getItem(SESSION_TOKEN_KEY);
+
+    if (!token) {
+      queueMicrotask(() => {
+        if (!active) return;
+        setState({ source: "preview", report: null, error: "", hasLiveSession: false, endpoint: APPS_SCRIPT_ENDPOINT });
+      });
+      return () => { active = false; };
+    }
+
+    callAppsScript<DataQualityReport>("getDataQualityReport", token)
+      .then((report) => {
+        if (!active) return;
+        setState({ source: "live", report, error: "", hasLiveSession: true, endpoint: APPS_SCRIPT_ENDPOINT });
+      })
+      .catch((error: unknown) => {
+        if (!active) return;
+        setState({ source: "fallback", report: null, error: error instanceof Error ? error.message : String(error), hasLiveSession: true, endpoint: APPS_SCRIPT_ENDPOINT });
+      });
+
+    return () => { active = false; };
+  }, []);
 
   return state;
 }
