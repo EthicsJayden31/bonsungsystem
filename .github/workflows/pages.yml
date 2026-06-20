@@ -27,6 +27,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Setup pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.0.7 --activate
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
       - name: Check browser JavaScript syntax
         run: |
           node --check pages-preview/config.js
@@ -34,10 +48,18 @@ jobs:
           cp google-apps-script/Code.gs /tmp/bonsung-code.js
           node --check /tmp/bonsung-code.js
 
+      - name: Build Next.js static site
+        run: pnpm build:pages
+
+      - name: Preserve legacy preview
+        run: |
+          mkdir -p out/legacy-preview
+          cp -R pages-preview/. out/legacy-preview/
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: pages-preview
+          path: out
 
   deploy:
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/codex/v1-intranet'
