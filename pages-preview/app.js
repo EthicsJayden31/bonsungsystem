@@ -32,6 +32,7 @@ const DEFAULT_PUBLIC_CONFIG = {
   login_popup_title: "본성뮤직 운영 안내",
   login_popup_body: "계정이 없는 구성원은 신규 계정 요청을 제출해 주세요. 관리자 승인 후 로그인할 수 있습니다."
 };
+const BRAND_MARK_HTML = '<span class="brand-mark"><img src="./assets/bonsung-brand.png" alt="" /></span>';
 
 const DEFAULT_ADMIN_WIDGETS = ["stats", "calendar", "today", "activity", "workload", "registrations"];
 const DEFAULT_PERSONAL_WIDGETS = ["stats", "calendar", "upcoming", "enrollments", "logs"];
@@ -81,6 +82,17 @@ const ICONS = {
 
 function icon(name, className = "") {
   return `<svg class="icon ${className}" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[name] || ICONS.home}</svg>`;
+}
+
+function brandLockup({ large = false, academy = false, system = "ACADEMY INTRANET" } = {}) {
+  return `<div class="brand-lockup ${large ? "large" : ""}">${BRAND_MARK_HTML}<div><strong>${academy ? "본성뮤직 아카데미" : "본성뮤직"}</strong><small>${system}</small></div></div>`;
+}
+
+function keyBy(items, key) {
+  return items.reduce((map, item) => {
+    map[item[key]] = item;
+    return map;
+  }, {});
 }
 
 const state = {
@@ -1786,7 +1798,7 @@ function render() {
     ${TEST_MODE ? renderTestToolbar() : ""}
     <div class="shell">
       <aside class="sidebar">
-        <div class="brand-lockup"><span class="brand-mark">B</span><div><strong>본성뮤직</strong><small>ACADEMY INTRANET</small></div></div>
+        ${brandLockup()}
         <nav class="nav">${menus.map(([key, label, iconName]) => navButton(key, label, iconName)).join("")}</nav>
         <div class="sidebar-foot">
           <button class="nav-utility" onclick="logout()">${icon("logout")}<span>로그아웃</span></button>
@@ -1794,7 +1806,7 @@ function render() {
       </aside>
       <section class="workspace">
         <header class="topbar">
-          <div class="mobile-brand"><span class="brand-mark">B</span><strong>본성뮤직</strong></div>
+          <div class="mobile-brand">${BRAND_MARK_HTML}<strong>본성뮤직</strong></div>
           <div class="topbar-title">${escapeHtml(currentPageLabel(menus))}</div>
           <button class="user-button" onclick="navigate('profile')" aria-label="내 계정">
             <span class="avatar">${escapeHtml(state.user.name.slice(0, 1))}</span>
@@ -1822,14 +1834,14 @@ function render() {
 }
 
 function renderSplash() {
-  root.innerHTML = `<main class="splash"><div class="brand-lockup large"><span class="brand-mark">B</span><div><strong>본성뮤직</strong><small>ACADEMY INTRANET</small></div></div><div class="spinner"></div><p>운영 데이터를 불러오는 중입니다.</p></main>`;
+  root.innerHTML = `<main class="splash">${brandLockup({ large: true })}<div class="spinner"></div><p>운영 데이터를 불러오는 중입니다.</p></main>`;
 }
 
 function renderConnectionError() {
   root.innerHTML = `
     <main class="auth-page">
       <section class="auth-panel compact">
-        <div class="brand-lockup large"><span class="brand-mark">B</span><div><strong>본성뮤직 아카데미</strong><small>ACADEMY INTRANET</small></div></div>
+        ${brandLockup({ large: true, academy: true })}
         <div class="error-state">
           <h1>서비스 연결을 확인하고 있습니다</h1>
           <p>운영 데이터 서비스에 연결하지 못했습니다. 잠시 후 다시 시도하거나 관리자에게 문의해 주세요.</p>
@@ -1841,6 +1853,7 @@ function renderConnectionError() {
         </div>
       </section>
       <section class="auth-context">
+        <div class="brand-hero-card"><img src="./assets/bonsung-brand.png" alt="Bonsung Music Academy 본성뮤직 브랜드 이미지" /></div>
         <div class="context-copy"><h2>수업과 운영 기록을<br />한 흐름으로 관리합니다.</h2><p>별도의 Google Sheet 연결 과정 없이 로그인하면 역할에 맞는 업무 화면이 바로 열립니다.</p></div>
       </section>
     </main>`;
@@ -1851,7 +1864,7 @@ function renderAuth() {
   root.innerHTML = `
     <main class="auth-page">
       <section class="auth-panel">
-        <div class="brand-lockup large"><span class="brand-mark">B</span><div><strong>본성뮤직 아카데미</strong><small>ACADEMY MANAGEMENT SYSTEM</small></div></div>
+        ${brandLockup({ large: true, academy: true, system: "BONSUNG MUSIC ACADEMY" })}
         <div class="auth-copy">
           <h1>본성 통합 관리 시스템</h1>
           <p>발급받은 아이디와 비밀번호를 입력하세요.</p>
@@ -1866,6 +1879,7 @@ function renderAuth() {
         <p class="status-line error">${escapeHtml(state.message)}</p>
       </section>
       <section class="auth-context">
+        <div class="brand-hero-card"><img src="./assets/bonsung-brand.png" alt="Bonsung Music Academy 본성뮤직 브랜드 이미지" /></div>
         <div class="context-copy"><h2>${multiline(config.login_context_title)}</h2><p>${multiline(config.login_context_body)}</p></div>
         ${config.login_popup_enabled ? `<button class="login-notice-card" onclick="openAuthDialog('notice')"><span>운영 공지</span><strong>${escapeHtml(config.login_popup_title)}</strong><p>${escapeHtml(config.login_popup_body)}</p><small>자세히 보기 ${icon("chevron")}</small></button>` : ""}
         <div class="context-preview">
@@ -2398,14 +2412,64 @@ function setReservationFilter(key, value) {
 
 function roomZoneMap(upcoming) {
   const visibleRooms = state.rooms.filter((room) => room.room_type === "lesson" ? state.capabilities.reserveLessonRoom : state.capabilities.reservePracticeRoom);
-  const zones = [
-    ["레슨실 구역", visibleRooms.filter((item) => item.room_type === "lesson")],
-    ["연습실 구역", visibleRooms.filter((item) => item.room_type === "practice")]
-  ].filter(([, rooms]) => rooms.length);
-  return `<section class="room-map ${zones.length === 1 ? "single-zone" : ""}" aria-label="학원 공간 구성">${zones.map(([label, rooms]) => `<div class="room-zone"><header>${icon("map")}<strong>${label}</strong></header><div>${rooms.map((room) => {
-    const count = upcoming.filter((item) => item.room_id === room.room_id).length;
-    return `<button onclick="openEntity('room','${room.room_id}')"><span>${escapeHtml(room.name)}</span><small>${count ? `${count}건 예정` : "예약 가능"}</small></button>`;
-  }).join("")}</div></div>`).join("")}</section>`;
+  const roomById = keyBy(visibleRooms, "room_id");
+  return `<section class="room-map floor-plan" aria-label="본성뮤직 아카데미 내부 공간 구조도">
+    <header class="floor-plan-head">
+      <div>
+        <span>공간 예약 안내도</span>
+        <h2>어느 위치의 공간을 예약하는지 한눈에 확인하세요</h2>
+      </div>
+      <a class="floor-plan-reference" href="./assets/bonsung-floor-plan-reference.png" target="_blank" rel="noreferrer">원본 구조도 보기</a>
+    </header>
+    <div class="floor-grid">
+      ${floorTile(roomById, upcoming, "room-lesson-large-1", "lesson-large", "lesson")}
+      ${floorTile(roomById, upcoming, "room-lesson-medium-1", "lesson-medium", "lesson")}
+      ${floorTile(roomById, upcoming, "room-lesson-small-1", "lesson-small-1", "lesson")}
+      ${floorTile(roomById, upcoming, "room-lesson-small-2", "lesson-small-2", "lesson")}
+      ${floorStaticTile("창고 / 팬트리", "storage", "storage")}
+      ${floorStaticTile("이론 강의실", "theory", "theory")}
+      ${floorStaticTile("복도 공간", "corridor", "corridor")}
+      ${floorStaticTile("원장(대표)실", "office-owner", "office")}
+      ${floorTile(roomById, upcoming, "room-practice-a", "practice-a", "practice")}
+      ${floorTile(roomById, upcoming, "room-practice-b", "practice-b", "practice")}
+      ${floorTile(roomById, upcoming, "room-practice-c", "practice-c", "practice")}
+      ${floorStaticTile("로비 및 카페테리아", "lobby", "lobby")}
+      ${floorStaticTile("교무실", "office-staff", "staff")}
+      <div class="floor-entrance">출입구</div>
+    </div>
+    <div class="floor-legend">
+      <span><i class="legend-dot lesson"></i>레슨실</span>
+      <span><i class="legend-dot practice"></i>연습실</span>
+      <span><i class="legend-dot support"></i>공용/지원 공간</span>
+      <span><i class="legend-dot active"></i>예약 예정 있음</span>
+    </div>
+  </section>`;
+}
+
+function floorTile(roomById, upcoming, roomId, area, type) {
+  const room = roomById[roomId];
+  if (!room) return floorStaticTile(roomNameFallback(roomId), area, `${type} disabled`);
+  const count = upcoming.filter((item) => item.room_id === room.room_id).length;
+  return `<button class="floor-room ${type} area-${area} ${count ? "has-booking" : ""}" onclick="openEntity('room','${room.room_id}')">
+    <span>${escapeHtml(room.name)}</span>
+    <small>${count ? `${count}건 예정` : "예약 가능"}</small>
+  </button>`;
+}
+
+function floorStaticTile(label, area, type) {
+  return `<div class="floor-room ${type} area-${area}"><span>${escapeHtml(label)}</span><small>위치 안내</small></div>`;
+}
+
+function roomNameFallback(roomId) {
+  return ({
+    "room-lesson-large-1": "대형 레슨실 1",
+    "room-lesson-medium-1": "중형 레슨실 1",
+    "room-lesson-small-1": "소형 레슨실 1",
+    "room-lesson-small-2": "소형 레슨실 2",
+    "room-practice-a": "연습실 A",
+    "room-practice-b": "연습실 B",
+    "room-practice-c": "연습실 C"
+  })[roomId] || "예약 공간";
 }
 
 function reservationSchedule() {
