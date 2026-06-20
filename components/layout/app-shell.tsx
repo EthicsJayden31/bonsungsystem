@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo } from "react";
+import { assetPath } from "@/lib/assets";
 import { canAccess, type CurrentUser, type Role } from "@/lib/auth-shared";
 import { usePreviewRole } from "@/lib/use-preview-role";
 import type { ReactNode } from "react";
@@ -158,7 +159,7 @@ export function AppShell({ children, area = "dashboard" }: { children: ReactNode
 function BrandBlock() {
   return (
     <Link href="/dashboard" className="flex items-center gap-3 border-b border-line pb-5">
-      <Image src="/brand/bonsung-seal.png" alt="본성뮤직 아카데미 로고" width={52} height={52} className="rounded-full shadow-sm" priority />
+      <Image src={assetPath("/brand/bonsung-seal.png")} alt="본성뮤직 아카데미 로고" width={52} height={52} className="rounded-full shadow-sm" priority />
       <div>
         <p className="text-lg font-extrabold tracking-tight text-brand">본성뮤직</p>
         <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted">Music Academy</p>

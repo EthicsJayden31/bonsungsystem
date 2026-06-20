@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { assetPath } from "@/lib/assets";
 
 const accounts = [
   { role: "admin", title: "원장 관리자", description: "전체 메뉴와 운영 현황, 설정 권한을 확인합니다." },
@@ -23,7 +24,7 @@ export default function LoginPage() {
         <div className="relative overflow-hidden rounded-[28px] bg-gradient-to-br from-brand-dark via-brand to-brand-soft p-8 text-white shadow-card">
           <div className="absolute -right-16 -top-16 h-56 w-56 rounded-full border border-white/15" />
           <div className="absolute -bottom-24 right-8 h-64 w-64 rounded-full bg-white/5" />
-          <Image src="/brand/bonsung-seal.png" alt="본성뮤직 아카데미 로고" width={112} height={112} className="relative rounded-full shadow-lg" priority />
+          <Image src={assetPath("/brand/bonsung-seal.png")} alt="본성뮤직 아카데미 로고" width={112} height={112} className="relative rounded-full shadow-lg" priority />
           <div className="relative mt-10">
             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-white/75">Bonsung Music Academy</p>
             <h1 className="mt-3 text-4xl font-extrabold leading-tight tracking-tight">본성뮤직 인트라넷</h1>
