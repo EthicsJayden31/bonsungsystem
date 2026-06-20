@@ -1,0 +1,32 @@
+name: 페이지 코드 분석 및 유지보수
+description: 기존 코드 분석, 버그 조사, 리팩터링, 불필요한 코드 정리 작업
+title: "[유지보수] "
+labels: ["area:maintenance", "priority:normal"]
+body:
+  - type: textarea
+    id: request
+    attributes:
+      label: 요청 내용
+      description: 분석하거나 정리해야 할 코드, 오류, 유지보수 목표를 적어주세요.
+      placeholder: 예) 수강생 목록 렌더링 흐름을 분석하고 중복 함수를 정리해주세요.
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: 대상 범위
+      description: 관련 화면, 파일, 기능을 적어주세요.
+      placeholder: 예) pages-preview/app.js, 수강생 목록, 필터 함수
+  - type: textarea
+    id: expected
+    attributes:
+      label: 기대 결과
+      description: 작업 후 어떤 상태가 되어야 하는지 적어주세요.
+  - type: checkboxes
+    id: verification
+    attributes:
+      label: 검증 요청
+      options:
+        - label: Chrome에서 실제 화면을 확인해주세요.
+        - label: 모바일 폭에서 가로 스크롤이 없는지 확인해주세요.
+        - label: GitHub Actions 또는 문법 검사를 확인해주세요.

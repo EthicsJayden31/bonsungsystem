@@ -5,6 +5,10 @@ on:
     branches:
       - main
       - codex/v1-intranet
+      - codex/role-dashboards
+  pull_request:
+    branches:
+      - codex/v1-intranet
   workflow_dispatch:
 
 permissions:
@@ -23,12 +27,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Check browser JavaScript syntax
+        run: |
+          node --check pages-preview/config.js
+          node --check pages-preview/app.js
+          cp google-apps-script/Code.gs /tmp/bonsung-code.js
+          node --check /tmp/bonsung-code.js
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: pages-preview
 
   deploy:
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/codex/v1-intranet'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
