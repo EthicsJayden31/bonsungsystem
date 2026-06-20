@@ -13,7 +13,8 @@ export function ResourcePage({
   rows,
   fields,
   emptyTitle = "등록된 데이터가 없습니다",
-  emptyDescription = "오른쪽 빠른 등록 영역에서 첫 항목을 입력할 수 있습니다."
+  emptyDescription = "오른쪽 빠른 등록 영역에서 첫 항목을 입력할 수 있습니다.",
+  sourceNote
 }: {
   title: string;
   description: string;
@@ -22,15 +23,17 @@ export function ResourcePage({
   fields: Field[];
   emptyTitle?: string;
   emptyDescription?: string;
+  sourceNote?: ReactNode;
 }) {
   return (
     <Section title={title} description={description}>
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="min-w-0 space-y-3">
+          {sourceNote}
           <div className="flex flex-col gap-3 rounded-2xl border border-line bg-white p-4 shadow-card sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-sm font-bold text-ink">목록 관리</p>
-              <p className="mt-1 text-xs text-muted">총 {rows.length.toLocaleString("ko-KR")}건의 항목을 확인하고 빠르게 등록합니다.</p>
+              <p className="mt-1 text-xs text-muted">총 {rows.length.toLocaleString("ko-KR")}건의 항목을 확인합니다.</p>
             </div>
             <label className="w-full sm:max-w-xs">
               <span className="sr-only">목록 검색</span>
@@ -45,7 +48,7 @@ export function ResourcePage({
               <h2 className="text-lg font-extrabold tracking-tight text-ink">빠른 등록</h2>
               <p className="mt-1 text-xs leading-5 text-muted">필수 정보를 먼저 적고, 상세 내용은 나중에 보완합니다.</p>
             </div>
-            <Badge>v1 입력폼</Badge>
+            <Badge>v1 입력안</Badge>
           </div>
           <div className="space-y-3">
             {fields.map((field) => (
@@ -67,7 +70,7 @@ export function ResourcePage({
             임시 저장
           </button>
           <p className="mt-3 rounded-xl bg-brand/5 px-3 py-2 text-xs leading-5 text-muted">
-            현재 화면은 업무 흐름 검증용입니다. 실제 저장은 Prisma 연결 후 서버 액션으로 활성화됩니다.
+            현재 Next 화면의 저장 버튼은 기능 점검용입니다. 실사용 저장은 `/legacy-preview`의 Apps Script 화면에서 먼저 처리합니다.
           </p>
         </form>
       </div>

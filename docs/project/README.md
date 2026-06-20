@@ -18,6 +18,11 @@
 3. 작업 브랜치는 `codex/` 접두사를 사용한다.
 4. 운영 반영 전에는 Chrome에서 실제 화면을 확인하고, 가능하면 GitHub Pages 배포 상태도 확인한다.
 
+## 화면 구분
+
+공식 Next UI, 실사용 Apps Script 화면, 기능 점검 preview의 구분은
+[본성_인트라넷 화면 구분 기준](operating-surfaces.md)을 따른다.
+
 ## 기본 완료 기준
 
 - 변경 이유와 영향 범위가 문서나 PR 설명에 남아 있다.

@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import Image from "next/image";
+import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo } from "react";
 import { assetPath } from "@/lib/assets";
@@ -19,7 +19,7 @@ const navItems = [
   { href: "/attendance", label: "출결", area: "attendance" },
   { href: "/lesson-notes", label: "레슨노트", area: "lesson-notes" },
   { href: "/practice-rooms", label: "연습실", area: "practice-rooms" },
-  { href: "/payments", label: "납부", area: "payments" },
+  { href: "/payments", label: "수납", area: "payments" },
   { href: "/tasks", label: "업무", area: "tasks" },
   { href: "/notices", label: "공지/문서", area: "notices" }
 ];
@@ -34,7 +34,7 @@ const pageCopy: Record<string, { title: string; description: string; action: str
   attendance: { title: "출결 관리", description: "출석, 지각, 결석, 보강 필요 여부를 기록합니다.", action: "출결 입력" },
   "lesson-notes": { title: "레슨노트", description: "수업 내용, 과제, 다음 목표를 일관되게 남깁니다.", action: "노트 추가" },
   "practice-rooms": { title: "연습실 예약", description: "연습실 예약 상태와 사용 시간을 관리합니다.", action: "예약 추가" },
-  payments: { title: "납부 상태", description: "청구, 입금, 미납, 환불 상태를 분리해 확인합니다.", action: "결제 등록" },
+  payments: { title: "수납 상태", description: "청구, 입금, 미납, 환불 상태를 분리해 확인합니다.", action: "결제 등록" },
   tasks: { title: "내부 업무", description: "운영 업무의 담당자, 마감일, 우선순위를 관리합니다.", action: "업무 추가" },
   notices: { title: "공지/문서", description: "운영 기준과 강사 매뉴얼을 정리합니다.", action: "문서 작성" }
 };
@@ -65,7 +65,6 @@ export function AppShell({ children, area = "dashboard" }: { children: ReactNode
     }
     if (stored === "teacher" && pathname.startsWith("/payments")) {
       router.replace("/dashboard");
-      return;
     }
   }, [pathname, router]);
 
@@ -76,7 +75,7 @@ export function AppShell({ children, area = "dashboard" }: { children: ReactNode
 
   if (!user || !canAccess(user.role, area)) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4 text-sm text-slate-500">
+      <div className="flex min-h-screen items-center justify-center bg-canvas px-4 text-sm text-muted">
         화면을 준비하고 있습니다.
       </div>
     );
@@ -107,9 +106,13 @@ export function AppShell({ children, area = "dashboard" }: { children: ReactNode
             );
           })}
         </nav>
-        <div className="absolute bottom-5 left-5 right-5 rounded-2xl border border-brand/10 bg-brand/5 p-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-brand">A New Beginning</p>
-          <p className="mt-2 text-sm leading-6 text-muted">전문적인 교육과 체계적인 커리큘럼을 위한 운영 시스템입니다.</p>
+        <div className="absolute bottom-5 left-5 right-5 space-y-3">
+          <Link className="block rounded-2xl border border-brand/10 bg-brand/5 p-4 text-sm font-bold text-brand hover:bg-brand/10" href="/legacy-preview/">
+            실사용 Apps Script 화면
+          </Link>
+          <p className="rounded-2xl border border-line bg-surface-muted p-4 text-xs leading-5 text-muted">
+            현재 Next 화면은 공식 UI입니다. Apps Script 세션 토큰이 있으면 실사용 데이터를 읽고, 없으면 기능 점검 preview 데이터를 보여줍니다.
+          </p>
         </div>
       </aside>
       <div className="lg:pl-72">
@@ -120,6 +123,9 @@ export function AppShell({ children, area = "dashboard" }: { children: ReactNode
               <p className="hidden text-xs text-muted sm:block">{current.description}</p>
             </div>
             <div className="flex items-center gap-2">
+              <Link className="hidden rounded-xl border border-line bg-white px-3 py-2.5 text-sm font-semibold text-brand hover:border-brand/40 md:inline-flex" href="/legacy-preview/">
+                실사용 로그인
+              </Link>
               <div className="hidden text-right sm:block">
                 <p className="text-sm font-semibold text-ink">{user.name}</p>
                 <p className="text-xs text-muted">권한: {roleLabel[user.role]}</p>

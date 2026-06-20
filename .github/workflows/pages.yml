@@ -50,11 +50,6 @@ jobs:
       - name: Build Next.js static site
         run: pnpm build:pages
 
-      - name: Preserve legacy preview
-        run: |
-          mkdir -p out/legacy-preview
-          cp -R pages-preview/. out/legacy-preview/
-
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
