@@ -108,6 +108,8 @@ type BootstrapPayload = {
   rooms?: LiveRecord[];
   reservations?: LiveRecord[];
   tasks?: LiveRecord[];
+  consultations?: LiveRecord[];
+  notices?: LiveRecord[];
   calendar?: LiveRecord[];
   classTypes?: LiveRecord[];
   capabilities?: Record<string, boolean>;
@@ -291,6 +293,8 @@ function normalizeBootstrap(payload: BootstrapPayload, role: Role | null): Opera
   const liveRooms = (payload.rooms ?? []).map(mapRoom);
   const liveReservations = (payload.reservations ?? []).map(mapReservation);
   const liveTasks = (payload.tasks ?? []).map(mapTask);
+  const liveConsultations = (payload.consultations ?? []).map(mapConsultation);
+  const liveNotices = (payload.notices ?? []).map(mapNotice);
   const liveLessonNotes = (payload.overview?.recentLogs ?? []).map(mapLessonNote);
   const liveAttendance = buildLiveAttendance(liveLessons, liveLessonNotes);
   const liveTeachers = uniqueTeachers(liveEnrollments, liveLessons, liveLessonNotes);
@@ -299,7 +303,7 @@ function normalizeBootstrap(payload: BootstrapPayload, role: Role | null): Opera
     teachers: liveTeachers.length ? liveTeachers : teachers,
     students: liveStudents.length ? liveStudents : buildPreviewData(role).students,
     guardians,
-    consultations,
+    consultations: liveConsultations.length ? liveConsultations : consultations,
     courses,
     enrollments: liveEnrollments,
     lessons: liveLessons,
@@ -309,7 +313,7 @@ function normalizeBootstrap(payload: BootstrapPayload, role: Role | null): Opera
     reservations: liveReservations,
     payments: livePayments,
     tasks: liveTasks.length ? liveTasks : tasks,
-    notices,
+    notices: liveNotices.length ? liveNotices : notices,
     overview: payload.overview
   };
 }
@@ -429,6 +433,34 @@ function mapTask(item: LiveRecord): Task {
     status: stringValue(item.status, "할일"),
     priority: stringValue(item.priority, "보통"),
     memo: stringValue(item.memo)
+  };
+}
+
+function mapConsultation(item: LiveRecord): Consultation {
+  return {
+    id: stringValue(item.consultation_id),
+    studentName: stringValue(item.student_name),
+    guardianName: stringValue(item.guardian_name),
+    phone: stringValue(item.phone),
+    channel: stringValue(item.channel, "전화"),
+    major: stringValue(item.major, "보컬"),
+    goal: stringValue(item.goal),
+    date: stringValue(item.consultation_date || item.created_at),
+    followUpDate: stringValue(item.follow_up_date),
+    status: stringValue(item.status, "신규문의"),
+    priority: stringValue(item.priority, "보통"),
+    memo: stringValue(item.memo)
+  };
+}
+
+function mapNotice(item: LiveRecord): Notice {
+  return {
+    id: stringValue(item.notice_id),
+    title: stringValue(item.title, "제목 없음"),
+    category: stringValue(item.category, "공지"),
+    author: stringValue(item.author_name || item.author_id),
+    updatedAt: stringValue(item.updated_at || item.created_at),
+    body: stringValue(item.body)
   };
 }
 
