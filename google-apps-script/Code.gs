@@ -19,6 +19,8 @@ const SHEETS = {
   meetings: "회의",
   calendarEvents: "학원일정",
   tasks: "업무",
+  consultations: "상담",
+  notices: "공지문서",
   classTypes: "수업종류",
   accountRequests: "계정요청"
 };
@@ -40,6 +42,8 @@ const SCHEMA = {
   회의: ["meeting_id", "title", "meeting_date", "start_time", "end_time", "location", "agenda", "participant_ids", "created_by", "status", "created_at", "updated_at"],
   학원일정: ["event_id", "title", "event_date", "start_time", "end_time", "event_type", "audience", "description", "created_by", "status", "created_at", "updated_at"],
   업무: ["task_id", "title", "assignee_id", "due_date", "status", "priority", "memo", "created_by", "created_at", "updated_at"],
+  상담: ["consultation_id", "student_name", "guardian_name", "phone", "channel", "major", "goal", "consultation_date", "follow_up_date", "status", "priority", "memo", "created_by", "created_at", "updated_at"],
+  공지문서: ["notice_id", "title", "category", "author_id", "body", "active", "created_at", "updated_at"],
   수업종류: ["class_type_id", "name", "category", "active", "sort_order", "created_at", "updated_at"],
   계정요청: ["request_id", "login_id", "password_hash", "password_salt", "name", "email", "phone", "requested_role", "message", "status", "reviewed_by", "reviewed_at", "review_memo", "created_account_id", "created_at", "updated_at"]
 };
@@ -131,6 +135,10 @@ function doPost(event) {
     if (action === "updateAccountPermissions") return success(updateAccountPermissions(currentUser, request.accountId, request.permissions));
     if (action === "listTasks") return success(listTasks(currentUser, request.accountId));
     if (action === "createTask") return success(createTask(currentUser, request.task));
+    if (action === "listConsultations") return success(listConsultations(currentUser));
+    if (action === "createConsultation") return success(createConsultation(currentUser, request.consultation));
+    if (action === "listNotices") return success(listNotices(currentUser));
+    if (action === "createNotice") return success(createNotice(currentUser, request.notice));
     if (action === "listClassTypes") return success(listClassTypes(currentUser));
     if (action === "createClassType") return success(createClassType(currentUser, request.classType));
     if (action === "updateClassType") return success(updateClassType(currentUser, request.classType));
@@ -929,6 +937,8 @@ function getBootstrapData(user) {
     rooms: listRooms(user),
     reservations: listReservations(user),
     tasks: listTasks(user),
+    consultations: listConsultations(user),
+    notices: listNotices(user),
     calendar: listCalendar(user),
     classTypes: listClassTypes(user),
     accountRequests: capabilities.reviewAccountRequests ? listAccountRequests(user) : [],
@@ -942,6 +952,8 @@ function getBootstrapData(user) {
       rooms: true,
       reservations: true,
       tasks: true,
+      consultations: true,
+      notices: true,
       calendar: true
     }
   };
@@ -1303,6 +1315,75 @@ function createTask(user, input) {
   appendObject(SHEETS.tasks, task);
   logEvent(user, "create_task", "task", task.task_id, { assignee_id: assigneeId });
   return task;
+}
+
+function listConsultations(user) {
+  if (!canManageOperations(user)) return [];
+  const accounts = objectMap(rowsAsObjects(SHEETS.accounts), "account_id");
+  return rowsAsObjects(SHEETS.consultations)
+    .map((item) => Object.assign({}, item, {
+      created_by_name: accounts[item.created_by] ? accounts[item.created_by].name : ""
+    }))
+    .sort((a, b) => String(b.consultation_date || b.created_at).localeCompare(String(a.consultation_date || a.created_at)));
+}
+
+function createConsultation(user, input) {
+  if (!canManageOperations(user)) throw new Error("상담을 등록할 권한이 없습니다.");
+  if (!input || (!String(input.student_name || "").trim() && !String(input.phone || "").trim())) {
+    throw new Error("학생명 또는 연락처를 입력해 주세요.");
+  }
+  const now = nowIso();
+  const consultation = {
+    consultation_id: makeId("cns"),
+    student_name: String(input.student_name || input.studentName || "").trim(),
+    guardian_name: String(input.guardian_name || input.guardianName || "").trim(),
+    phone: String(input.phone || "").trim(),
+    channel: input.channel || "전화",
+    major: input.major || "보컬",
+    goal: input.goal || "",
+    consultation_date: input.consultation_date || input.date || now.slice(0, 10),
+    follow_up_date: input.follow_up_date || input.followUpDate || "",
+    status: input.status || "신규문의",
+    priority: input.priority || "보통",
+    memo: input.memo || "",
+    created_by: user.account_id,
+    created_at: now,
+    updated_at: now
+  };
+  appendObject(SHEETS.consultations, consultation);
+  logEvent(user, "create_consultation", "consultation", consultation.consultation_id, { status: consultation.status });
+  return consultation;
+}
+
+function listNotices(user) {
+  if (normalizedAccountType(user) === "student") return [];
+  const accounts = objectMap(rowsAsObjects(SHEETS.accounts), "account_id");
+  const canSeeInactive = canManageOperations(user);
+  return rowsAsObjects(SHEETS.notices)
+    .filter((item) => canSeeInactive || asBoolean(item.active))
+    .map((item) => Object.assign({}, item, {
+      author_name: accounts[item.author_id] ? accounts[item.author_id].name : ""
+    }))
+    .sort((a, b) => String(b.updated_at || b.created_at).localeCompare(String(a.updated_at || a.created_at)));
+}
+
+function createNotice(user, input) {
+  if (!canManageOperations(user)) throw new Error("공지 문서를 등록할 권한이 없습니다.");
+  if (!input || !String(input.title || "").trim()) throw new Error("공지 제목을 입력해 주세요.");
+  const now = nowIso();
+  const notice = {
+    notice_id: makeId("ntc"),
+    title: String(input.title).trim(),
+    category: input.category || "공지",
+    author_id: user.account_id,
+    body: input.body || "",
+    active: input.active === undefined ? true : asBoolean(input.active),
+    created_at: now,
+    updated_at: now
+  };
+  appendObject(SHEETS.notices, notice);
+  logEvent(user, "create_notice", "notice", notice.notice_id, { category: notice.category });
+  return notice;
 }
 
 function listClassTypes(user) {
