@@ -2,19 +2,29 @@
 
 import { AppShell } from "@/components/layout/app-shell";
 import { ResourcePage } from "@/components/layout/resource-page";
-import { getStudentName, getTeacherName, lessonNotes } from "@/lib/demo-data";
+import { studentName, teacherName, useOperationsData } from "@/lib/operations-data";
 import { usePreviewRole } from "@/lib/use-preview-role";
 
 export default function LessonNotesPage() {
   const role = usePreviewRole();
-  const visible = role === "teacher" ? lessonNotes.filter((note) => note.teacherId === "teacher-1") : lessonNotes;
+  const { data, source } = useOperationsData(role);
+
   return (
     <AppShell area="lesson-notes">
       <ResourcePage
         title="레슨노트"
-        description="수업 내용, 과제, 다음 목표, 내부 메모를 수업별로 기록합니다."
+        description={source === "live" ? "Apps Script bootstrap의 최근 레슨노트 데이터를 표시합니다." : "Preview 데이터로 레슨노트 화면을 점검합니다."}
         headers={["수업일", "학생", "강사", "수업 내용", "과제", "다음 목표"]}
-        rows={visible.map((note) => [note.date, getStudentName(note.studentId), getTeacherName(note.teacherId), note.content, note.homework, note.nextGoal])}
+        rows={data.lessonNotes.map((note) => [
+          note.date || "-",
+          note.studentName || studentName(data, note.studentId),
+          note.teacherName || teacherName(data, note.teacherId),
+          note.content || "-",
+          note.homework || "-",
+          note.nextGoal || "-"
+        ])}
+        emptyTitle="최근 레슨노트가 없습니다"
+        emptyDescription="실사용 세션이 없거나 Apps Script 응답의 recentLogs가 비어 있으면 이곳이 비어 있을 수 있습니다."
         fields={[
           { label: "수업일", name: "date", type: "date" },
           { label: "학생", name: "student" },
