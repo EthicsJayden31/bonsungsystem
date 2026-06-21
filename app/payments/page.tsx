@@ -3,12 +3,13 @@
 import { AppShell } from "@/components/layout/app-shell";
 import { ResourcePage } from "@/components/layout/resource-page";
 import { Badge } from "@/components/ui/badge";
-import { studentName, useOperationsData } from "@/lib/operations-data";
+import { studentName, useOperationAction, useOperationsData } from "@/lib/operations-data";
 import { usePreviewRole } from "@/lib/use-preview-role";
 
 export default function PaymentsPage() {
   const role = usePreviewRole();
   const { data, source } = useOperationsData(role);
+  const saveAction = useOperationAction();
 
   return (
     <AppShell area="payments">
@@ -27,17 +28,36 @@ export default function PaymentsPage() {
         ])}
         emptyTitle="표시할 수납 정보가 없습니다"
         emptyDescription="teacher 권한이거나 Apps Script 응답에 등록결제 데이터가 없으면 이곳이 비어 있을 수 있습니다."
+        onSubmit={(values) => saveAction.run("createRegistration", { registration: mapRegistrationInput(values, data) })}
+        submitDisabled={saveAction.pending}
+        submitLabel={saveAction.pending ? "저장 중" : "수납 저장"}
+        submitHelp="학생은 이름 또는 ID를 입력할 수 있습니다. teacher 권한에서는 수납 메뉴가 노출되지 않습니다."
         fields={[
-          { label: "학생", name: "student" },
-          { label: "청구/납부 항목", name: "title" },
+          { label: "학생명 또는 ID", name: "student" },
+          { label: "등록 구분", name: "registrationType", type: "select", options: ["신규등록", "재등록"] },
           { label: "금액", name: "amount", type: "number" },
-          { label: "입금 상태", name: "status", type: "select", options: ["청구예정", "청구완료", "입금완료", "납부완료", "미납", "환불", "취소"] },
+          { label: "등록 시작일", name: "periodStart", type: "date" },
+          { label: "다음 결제 예정일", name: "nextDueDate", type: "date" },
+          { label: "입금 상태", name: "status", type: "select", options: ["청구예정", "청구완료", "납부완료", "미납", "환불", "취소"] },
           { label: "결제일 또는 확인일", name: "paidAt", type: "date" },
           { label: "환불/납부 메모", name: "memo", type: "textarea" }
         ]}
       />
     </AppShell>
   );
+}
+
+function mapRegistrationInput(values: Record<string, string>, data: ReturnType<typeof useOperationsData>["data"]) {
+  return {
+    student_id: data.students.find((student) => student.id === values.student || student.name === values.student)?.id || values.student,
+    registration_type: values.registrationType || "신규등록",
+    period_start: values.periodStart,
+    next_due_date: values.nextDueDate,
+    amount: values.amount,
+    paid_at: values.paidAt,
+    payment_status: values.status,
+    memo: values.memo
+  };
 }
 
 function paymentTone(status: string) {

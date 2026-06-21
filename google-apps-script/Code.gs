@@ -535,7 +535,7 @@ function createStudent(user, input) {
     phone: input.phone || "",
     guardian_name: input.guardian_name || "",
     guardian_phone: input.guardian_phone || "",
-    major: "보컬",
+    major: input.major || "보컬",
     goal: input.goal || "",
     status: input.status || "상담중",
     teacher_id: input.teacher_id || "",
