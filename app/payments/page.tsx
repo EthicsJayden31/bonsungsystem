@@ -34,11 +34,11 @@ export default function PaymentsPage() {
         submitHelp="학생은 이름 또는 ID를 입력할 수 있습니다. teacher 권한에서는 수납 메뉴가 노출되지 않습니다."
         fields={[
           { label: "학생명 또는 ID", name: "student" },
-          { label: "청구/납부 항목", name: "title" },
+          { label: "등록 구분", name: "registrationType", type: "select", options: ["신규등록", "재등록"] },
           { label: "금액", name: "amount", type: "number" },
           { label: "등록 시작일", name: "periodStart", type: "date" },
           { label: "다음 결제 예정일", name: "nextDueDate", type: "date" },
-          { label: "입금 상태", name: "status", type: "select", options: ["청구예정", "청구완료", "입금완료", "납부완료", "미납", "환불", "취소"] },
+          { label: "입금 상태", name: "status", type: "select", options: ["청구예정", "청구완료", "납부완료", "미납", "환불", "취소"] },
           { label: "결제일 또는 확인일", name: "paidAt", type: "date" },
           { label: "환불/납부 메모", name: "memo", type: "textarea" }
         ]}
@@ -50,7 +50,7 @@ export default function PaymentsPage() {
 function mapRegistrationInput(values: Record<string, string>, data: ReturnType<typeof useOperationsData>["data"]) {
   return {
     student_id: data.students.find((student) => student.id === values.student || student.name === values.student)?.id || values.student,
-    registration_type: values.title || "신규등록",
+    registration_type: values.registrationType || "신규등록",
     period_start: values.periodStart,
     next_due_date: values.nextDueDate,
     amount: values.amount,

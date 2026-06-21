@@ -30,11 +30,11 @@ export default function EnrollmentsPage() {
         onSubmit={(values) => saveAction.run("createEnrollment", { enrollment: mapEnrollmentInput(values, data) })}
         submitDisabled={saveAction.pending}
         submitLabel={saveAction.pending ? "저장 중" : "수강 저장"}
-        submitHelp="학생/강사는 이름 또는 ID를 입력할 수 있습니다. Apps Script 로그인 세션이 있을 때 수강등록 시트에 저장됩니다."
+        submitHelp="학생은 이름 또는 ID, 강사는 Apps Script 계정 ID를 입력합니다. Apps Script 로그인 세션이 있을 때 수강등록 시트에 저장됩니다."
         fields={[
           { label: "학생명 또는 ID", name: "student" },
           { label: "과목/전공", name: "course" },
-          { label: "담당 강사명 또는 ID", name: "teacher" },
+          { label: "담당 강사 계정 ID", name: "teacher" },
           { label: "시작일", name: "startDate", type: "date" },
           { label: "상태", name: "status", type: "select", options: ["active", "paused", "completed", "canceled"] },
           { label: "메모", name: "memo", type: "textarea" }

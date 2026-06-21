@@ -29,11 +29,11 @@ export default function LessonNotesPage() {
         onSubmit={(values) => saveAction.run("createLessonLog", { log: mapLessonLogInput(values, data) })}
         submitDisabled={saveAction.pending}
         submitLabel={saveAction.pending ? "저장 중" : "레슨노트 저장"}
-        submitHelp="학생은 이름 또는 ID를 입력할 수 있습니다. 강사 계정은 담당 학생만 저장할 수 있습니다."
+        submitHelp="학생은 이름 또는 ID를 입력할 수 있습니다. 강사는 Apps Script 계정 ID로 저장합니다. 강사 계정은 담당 학생만 저장할 수 있습니다."
         fields={[
           { label: "수업일", name: "date", type: "date" },
           { label: "학생명 또는 ID", name: "student" },
-          { label: "강사명 또는 ID", name: "teacher" },
+          { label: "강사 계정 ID", name: "teacher" },
           { label: "수업 내용", name: "content", type: "textarea" },
           { label: "과제", name: "homework", type: "textarea" },
           { label: "다음 수업 목표", name: "nextGoal", type: "textarea" },
