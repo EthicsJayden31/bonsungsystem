@@ -3,12 +3,13 @@
 import { AppShell } from "@/components/layout/app-shell";
 import { ResourcePage } from "@/components/layout/resource-page";
 import { Badge } from "@/components/ui/badge";
-import { courseName, studentName, teacherName, useOperationsData } from "@/lib/operations-data";
+import { courseName, studentName, teacherName, useOperationAction, useOperationsData } from "@/lib/operations-data";
 import { usePreviewRole } from "@/lib/use-preview-role";
 
 export default function EnrollmentsPage() {
   const role = usePreviewRole();
   const { data, source } = useOperationsData(role);
+  const saveAction = useOperationAction();
 
   return (
     <AppShell area="enrollments">
@@ -26,15 +27,38 @@ export default function EnrollmentsPage() {
         ])}
         emptyTitle="표시할 수강 정보가 없습니다"
         emptyDescription="실사용 세션이 없거나 Apps Script 응답에 수강 데이터가 없으면 이곳이 비어 있을 수 있습니다."
+        onSubmit={(values) => saveAction.run("createEnrollment", { enrollment: mapEnrollmentInput(values, data) })}
+        submitDisabled={saveAction.pending}
+        submitLabel={saveAction.pending ? "저장 중" : "수강 저장"}
+        submitHelp="학생/강사는 이름 또는 ID를 입력할 수 있습니다. Apps Script 로그인 세션이 있을 때 수강등록 시트에 저장됩니다."
         fields={[
-          { label: "학생", name: "student" },
+          { label: "학생명 또는 ID", name: "student" },
           { label: "과목/전공", name: "course" },
-          { label: "담당 강사", name: "teacher" },
+          { label: "담당 강사명 또는 ID", name: "teacher" },
           { label: "시작일", name: "startDate", type: "date" },
-          { label: "상태", name: "status", type: "select", options: ["수강중", "등록대기", "휴강", "종료", "취소"] },
+          { label: "상태", name: "status", type: "select", options: ["active", "paused", "completed", "canceled"] },
           { label: "메모", name: "memo", type: "textarea" }
         ]}
       />
     </AppShell>
   );
+}
+
+function mapEnrollmentInput(values: Record<string, string>, data: ReturnType<typeof useOperationsData>["data"]) {
+  return {
+    student_id: findStudentId(data, values.student),
+    teacher_id: findTeacherId(data, values.teacher),
+    subject: values.course,
+    start_date: values.startDate,
+    status: values.status,
+    memo: values.memo
+  };
+}
+
+function findStudentId(data: ReturnType<typeof useOperationsData>["data"], value: string) {
+  return data.students.find((student) => student.id === value || student.name === value)?.id || value;
+}
+
+function findTeacherId(data: ReturnType<typeof useOperationsData>["data"], value: string) {
+  return data.teachers.find((teacher) => teacher.id === value || teacher.name === value)?.id || value;
 }

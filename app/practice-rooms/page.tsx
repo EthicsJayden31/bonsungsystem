@@ -3,12 +3,13 @@
 import { AppShell } from "@/components/layout/app-shell";
 import { ResourcePage } from "@/components/layout/resource-page";
 import { Badge } from "@/components/ui/badge";
-import { roomName, useOperationsData } from "@/lib/operations-data";
+import { roomName, useOperationAction, useOperationsData } from "@/lib/operations-data";
 import { usePreviewRole } from "@/lib/use-preview-role";
 
 export default function PracticeRoomsPage() {
   const role = usePreviewRole();
   const { data, source } = useOperationsData(role);
+  const saveAction = useOperationAction();
 
   return (
     <AppShell area="practice-rooms">
@@ -25,16 +26,32 @@ export default function PracticeRoomsPage() {
         ])}
         emptyTitle="표시할 예약 정보가 없습니다"
         emptyDescription="실사용 세션이 없거나 Apps Script 응답에 예약 데이터가 없으면 이곳이 비어 있을 수 있습니다."
+        onSubmit={(values) => saveAction.run("createReservation", { reservation: mapReservationInput(values, data) })}
+        submitDisabled={saveAction.pending}
+        submitLabel={saveAction.pending ? "저장 중" : "예약 저장"}
+        submitHelp="공간은 이름 또는 ID를 입력할 수 있습니다. Apps Script 정책상 정각부터 1시간 단위 예약만 저장됩니다."
         fields={[
-          { label: "공간", name: "room" },
-          { label: "예약자", name: "requester" },
+          { label: "공간명 또는 ID", name: "room" },
           { label: "사용일", name: "date", type: "date" },
-          { label: "예약 상태", name: "status", type: "select", options: ["예약", "사용완료", "취소", "노쇼"] },
-          { label: "노쇼/취소 메모", name: "memo", type: "textarea" }
+          { label: "시작 시간(HH:00)", name: "startTime" },
+          { label: "종료 시간(HH:00)", name: "endTime" },
+          { label: "목적", name: "purpose", type: "select", options: ["레슨", "이론수업", "회의", "연습"] },
+          { label: "메모", name: "memo", type: "textarea" }
         ]}
       />
     </AppShell>
   );
+}
+
+function mapReservationInput(values: Record<string, string>, data: ReturnType<typeof useOperationsData>["data"]) {
+  return {
+    room_id: data.rooms.find((room) => room.id === values.room || room.name === values.room)?.id || values.room,
+    reservation_date: values.date,
+    start_time: values.startTime,
+    end_time: values.endTime,
+    purpose: values.purpose,
+    memo: values.memo
+  };
 }
 
 function formatReservationTime(startsAt: string, endsAt: string) {
