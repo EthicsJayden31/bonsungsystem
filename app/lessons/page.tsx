@@ -3,19 +3,30 @@
 import { AppShell } from "@/components/layout/app-shell";
 import { ResourcePage } from "@/components/layout/resource-page";
 import { Badge } from "@/components/ui/badge";
-import { getCourseName, getStudentName, getTeacherName, lessons } from "@/lib/demo-data";
+import { courseName, studentName, teacherName, useOperationsData } from "@/lib/operations-data";
 import { usePreviewRole } from "@/lib/use-preview-role";
 
 export default function LessonsPage() {
   const role = usePreviewRole();
-  const visible = role === "teacher" ? lessons.filter((lesson) => lesson.teacherId === "teacher-1") : lessons;
+  const { data, source } = useOperationsData(role);
+
   return (
     <AppShell area="lessons">
       <ResourcePage
         title="수업/시간표"
-        description="학생, 강사, 과목 기준으로 실제 수업 일정을 관리합니다."
+        description={source === "live" ? "Apps Script bootstrap의 수업 데이터를 표시합니다." : "Preview 데이터로 수업 일정 화면을 점검합니다."}
         headers={["일시", "학생", "강사", "과목", "시간", "상태", "메모"]}
-        rows={visible.map((lesson) => [new Date(lesson.startsAt).toLocaleString("ko-KR"), getStudentName(lesson.studentId), getTeacherName(lesson.teacherId), getCourseName(lesson.courseId), `${lesson.duration}분`, <Badge key={lesson.id}>{lesson.status}</Badge>, lesson.memo])}
+        rows={data.lessons.map((lesson) => [
+          formatLessonTime(lesson.startsAt),
+          lesson.studentName || studentName(data, lesson.studentId),
+          lesson.teacherName || teacherName(data, lesson.teacherId),
+          lesson.subject || courseName(data, lesson.courseId),
+          String(lesson.duration || 0) + "분",
+          <Badge key={lesson.id}>{lesson.status || "확인 필요"}</Badge>,
+          lesson.memo || "-"
+        ])}
+        emptyTitle="표시할 수업 일정이 없습니다"
+        emptyDescription="실사용 세션이 없거나 Apps Script 응답에 수업 데이터가 없으면 이곳이 비어 있을 수 있습니다."
         fields={[
           { label: "학생", name: "student" },
           { label: "강사", name: "teacher" },
@@ -28,4 +39,11 @@ export default function LessonsPage() {
       />
     </AppShell>
   );
+}
+
+function formatLessonTime(value: string) {
+  if (!value) return "-";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toLocaleString("ko-KR");
 }
