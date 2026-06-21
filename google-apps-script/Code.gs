@@ -926,6 +926,8 @@ function getBootstrapData(user) {
     lessons: listLessons(user),
     overview: getMyOverview(user),
     registrations: listRegistrations(user),
+    rooms: listRooms(user),
+    reservations: listReservations(user),
     calendar: listCalendar(user),
     classTypes: listClassTypes(user),
     accountRequests: capabilities.reviewAccountRequests ? listAccountRequests(user) : [],
@@ -936,6 +938,8 @@ function getBootstrapData(user) {
     loaded: {
       core: true,
       registrations: true,
+      rooms: true,
+      reservations: true,
       calendar: true
     }
   };
