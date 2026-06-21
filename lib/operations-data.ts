@@ -107,6 +107,7 @@ type BootstrapPayload = {
   registrations?: LiveRecord[];
   rooms?: LiveRecord[];
   reservations?: LiveRecord[];
+  tasks?: LiveRecord[];
   calendar?: LiveRecord[];
   classTypes?: LiveRecord[];
   capabilities?: Record<string, boolean>;
@@ -289,7 +290,9 @@ function normalizeBootstrap(payload: BootstrapPayload, role: Role | null): Opera
   const livePayments = role === "teacher" ? [] : (payload.registrations ?? []).map(mapPayment);
   const liveRooms = (payload.rooms ?? []).map(mapRoom);
   const liveReservations = (payload.reservations ?? []).map(mapReservation);
+  const liveTasks = (payload.tasks ?? []).map(mapTask);
   const liveLessonNotes = (payload.overview?.recentLogs ?? []).map(mapLessonNote);
+  const liveAttendance = buildLiveAttendance(liveLessons, liveLessonNotes);
   const liveTeachers = uniqueTeachers(liveEnrollments, liveLessons, liveLessonNotes);
 
   return {
@@ -300,12 +303,12 @@ function normalizeBootstrap(payload: BootstrapPayload, role: Role | null): Opera
     courses,
     enrollments: liveEnrollments,
     lessons: liveLessons,
-    attendance,
+    attendance: liveAttendance.length ? liveAttendance : attendance,
     lessonNotes: liveLessonNotes,
     rooms: liveRooms.length ? liveRooms : rooms,
     reservations: liveReservations,
     payments: livePayments,
-    tasks,
+    tasks: liveTasks.length ? liveTasks : tasks,
     notices,
     overview: payload.overview
   };
@@ -417,6 +420,38 @@ function mapPayment(item: LiveRecord): Payment {
   };
 }
 
+function mapTask(item: LiveRecord): Task {
+  return {
+    id: stringValue(item.task_id),
+    title: stringValue(item.title, "업무명 없음"),
+    assignee: stringValue(item.assignee_name || item.assignee_id),
+    dueDate: stringValue(item.due_date),
+    status: stringValue(item.status, "할일"),
+    priority: stringValue(item.priority, "보통"),
+    memo: stringValue(item.memo)
+  };
+}
+
+function buildLiveAttendance(liveLessons: Lesson[], liveNotes: LessonNote[]): Attendance[] {
+  return liveLessons.map((lesson) => {
+    const note = liveNotes.find((item) => item.lessonId === lesson.id || (item.studentId === lesson.studentId && item.teacherId === lesson.teacherId && item.date === lesson.startsAt.slice(0, 10)));
+    const status = attendanceStatus(lesson, note);
+    return {
+      id: `att-${lesson.id}`,
+      lessonId: lesson.id,
+      studentId: lesson.studentId,
+      status,
+      makeupNeeded: ["결석", "취소", "보강예정"].includes(status),
+      memo: note?.content || lesson.memo || "-"
+    };
+  });
+}
+
+function attendanceStatus(lesson: Lesson, note?: LessonNote) {
+  if (note) return "출석";
+  if (["완료", "출석", "지각", "결석", "취소", "보강예정"].includes(lesson.status)) return lesson.status;
+  return "미처리";
+}
 function uniqueTeachers(...groups: Array<Array<Enrollment | Lesson | LessonNote>>) {
   const map = new Map<string, Teacher>();
   groups.flat().forEach((item) => {

@@ -928,6 +928,7 @@ function getBootstrapData(user) {
     registrations: listRegistrations(user),
     rooms: listRooms(user),
     reservations: listReservations(user),
+    tasks: listTasks(user),
     calendar: listCalendar(user),
     classTypes: listClassTypes(user),
     accountRequests: capabilities.reviewAccountRequests ? listAccountRequests(user) : [],
@@ -940,6 +941,7 @@ function getBootstrapData(user) {
       registrations: true,
       rooms: true,
       reservations: true,
+      tasks: true,
       calendar: true
     }
   };
@@ -1270,8 +1272,13 @@ function listTasks(user, accountId) {
   if (normalizedAccountType(user) === "student") return [];
   const targetId = accountId || user.account_id;
   if (targetId !== user.account_id && !canViewAccounts(user)) throw new Error("다른 직원의 업무를 조회할 권한이 없습니다.");
+  const accounts = objectMap(rowsAsObjects(SHEETS.accounts), "account_id");
   return rowsAsObjects(SHEETS.tasks)
     .filter((item) => item.assignee_id === targetId)
+    .map((item) => Object.assign({}, item, {
+      assignee_name: accounts[item.assignee_id] ? accounts[item.assignee_id].name : "",
+      created_by_name: accounts[item.created_by] ? accounts[item.created_by].name : ""
+    }))
     .sort((a, b) => String(a.due_date || "9999-12-31").localeCompare(String(b.due_date || "9999-12-31")));
 }
 
