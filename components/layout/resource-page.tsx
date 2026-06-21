@@ -1,10 +1,13 @@
+﻿"use client";
+
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Section } from "@/components/ui/section";
 import { DataTable } from "@/components/ui/table";
-import type { ReactNode } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 
 type Field = { label: string; name: string; type?: "text" | "date" | "number" | "textarea" | "select"; options?: string[] };
+type SubmitStatus = { tone: "info" | "success" | "error"; message: string };
 
 export function ResourcePage({
   title,
@@ -14,7 +17,11 @@ export function ResourcePage({
   fields,
   emptyTitle = "등록된 데이터가 없습니다",
   emptyDescription = "오른쪽 빠른 등록 영역에서 첫 항목을 입력할 수 있습니다.",
-  sourceNote
+  sourceNote,
+  onSubmit,
+  submitLabel,
+  submitHelp,
+  submitDisabled = false
 }: {
   title: string;
   description: string;
@@ -24,7 +31,39 @@ export function ResourcePage({
   emptyTitle?: string;
   emptyDescription?: string;
   sourceNote?: ReactNode;
+  onSubmit?: (values: Record<string, string>) => Promise<void> | void;
+  submitLabel?: string;
+  submitHelp?: string;
+  submitDisabled?: boolean;
 }) {
+  const [status, setStatus] = useState<SubmitStatus | null>(null);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const values = Object.fromEntries(new FormData(form).entries()) as Record<string, string>;
+
+    if (!onSubmit) {
+      setStatus({ tone: "info", message: "이 화면은 기능 점검용 preview 입력입니다. 실사용 저장은 Apps Script 연결 화면에서 처리합니다." });
+      return;
+    }
+
+    setStatus({ tone: "info", message: "Apps Script에 저장을 요청하고 있습니다." });
+    try {
+      await onSubmit(values);
+      form.reset();
+      setStatus({ tone: "success", message: "저장 요청이 완료되었습니다. 목록은 새로고침 후 최신 데이터로 다시 불러옵니다." });
+    } catch (error) {
+      setStatus({ tone: "error", message: error instanceof Error ? error.message : String(error) });
+    }
+  }
+
+  const statusClass = status?.tone === "success"
+    ? "border-success/20 bg-success/10 text-success"
+    : status?.tone === "error"
+      ? "border-danger/20 bg-danger/10 text-danger"
+      : "border-brand/15 bg-brand/5 text-muted";
+
   return (
     <Section title={title} description={description}>
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
@@ -42,13 +81,13 @@ export function ResourcePage({
           </div>
           {rows.length ? <DataTable headers={headers} rows={rows} /> : <EmptyState title={emptyTitle} description={emptyDescription} />}
         </div>
-        <form className="rounded-2xl border border-line bg-white p-5 shadow-card" aria-label={`${title} 빠른 등록`}>
+        <form className="rounded-2xl border border-line bg-white p-5 shadow-card" aria-label={`${title} 빠른 등록`} onSubmit={handleSubmit}>
           <div className="mb-4 flex items-start justify-between gap-2">
             <div>
               <h2 className="text-lg font-extrabold tracking-tight text-ink">빠른 등록</h2>
               <p className="mt-1 text-xs leading-5 text-muted">필수 정보를 먼저 적고, 상세 내용은 나중에 보완합니다.</p>
             </div>
-            <Badge>v1 입력안</Badge>
+            <Badge>{onSubmit ? "실사용 저장" : "v1 입력안"}</Badge>
           </div>
           <div className="space-y-3">
             {fields.map((field) => (
@@ -66,12 +105,13 @@ export function ResourcePage({
               </label>
             ))}
           </div>
-          <button className="mt-4 w-full rounded-xl bg-brand px-3 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-brand-dark" type="button">
-            임시 저장
+          <button className="mt-4 w-full rounded-xl bg-brand px-3 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-brand-dark disabled:cursor-not-allowed disabled:bg-brand/45" disabled={submitDisabled} type="submit">
+            {submitLabel ?? (onSubmit ? "실사용 저장" : "임시 저장")}
           </button>
           <p className="mt-3 rounded-xl bg-brand/5 px-3 py-2 text-xs leading-5 text-muted">
-            현재 Next 화면의 저장 버튼은 기능 점검용입니다. 실사용 저장은 `/legacy-preview`의 Apps Script 화면에서 먼저 처리합니다.
+            {submitHelp ?? (onSubmit ? "Apps Script 로그인 세션이 있을 때 실제 Google Sheets 데이터로 저장됩니다." : "현재 Next 화면의 저장 버튼은 기능 점검용입니다. 실사용 저장은 `/legacy-preview`의 Apps Script 화면에서 먼저 처리합니다.")}
           </p>
+          {status ? <p className={`mt-3 rounded-xl border px-3 py-2 text-xs leading-5 ${statusClass}`}>{status.message}</p> : null}
         </form>
       </div>
     </Section>

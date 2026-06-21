@@ -3,12 +3,13 @@
 import { AppShell } from "@/components/layout/app-shell";
 import { ResourcePage } from "@/components/layout/resource-page";
 import { Badge } from "@/components/ui/badge";
-import { useOperationsData } from "@/lib/operations-data";
+import { useOperationAction, useOperationsData } from "@/lib/operations-data";
 import { usePreviewRole } from "@/lib/use-preview-role";
 
 export default function ConsultationsPage() {
   const role = usePreviewRole();
   const { data, source, error } = useOperationsData(role);
+  const saveAction = useOperationAction();
   const sourceLabel = source === "live" ? "실사용 데이터" : source === "fallback" ? "미리보기 데이터" : "프리뷰 데이터";
 
   return (
@@ -20,6 +21,10 @@ export default function ConsultationsPage() {
         rows={data.consultations.map((item) => [item.studentName, item.guardianName, item.phone, item.channel, <Badge key={item.id}>{item.status}</Badge>, item.followUpDate, item.priority])}
         emptyTitle="상담 기록이 없습니다"
         emptyDescription="실사용 데이터에 상담 기록이 없으면 이곳에 빈 상태가 표시됩니다."
+        onSubmit={(values) => saveAction.run("createConsultation", { consultation: values })}
+        submitDisabled={saveAction.pending}
+        submitLabel={saveAction.pending ? "저장 중" : "상담 저장"}
+        submitHelp="Apps Script 로그인 세션이 있으면 상담 시트에 저장됩니다. preview 모드에서는 저장되지 않고 안내 메시지를 표시합니다."
         fields={[
           { label: "학생명 또는 연결 학생", name: "studentName" },
           { label: "보호자명", name: "guardianName" },

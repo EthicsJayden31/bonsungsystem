@@ -131,6 +131,48 @@ export type DataQualityState = {
   endpoint: string;
 };
 
+export type OperationActionState = {
+  pending: boolean;
+  error: string;
+  hasLiveSession: boolean;
+  endpoint: string;
+  run: <T>(action: string, payload?: Record<string, unknown>) => Promise<T>;
+};
+
+export function useOperationAction(): OperationActionState {
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState("");
+
+  async function run<T>(action: string, payload: Record<string, unknown> = {}) {
+    const token = window.localStorage.getItem(SESSION_TOKEN_KEY);
+    if (!token) {
+      const message = "실사용 저장은 Apps Script 로그인 세션이 필요합니다. 현재 화면은 기능 점검용 preview 모드입니다.";
+      setError(message);
+      throw new Error(message);
+    }
+
+    setPending(true);
+    setError("");
+    try {
+      return await callAppsScript<T>(action, token, payload);
+    } catch (caught) {
+      const message = caught instanceof Error ? caught.message : String(caught);
+      setError(message);
+      throw new Error(message);
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return {
+    pending,
+    error,
+    hasLiveSession: typeof window !== "undefined" && Boolean(window.localStorage.getItem(SESSION_TOKEN_KEY)),
+    endpoint: APPS_SCRIPT_ENDPOINT,
+    run
+  };
+}
+
 export function useOperationsData(role: Role | null): OperationsState {
   const previewData = useMemo(() => buildPreviewData(role), [role]);
   const [state, setState] = useState<OperationsState>({
@@ -234,7 +276,7 @@ export function useDataQualityReport(): DataQualityState {
   return state;
 }
 
-async function callAppsScript<T>(action: string, token: string) {
+async function callAppsScript<T>(action: string, token: string, payload: Record<string, unknown> = {}) {
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), 15000);
 
@@ -242,7 +284,7 @@ async function callAppsScript<T>(action: string, token: string) {
     const response = await fetch(APPS_SCRIPT_ENDPOINT, {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({ action, token }),
+      body: JSON.stringify({ action, token, ...payload }),
       signal: controller.signal
     });
 
