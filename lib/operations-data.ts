@@ -105,6 +105,8 @@ type BootstrapPayload = {
   lessons?: LiveRecord[];
   overview?: LiveOverview;
   registrations?: LiveRecord[];
+  rooms?: LiveRecord[];
+  reservations?: LiveRecord[];
   calendar?: LiveRecord[];
   classTypes?: LiveRecord[];
   capabilities?: Record<string, boolean>;
@@ -285,6 +287,8 @@ function normalizeBootstrap(payload: BootstrapPayload, role: Role | null): Opera
   const liveEnrollments = (payload.enrollments ?? []).map(mapEnrollment);
   const liveLessons = (payload.lessons ?? payload.overview?.todayLessons ?? []).map(mapLesson);
   const livePayments = role === "teacher" ? [] : (payload.registrations ?? []).map(mapPayment);
+  const liveRooms = (payload.rooms ?? []).map(mapRoom);
+  const liveReservations = (payload.reservations ?? []).map(mapReservation);
   const liveLessonNotes = (payload.overview?.recentLogs ?? []).map(mapLessonNote);
   const liveTeachers = uniqueTeachers(liveEnrollments, liveLessons, liveLessonNotes);
 
@@ -298,8 +302,8 @@ function normalizeBootstrap(payload: BootstrapPayload, role: Role | null): Opera
     lessons: liveLessons,
     attendance,
     lessonNotes: liveLessonNotes,
-    rooms,
-    reservations,
+    rooms: liveRooms.length ? liveRooms : rooms,
+    reservations: liveReservations,
     payments: livePayments,
     tasks,
     notices,
@@ -372,6 +376,33 @@ function mapLessonNote(item: LiveRecord): LessonNote {
   };
 }
 
+function mapRoom(item: LiveRecord): Room {
+  return {
+    id: stringValue(item.room_id),
+    name: stringValue(item.name, "공간 이름 없음"),
+    location: roomTypeLabel(stringValue(item.room_type)),
+    capacity: numberValue(item.capacity, 1),
+    status: truthyValue(item.active) ? "사용 가능" : "비활성"
+  };
+}
+
+function mapReservation(item: LiveRecord): Reservation {
+  const reservationDate = stringValue(item.reservation_date);
+  const startTime = stringValue(item.start_time);
+  const endTime = stringValue(item.end_time);
+  return {
+    id: stringValue(item.reservation_id),
+    roomId: stringValue(item.room_id),
+    studentId: stringValue(item.reserved_by),
+    requester: stringValue(item.reserved_by_name || item.reserved_by),
+    startsAt: reservationDate && startTime ? `${reservationDate}T${startTime}:00+09:00` : reservationDate,
+    endsAt: reservationDate && endTime ? `${reservationDate}T${endTime}:00+09:00` : reservationDate,
+    status: stringValue(item.status, "확인 필요"),
+    memo: [item.purpose, item.memo].filter(Boolean).join(" · "),
+    studentName: stringValue(item.reserved_by_name),
+    roomName: stringValue(item.room_name)
+  };
+}
 function mapPayment(item: LiveRecord): Payment {
   return {
     id: stringValue(item.registration_id),
@@ -405,6 +436,16 @@ function numberValue(value: unknown, fallback: number) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function truthyValue(value: unknown) {
+  return value === true || value === "true" || value === "TRUE" || value === "1" || value === 1;
+}
+
+function roomTypeLabel(value: string) {
+  if (value === "lesson") return "레슨실";
+  if (value === "practice") return "연습실";
+  return value || "공간";
+}
+
 function normalizeStudentStatus(value: string): Student["status"] {
   if (["상담중", "등록대기", "재원", "휴원", "퇴원"].includes(value)) return value as Student["status"];
   if (value === "active") return "재원";
@@ -432,4 +473,8 @@ export function teacherName(data: OperationsData, id: string) {
 
 export function courseName(data: OperationsData, id: string) {
   return data.courses.find((course) => course.id === id)?.name || getCourseName(id) || id;
+}
+
+export function roomName(data: OperationsData, id: string) {
+  return data.rooms.find((room) => room.id === id)?.name || id;
 }
