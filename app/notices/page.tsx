@@ -2,12 +2,13 @@
 
 import { AppShell } from "@/components/layout/app-shell";
 import { ResourcePage } from "@/components/layout/resource-page";
-import { useOperationsData } from "@/lib/operations-data";
+import { useOperationAction, useOperationsData } from "@/lib/operations-data";
 import { usePreviewRole } from "@/lib/use-preview-role";
 
 export default function NoticesPage() {
   const role = usePreviewRole();
   const { data, source, error } = useOperationsData(role);
+  const saveAction = useOperationAction();
   const sourceLabel = source === "live" ? "실사용 데이터" : source === "fallback" ? "미리보기 데이터" : "프리뷰 데이터";
 
   return (
@@ -19,6 +20,10 @@ export default function NoticesPage() {
         rows={data.notices.map((notice) => [notice.title, notice.category, notice.author, notice.updatedAt, notice.body])}
         emptyTitle="공지 문서가 없습니다"
         emptyDescription="실사용 데이터에 등록된 공지나 문서가 없으면 이곳에 빈 상태가 표시됩니다."
+        onSubmit={(values) => saveAction.run("createNotice", { notice: values })}
+        submitDisabled={saveAction.pending}
+        submitLabel={saveAction.pending ? "저장 중" : "공지 저장"}
+        submitHelp="Apps Script 로그인 세션이 있으면 공지문서 시트에 저장됩니다. preview 모드에서는 저장되지 않고 안내 메시지를 표시합니다."
         fields={[
           { label: "제목", name: "title" },
           { label: "분류", name: "category", type: "select", options: ["공지", "운영규정", "강사매뉴얼", "환불기준", "출결기준"] },
