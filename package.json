@@ -7,6 +7,7 @@
     "dev": "next dev",
     "build": "next build",
     "build:pages": "cross-env GITHUB_PAGES=true next build && node tools/preserve-legacy-preview.mjs",
+    "verify:surfaces": "node tools/verify-operating-surfaces.mjs",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
