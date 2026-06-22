@@ -1,6 +1,6 @@
 # GitHub Pages 웹앱
 
-본성뮤직 인트라넷은 `pages-preview/`를 GitHub Pages에 배포하는 정적 웹앱입니다. 데이터와 인증은 비공개 Google Sheets에 연결된 Apps Script가 처리합니다.
+본성뮤직 인트라넷은 Next.js 공식 UI를 GitHub Pages 루트에 정적 배포합니다. 데이터와 인증은 비공개 Google Sheets에 연결된 Apps Script가 처리하며, 기존 정적 운영 화면은 `/legacy-preview/`에 보존합니다.
 
 ## 운영 주소
 
@@ -12,20 +12,22 @@ https://ethicsjayden31.github.io/bonsungsystem/
 
 `.github/workflows/pages.yml`은 다음을 수행합니다.
 
-1. `config.js`, `app.js`, `Code.gs` JavaScript 문법 검사
-2. `pages-preview/` 배포 파일 업로드
-3. 운영 브랜치에서만 GitHub Pages 배포
+1. `pages-preview`와 `google-apps-script/Code.gs` JavaScript 문법 검사
+2. Next.js 정적 사이트 빌드
+3. `pages-preview/`를 `out/legacy-preview/`로 복사
+4. 운영 브랜치에서만 GitHub Pages 배포
 
 기능 브랜치는 문법 검사와 배포 파일 생성까지만 수행하며 운영 페이지를 변경하지 않습니다.
 
 ## 운영 반영 순서
 
 1. 기능 브랜치에서 GitHub Actions 검사를 통과합니다.
-2. Apps Script의 기존 웹앱 배포를 새 버전으로 업데이트합니다.
-3. 배포 URL이 `pages-preview/config.js`에 들어 있는지 확인합니다.
-4. Chrome에서 관리자, 강사, 수강생 역할을 검증합니다.
-5. 운영 브랜치 `codex/v1-intranet`에 병합합니다.
-6. Pages 배포 완료 후 운영 주소를 다시 검증합니다.
+2. Next UI와 `/legacy-preview/`가 모두 빌드되는지 확인합니다.
+3. Apps Script 코드가 바뀐 경우 기존 웹앱 배포를 새 버전으로 업데이트합니다.
+4. 배포 URL이 `pages-preview/config.js`와 Next UI의 `NEXT_PUBLIC_APPS_SCRIPT_ENDPOINT` 기준과 일치하는지 확인합니다.
+5. Chrome에서 관리자, 강사, 수강생 역할을 검증합니다.
+6. 운영 브랜치 `codex/v1-intranet`에 병합합니다.
+7. Pages 배포 완료 후 `/`, `/login`, `/dashboard`, `/legacy-preview/`를 다시 검증합니다.
 
 ## Chrome 수동 검증
 

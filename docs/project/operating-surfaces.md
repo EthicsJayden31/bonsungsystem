@@ -11,8 +11,9 @@
   - 세션이 없거나 연결에 실패하면 기능 점검용 preview 데이터를 표시한다.
   - 화면에는 현재 데이터 소스를 `실사용 Apps Script 데이터`, `기능 점검 Preview 데이터`, `Preview fallback 데이터`로 표시한다.
 - 저장 원칙:
-  - v1 통합 전까지 Next 화면의 빠른 등록 버튼은 기능 점검용이다.
-  - 실제 저장은 `/legacy-preview/` 실사용 화면에서 먼저 처리한다.
+  - Apps Script 세션 토큰이 있으면 Next 화면의 빠른 등록 폼도 Apps Script create action을 호출한다.
+  - 세션이 없으면 저장하지 않고 실사용 로그인 필요 안내를 표시한다.
+  - 저장 기능이 모두 안정화되기 전까지 `/legacy-preview/` 실사용 화면도 함께 유지한다.
 
 ## 2. 실사용 Apps Script 화면
 
@@ -45,9 +46,9 @@
 
 1. Next 대시보드와 학생 목록을 Apps Script `bootstrap` 데이터로 읽기.
 2. 상담, 수업, 출결, 레슨노트, 연습실, 수납 화면을 같은 데이터 계약으로 연결.
-3. 저장 기능은 `createStudent`, `createEnrollment`, `createLesson`, `createLessonLog`, `createReservation`, `createRegistration` 순서로 연결.
-4. `getDataQualityReport`를 추가해 중복, 누락, 상태 불일치, 참조 깨짐, 예약 충돌을 점검한다.
-5. 모든 저장 기능이 Next UI로 이관되기 전까지 `/legacy-preview/`는 유지한다.
+3. 저장 기능은 `createStudent`, `createEnrollment`, `createLesson`, `createLessonLog`, `createReservation`, `createRegistration`, `createTask` 순서로 연결했다.
+4. `getDataQualityReport`로 중복, 누락, 상태 불일치, 참조 깨짐, 예약 충돌을 점검한다.
+5. 모든 저장 기능이 Next UI에서 충분히 검증될 때까지 `/legacy-preview/`는 유지한다.
 
 ## 7. 데이터 점검 화면
 
