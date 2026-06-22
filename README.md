@@ -8,7 +8,7 @@
 https://ethicsjayden31.github.io/bonsungsystem/
 ```
 
-현재 운영 브랜치에는 기존 v1이 배포되어 있습니다. 이번 개선 버전은 기능 브랜치에서 검증한 뒤 운영 브랜치에 반영합니다.
+현재 운영 브랜치 `codex/v1-intranet`은 Next.js 브랜드 UI를 GitHub Pages 루트에 배포합니다. 기존 Apps Script 정적 운영 화면은 `/legacy-preview/`에 보존해 실사용 로그인과 데이터 입력 흐름을 확인할 수 있습니다.
 
 ## 주요 기능
 
@@ -24,25 +24,31 @@ https://ethicsjayden31.github.io/bonsungsystem/
 - 수강생, 수업일지, 회의, 일정 빠른 검색·필터·정렬
 - 로그인 후 시작 화면, 화면 밀도, 홈 카드 구성을 계정별로 저장
 - 모바일 320px 이상에서 가로 스크롤 없이 세로로 재배치되는 화면
-- 운영 API 연결 전 `?demo=1` 데모 모드
+- Next 공식 UI의 기능 점검용 preview 모드와 Apps Script 세션 기반 실사용 데이터 표시
+- 기존 Apps Script 운영 화면을 `/legacy-preview/`로 보존
 
 ## 구조
 
 ```text
-pages-preview/            GitHub Pages 정적 웹앱
+app/                      GitHub Pages 루트에 배포되는 Next.js 공식 UI
+components/               공통 레이아웃, 목록, 입력 폼, 상태 표시 컴포넌트
+lib/operations-data.ts    Apps Script 세션 데이터와 preview 데이터 전환
+pages-preview/            기존 Apps Script 정적 운영 화면 원본
   index.html
   config.js               Apps Script 배포 URL
-  app.js                  화면, 상태, 권한별 업무 흐름
-  styles.css              데스크톱·모바일 반응형 스타일
+  app.js                  legacy 운영 화면, 상태, 권한별 업무 흐름
+  styles.css              legacy 화면 스타일
 google-apps-script/
   Code.gs                 Google Sheets API, 인증, 권한, 이용 기록
+tools/
+  preserve-legacy-preview.mjs  빌드 후 pages-preview를 out/legacy-preview에 복사
 docs/
   google-sheets-setup.md  운영 데이터와 Apps Script 연결
   github-pages.md         검증 및 배포 절차
   project/                작업 지시와 GitHub 연동 운영 문서
 ```
 
-저장소의 Next.js·Prisma 코드는 장기 확장용 초기 구조로 유지합니다. 현재 GitHub Pages 운영 경로는 `pages-preview/`와 `google-apps-script/`입니다.
+현재 GitHub Pages 공식 화면은 Next.js App Router입니다. `pages-preview/`는 삭제하지 않고 `/legacy-preview/`로 배포해 Apps Script 실사용 흐름과 기존 운영 기능을 분리해 유지합니다.
 
 ## 프로젝트 운영
 
@@ -84,12 +90,12 @@ docs/
 
 ## 데모 확인
 
-API가 배포되기 전에는 아래 주소로 화면을 확인합니다.
+실사용 세션 없이 Next UI에 들어가면 기능 점검용 preview 데이터가 표시됩니다. 기존 legacy 화면의 로컬/테스트 데이터는 아래 주소로 확인합니다.
 
 기능 테스트 페이지에는 `admin` 계정 외에 원장 1명, 팀장 2명, 사원 3명, 강사 3명, 수강생 12명이 준비되어 있습니다. 모든 테스트 계정의 비밀번호는 `bonsung1`이며, 상단 계정 전환 메뉴에서 각 계정의 권한과 화면을 바로 확인할 수 있습니다.
 
 ```text
-pages-preview/index.html?demo=1
+/legacy-preview/index.html?demo=1
 ```
 
 모든 데모 계정의 비밀번호는 `bonsung1`입니다.
@@ -113,10 +119,10 @@ GitHub Actions는 정적 웹앱과 Apps Script의 JavaScript 문법을 검사합
 
 등록·재등록, 공간 예약, 직원 직급과 근태, 회의, 통합 캘린더, 다크모드와 로그인 성능 개선은 [운영 기능 v3](docs/v3-operations.md)에 정리되어 있습니다.
 
-운영 데이터와 분리된 로컬 테스트 화면:
+운영 데이터와 분리된 기능 테스트 화면:
 
 ```text
-pages-preview/test.html
+/legacy-preview/test.html
 ```
 
 정적 파일 서버에서 `test.html`을 열면 관리자, 원장, 팀장, 사원, 강사, 수강생 계정으로 즉시 전환하면서 모든 기능을 샘플 데이터로 시험할 수 있습니다.
