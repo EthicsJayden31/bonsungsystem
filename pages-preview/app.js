@@ -851,6 +851,10 @@ async function initializeApp() {
       render();
       await refreshData(true);
     } else {
+      if (state.user && !state.token) {
+        state.user = null;
+        localStorage.removeItem(STORAGE.user);
+      }
       const health = await api("health");
       applyPublicConfig(health.publicConfig);
       state.loading = false;
