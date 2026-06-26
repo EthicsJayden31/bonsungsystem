@@ -17,13 +17,18 @@ const requiredFiles = [
 const requiredSourceSignals = [
   {
     file: "app/login/page.tsx",
-    includes: ["/legacy-preview/", "preview"],
-    label: "login page separates live legacy access from preview role login"
+    includes: ["/legacy-preview/", "preview", "loginWithAppsScript"],
+    label: "login page separates Apps Script live login from preview role login"
   },
   {
     file: "lib/operations-data.ts",
-    includes: ["bonsung_session_token", "DataSource", "\"live\"", "\"preview\"", "\"fallback\""],
+    includes: ["APPS_SCRIPT_SESSION_TOKEN_KEY", "DataSource", "\"live\"", "\"preview\"", "\"fallback\""],
     label: "Next UI switches between Apps Script live data and preview fallback"
+  },
+  {
+    file: "lib/apps-script-client.ts",
+    includes: ["bonsung_session_token", "loginWithAppsScript"],
+    label: "Next UI uses the shared Apps Script session and login client"
   },
   {
     file: "tools/preserve-legacy-preview.mjs",

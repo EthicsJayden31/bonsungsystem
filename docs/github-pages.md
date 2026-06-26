@@ -25,7 +25,7 @@ https://ethicsjayden31.github.io/bonsungsystem/
 2. Next UI와 `/legacy-preview/`가 모두 빌드되는지 확인합니다.
 3. Apps Script 코드가 바뀐 경우 기존 웹앱 배포를 새 버전으로 업데이트합니다.
 4. 배포 URL이 `pages-preview/config.js`와 Next UI의 `NEXT_PUBLIC_APPS_SCRIPT_ENDPOINT` 기준과 일치하는지 확인합니다.
-5. Chrome에서 관리자, 강사, 수강생 역할을 검증합니다.
+5. Chrome에서 Next 로그인으로 관리자·운영 스태프·강사 실사용 세션이 생성되는지 확인하고, 수강생은 legacy 화면으로 이동하는지 확인합니다.
 6. 운영 브랜치 `codex/v1-intranet`에 병합합니다.
 7. Pages 배포 완료 후 `/`, `/login`, `/dashboard`, `/legacy-preview/`를 다시 검증합니다.
 

@@ -35,12 +35,9 @@ import {
   type Teacher
 } from "@/lib/demo-data";
 import type { Role } from "@/lib/auth-shared";
+import { APPS_SCRIPT_ENDPOINT, APPS_SCRIPT_SESSION_TOKEN_KEY } from "@/lib/apps-script-client";
 
-const APPS_SCRIPT_ENDPOINT =
-  process.env.NEXT_PUBLIC_APPS_SCRIPT_ENDPOINT ||
-  "https://script.google.com/macros/s/AKfycbzHS-pShTZaY32eZ7X6muatT6Hv0hXUf89dUaQtCaH4gQNcxmdsfZ1X30izje9siAHWVQ/exec";
-
-const SESSION_TOKEN_KEY = "bonsung_session_token";
+const SESSION_TOKEN_KEY = APPS_SCRIPT_SESSION_TOKEN_KEY;
 
 export type DataSource = "loading" | "live" | "preview" | "fallback";
 
