@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo } from "react";
 import { assetPath } from "@/lib/assets";
 import { canAccess, type CurrentUser, type Role } from "@/lib/auth-shared";
+import { APPS_SCRIPT_ENDPOINT, APPS_SCRIPT_SESSION_TOKEN_KEY, APPS_SCRIPT_USER_KEY, type AppsScriptUser } from "@/lib/apps-script-client";
 import { usePreviewRole } from "@/lib/use-preview-role";
 import type { ReactNode } from "react";
 
@@ -57,7 +58,7 @@ export function AppShell({ children, area = "dashboard" }: { children: ReactNode
   const router = useRouter();
   const pathname = usePathname();
   const role = usePreviewRole();
-  const user = useMemo(() => (role ? previewUsers[role] : null), [role]);
+  const user = useMemo(() => (role ? getSessionUser(role) ?? previewUsers[role] : null), [role]);
 
   useEffect(() => {
     const stored = window.localStorage.getItem("bonsung_role") as Role | null;
@@ -71,7 +72,17 @@ export function AppShell({ children, area = "dashboard" }: { children: ReactNode
   }, [pathname, router]);
 
   function logout() {
+    const token = window.localStorage.getItem(APPS_SCRIPT_SESSION_TOKEN_KEY);
+    if (token) {
+      fetch(APPS_SCRIPT_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ action: "logout", token })
+      }).catch(() => {});
+    }
     window.localStorage.removeItem("bonsung_role");
+    window.localStorage.removeItem(APPS_SCRIPT_SESSION_TOKEN_KEY);
+    window.localStorage.removeItem(APPS_SCRIPT_USER_KEY);
     router.push("/login");
   }
 
@@ -162,6 +173,23 @@ export function AppShell({ children, area = "dashboard" }: { children: ReactNode
       </div>
     </div>
   );
+}
+
+function getSessionUser(role: Role): CurrentUser | null {
+  if (typeof window === "undefined" || !window.localStorage.getItem(APPS_SCRIPT_SESSION_TOKEN_KEY)) return null;
+
+  try {
+    const user = JSON.parse(window.localStorage.getItem(APPS_SCRIPT_USER_KEY) || "null") as AppsScriptUser | null;
+    if (!user || user.role !== role || !(user.account_id || user.id) || !user.name) return null;
+    return {
+      id: String(user.account_id || user.id),
+      name: user.name,
+      email: user.email || "",
+      role
+    };
+  } catch {
+    return null;
+  }
 }
 
 function BrandBlock() {

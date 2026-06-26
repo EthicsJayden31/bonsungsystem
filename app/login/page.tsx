@@ -3,8 +3,14 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { FormEvent, useState } from "react";
 import { assetPath } from "@/lib/assets";
 import type { Role } from "@/lib/auth-shared";
+import {
+  APPS_SCRIPT_SESSION_TOKEN_KEY,
+  APPS_SCRIPT_USER_KEY,
+  loginWithAppsScript
+} from "@/lib/apps-script-client";
 
 const accounts: Array<{ role: Role; title: string; description: string }> = [
   { role: "admin", title: "원장 관리자", description: "전체 메뉴와 운영 현황, 설정 권한을 확인합니다." },
@@ -14,10 +20,45 @@ const accounts: Array<{ role: Role; title: string; description: string }> = [
 
 export default function LoginPage() {
   const router = useRouter();
+  const [liveLoginError, setLiveLoginError] = useState("");
+  const [liveLoginPending, setLiveLoginPending] = useState(false);
 
   function previewLogin(role: Role) {
     window.localStorage.setItem("bonsung_role", role);
     router.push("/dashboard");
+  }
+
+  async function liveLogin(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const loginId = String(form.get("loginId") || "").trim();
+    const password = String(form.get("password") || "");
+
+    if (!loginId || !password) {
+      setLiveLoginError("아이디와 비밀번호를 입력해주세요.");
+      return;
+    }
+
+    setLiveLoginPending(true);
+    setLiveLoginError("");
+    try {
+      const result = await loginWithAppsScript(loginId, password);
+      if (!isNextRole(result.user.role)) {
+        window.localStorage.setItem(APPS_SCRIPT_SESSION_TOKEN_KEY, result.token);
+        window.localStorage.setItem(APPS_SCRIPT_USER_KEY, JSON.stringify(result.user));
+        window.location.assign("/legacy-preview/");
+        return;
+      }
+
+      window.localStorage.setItem(APPS_SCRIPT_SESSION_TOKEN_KEY, result.token);
+      window.localStorage.setItem(APPS_SCRIPT_USER_KEY, JSON.stringify(result.user));
+      window.localStorage.setItem("bonsung_role", result.user.role);
+      router.replace("/dashboard");
+    } catch (caught) {
+      setLiveLoginError(caught instanceof Error ? caught.message : "실사용 로그인을 완료하지 못했습니다.");
+    } finally {
+      setLiveLoginPending(false);
+    }
   }
 
   return (
@@ -30,7 +71,7 @@ export default function LoginPage() {
           <div className="relative mt-10">
             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-white/75">Bonsung Music Academy</p>
             <h1 className="mt-3 text-4xl font-extrabold leading-tight tracking-tight">본성뮤직 인트라넷</h1>
-            <p className="mt-4 max-w-md text-base leading-7 text-white/78">브랜드 UI는 Next.js에서 확인하고, 실사용 데이터 입력과 계정 로그인은 Apps Script 운영 화면에서 처리합니다.</p>
+            <p className="mt-4 max-w-md text-base leading-7 text-white/78">공식 Next UI에서 실사용 Apps Script 로그인과 기능 점검 preview를 분리해 제공합니다.</p>
             <p className="mt-8 text-sm font-bold uppercase tracking-[0.18em]">BONSUNG MUSIC A NEW BEGINNING</p>
           </div>
         </div>
@@ -39,16 +80,34 @@ export default function LoginPage() {
             <p className="text-sm font-bold text-brand">접속 방식 선택</p>
             <h2 className="mt-2 text-3xl font-extrabold tracking-tight text-ink">실사용과 preview를 분리했습니다</h2>
             <p className="mt-3 text-sm leading-6 text-muted">
-              실제 운영 데이터는 Apps Script와 Google Sheets에 연결된 화면에서 로그인합니다. 아래 역할 선택은 Next 공식 UI를 빠르게 점검하는 preview 모드입니다.
+              실제 운영 데이터는 Apps Script와 Google Sheets에 연결해 로그인합니다. 아래 역할 선택은 Next 공식 UI를 빠르게 점검하는 preview 모드입니다.
             </p>
           </div>
 
           <div className="mb-5 rounded-2xl border border-brand/15 bg-white p-5 shadow-card">
-            <p className="text-sm font-extrabold text-ink">실사용 Apps Script 로그인</p>
-            <p className="mt-2 text-sm leading-6 text-muted">계정, 학생, 수업, 예약, 수납 등 실제 Google Sheets 데이터와 연결되는 운영 화면입니다.</p>
-            <Link className="mt-4 inline-flex rounded-xl bg-brand px-4 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-brand-dark" href="/legacy-preview/">
-              실사용 페이지로 이동
-            </Link>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-extrabold text-ink">실사용 Apps Script 로그인</p>
+                <p className="mt-2 text-sm leading-6 text-muted">관리자, 운영 스태프, 강사 계정은 Google Sheets 운영 데이터를 공식 Next UI에서 바로 확인합니다.</p>
+              </div>
+              <Link className="text-sm font-bold text-brand hover:text-brand-dark" href="/legacy-preview/">
+                legacy 화면
+              </Link>
+            </div>
+            <form className="mt-4 grid gap-3 sm:grid-cols-[1fr_1fr_auto]" onSubmit={liveLogin}>
+              <label className="block">
+                <span className="sr-only">아이디</span>
+                <input className="h-11 w-full rounded-xl border border-line px-3 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/15" name="loginId" placeholder="아이디" autoComplete="username" disabled={liveLoginPending} />
+              </label>
+              <label className="block">
+                <span className="sr-only">비밀번호</span>
+                <input className="h-11 w-full rounded-xl border border-line px-3 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/15" name="password" placeholder="비밀번호" type="password" autoComplete="current-password" disabled={liveLoginPending} />
+              </label>
+              <button className="h-11 rounded-xl bg-brand px-4 text-sm font-bold text-white transition hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-60" disabled={liveLoginPending} type="submit">
+                {liveLoginPending ? "로그인 중" : "실사용 로그인"}
+              </button>
+            </form>
+            {liveLoginError ? <p className="mt-3 text-sm font-medium text-danger" role="alert">{liveLoginError}</p> : null}
           </div>
 
           <div className="grid gap-4 md:grid-cols-3">
@@ -68,4 +127,8 @@ export default function LoginPage() {
       </section>
     </main>
   );
+}
+
+function isNextRole(role: string | undefined): role is Role {
+  return role === "admin" || role === "staff" || role === "teacher";
 }

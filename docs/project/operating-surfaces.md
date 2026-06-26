@@ -14,6 +14,9 @@
   - Apps Script 세션 토큰이 있으면 Next 화면의 빠른 등록 폼도 Apps Script create action을 호출한다.
   - 세션이 없으면 저장하지 않고 실사용 로그인 필요 안내를 표시한다.
   - 저장 기능이 모두 안정화되기 전까지 `/legacy-preview/` 실사용 화면도 함께 유지한다.
+- 로그인 원칙:
+  - admin, staff, teacher 계정은 Next 로그인 화면에서 Apps Script `login`을 호출해 공식 UI로 바로 진입한다.
+  - student 계정은 같은 Apps Script 세션을 저장한 뒤 `/legacy-preview/`로 이동한다.
 
 ## 2. 실사용 Apps Script 화면
 
