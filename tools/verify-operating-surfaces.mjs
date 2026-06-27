@@ -43,6 +43,21 @@ const requiredSourceSignals = [
     label: "Next UI exposes app-like mobile navigation and template-derived logo"
   },
   {
+    file: "components/layout/resource-page.tsx",
+    includes: ["MobileListCard", "MobileCardList", "initialValues", "defaultValue={initialValues"],
+    label: "resource pages expose mobile cards and form prefill values"
+  },
+  {
+    file: "app/students/page.tsx",
+    includes: ["mobileCards", "상세 보기", "권한 제한", "학생 관리"],
+    label: "student page uses mobile cards with teacher-safe masking"
+  },
+  {
+    file: "app/practice-rooms/page.tsx",
+    includes: ["reservationInitialValues", "아래 폼에 자동 입력됨", "initialValues={reservationInitialValues}"],
+    label: "room reservation page prefills the form from visual slot selection"
+  },
+  {
     file: "components/rooms/room-reservation-board.tsx",
     includes: ["예약 가능", "예약됨", "RoomReservationSelection"],
     label: "Next UI includes visual room reservation selection"

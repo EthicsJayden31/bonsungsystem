@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { AppShell } from "@/components/layout/app-shell";
-import { ResourcePage } from "@/components/layout/resource-page";
+import { ResourcePage, type MobileListCard } from "@/components/layout/resource-page";
 import { RoomReservationBoard, type RoomReservationSelection } from "@/components/rooms/room-reservation-board";
 import { Badge } from "@/components/ui/badge";
 import { roomName, useOperationAction, useOperationsData } from "@/lib/operations-data";
@@ -14,6 +14,26 @@ export default function PracticeRoomsPage() {
   const saveAction = useOperationAction();
   const [selection, setSelection] = useState<RoomReservationSelection | null>(null);
 
+  const reservationInitialValues = useMemo(() => {
+    if (!selection || selection.status === "reserved") return undefined;
+    return {
+      room: selection.roomName,
+      date: selection.date,
+      startTime: selection.startTime,
+      endTime: selection.endTime,
+      purpose: "연습",
+      memo: ""
+    };
+  }, [selection]);
+
+  const mobileCards: MobileListCard[] = data.reservations.map((item) => ({
+    id: item.id,
+    title: item.roomName || roomName(data, item.roomId),
+    subtitle: `${item.requester || item.studentName || "예약자 미등록"} · ${formatReservationTime(item.startsAt, item.endsAt)}`,
+    status: <Badge>{item.status || "확인 필요"}</Badge>,
+    meta: [<span key="memo">메모: {item.memo || "-"}</span>]
+  }));
+
   return (
     <AppShell area="practice-rooms">
       <div className="space-y-6">
@@ -21,13 +41,14 @@ export default function PracticeRoomsPage() {
           <div className="max-w-3xl">
             <h1 className="text-[28px] font-extrabold leading-tight tracking-tight text-ink">강의실/연습실 예약</h1>
             <p className="mt-2 text-[15px] leading-6 text-muted">
-              방과 시간을 직접 눌러 예약 가능 여부를 확인합니다. 현재 단계에서는 선택 상태를 보여주고, 실제 저장은 아래 등록 폼에서 처리합니다.
+              방과 시간을 직접 눌러 예약 가능 여부를 확인합니다. 예약 가능한 슬롯을 선택하면 아래 등록 폼에 공간과 시간이 자동으로 채워집니다.
             </p>
           </div>
           <RoomReservationBoard data={data} onSelectionChange={setSelection} />
           {selection ? (
             <p className="rounded-2xl border border-brand/15 bg-brand/5 px-4 py-3 text-sm font-semibold text-brand">
               선택됨: {selection.roomName} · {selection.date} {selection.startTime} ~ {selection.endTime} · {selection.status === "reserved" ? "예약됨" : "예약 가능"}
+              {selection.status === "available" ? " · 아래 폼에 자동 입력됨" : " · 이미 예약된 시간입니다"}
             </p>
           ) : null}
         </section>
@@ -36,6 +57,8 @@ export default function PracticeRoomsPage() {
           title="예약 목록과 등록"
           description={source === "live" ? "Apps Script bootstrap의 공간/예약 데이터를 표시합니다." : "Preview 데이터로 공간 예약 화면을 점검합니다."}
           headers={["공간", "예약자", "사용 시간", "상태", "메모"]}
+          mobileCards={mobileCards}
+          initialValues={reservationInitialValues}
           rows={data.reservations.map((item) => [
             item.roomName || roomName(data, item.roomId),
             item.requester || item.studentName || "-",
