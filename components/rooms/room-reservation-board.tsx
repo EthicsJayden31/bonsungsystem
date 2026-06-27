@@ -78,9 +78,9 @@ export function RoomReservationBoard({
     <section className="space-y-4" aria-label="강의실 및 연습실 예약 보드">
       <div className="flex flex-col gap-3 rounded-2xl border border-line bg-white p-4 shadow-card sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-sm font-extrabold text-ink">강의실/연습실 시간표</p>
+          <p className="text-sm font-extrabold text-ink">공간 시간표</p>
           <p className="mt-1 text-xs leading-5 text-muted">
-            {selectedDate} 기준, 방 카드와 시간 슬롯을 눌러 예약 가능 여부를 확인합니다.
+            {selectedDate} 기준입니다. 방 카드와 시간 슬롯을 눌러 예약 가능 여부를 확인합니다.
           </p>
         </div>
         <div className="flex gap-2 text-xs font-bold">
@@ -166,7 +166,7 @@ export function RoomReservationBoard({
             <SelectionItem label="상태" value={selected.status === "reserved" ? "예약됨" : "예약 가능"} />
           </div>
         ) : (
-          <p className="mt-2 text-sm text-muted">방 카드 또는 시간 슬롯을 선택하면 여기에 표시됩니다.</p>
+          <p className="mt-2 text-sm text-muted">방 카드 또는 시간 슬롯을 선택하면 여기에 표시합니다.</p>
         )}
       </div>
     </section>
