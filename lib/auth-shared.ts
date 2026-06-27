@@ -17,7 +17,7 @@ export function canAccess(role: Role, area: string) {
   if (role === "admin") return true;
   if (role === "teacher" && ["payments", "data-quality"].includes(area)) return false;
   if (role === "teacher") {
-    return ["dashboard", "students", "lessons", "attendance", "lesson-notes", "practice-rooms", "notices", "profile-settings"].includes(area);
+    return ["dashboard", "students", "teachers", "lessons", "attendance", "lesson-notes", "practice-rooms", "notices", "profile-settings"].includes(area);
   }
   return area !== "settings";
 }

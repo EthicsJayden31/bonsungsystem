@@ -40,9 +40,10 @@ const navGroups: NavGroup[] = [
   },
   {
     title: "사람",
-    helper: "학생, 보호자, 상담",
+    helper: "학생, 강사, 보호자, 상담",
     items: [
       { href: "/students", label: "학생", area: "students", tab: "people" },
+      { href: "/teachers", label: "강사", area: "teachers", tab: "more" },
       { href: "/guardians", label: "보호자", area: "guardians", tab: "more" },
       { href: "/consultations", label: "상담", area: "consultations", tab: "more" }
     ]
@@ -71,6 +72,7 @@ const navGroups: NavGroup[] = [
 const pageCopy: Record<string, { title: string; description: string; action: string }> = {
   dashboard: { title: "홈", description: "오늘의 수업, 상담, 출결, 납부 흐름을 빠르게 확인합니다.", action: "학생 등록" },
   students: { title: "학생", description: "학생 상태와 보호자, 담당 강사 정보를 한눈에 정리합니다.", action: "학생 등록" },
+  teachers: { title: "강사", description: "강사별 학생, 수업, 레슨노트 흐름을 확인합니다.", action: "강사 등록" },
   guardians: { title: "보호자", description: "결제자와 비상연락 정보를 명확하게 관리합니다.", action: "보호자 등록" },
   consultations: { title: "상담", description: "신규 문의부터 등록 전환까지 상담 흐름을 추적합니다.", action: "상담 등록" },
   enrollments: { title: "수강", description: "수강 과목, 담당 강사, 시작일과 상태를 관리합니다.", action: "수강 등록" },
