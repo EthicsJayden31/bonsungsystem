@@ -7,6 +7,7 @@ const requiredFiles = [
   "out/index.html",
   "out/login/index.html",
   "out/dashboard/index.html",
+  "out/teachers/index.html",
   "out/data-quality/index.html",
   "out/profile-settings/index.html",
   "out/legacy-preview/index.html",
@@ -39,8 +40,8 @@ const requiredSourceSignals = [
   },
   {
     file: "components/layout/app-shell.tsx",
-    includes: ["MobileBottomTabs", "MobileMenuSheet", "오늘 운영", "사람", "수업과 공간", "개인화 설정", "bonsung-logo-seal.png"],
-    label: "Next UI exposes app-like mobile navigation and template-derived logo"
+    includes: ["MobileBottomTabs", "MobileMenuSheet", "오늘 운영", "사람", "강사", "수업과 공간", "개인화 설정", "bonsung-logo-seal.png"],
+    label: "Next UI exposes app-like mobile navigation, teacher menu, and template-derived logo"
   },
   {
     file: "components/layout/resource-page.tsx",
@@ -51,6 +52,11 @@ const requiredSourceSignals = [
     file: "app/students/page.tsx",
     includes: ["mobileCards", "상세 보기", "권한 제한", "학생 관리"],
     label: "student page uses mobile cards with teacher-safe masking"
+  },
+  {
+    file: "app/teachers/page.tsx",
+    includes: ["강사별 조회", "TeacherDetailPanel", "담당 학생", "수업 일정", "레슨노트"],
+    label: "teacher page exposes teacher-specific data drilldown"
   },
   {
     file: "app/practice-rooms/page.tsx",
