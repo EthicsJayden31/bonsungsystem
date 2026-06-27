@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { AppShell } from "@/components/layout/app-shell";
-import { ResourcePage } from "@/components/layout/resource-page";
+import { ResourcePage, type MobileListCard } from "@/components/layout/resource-page";
 import { StudentDetailPanel } from "@/components/students/student-detail-panel";
 import { Badge } from "@/components/ui/badge";
 import { teacherName, useOperationAction, useOperationsData, type DataSource } from "@/lib/operations-data";
@@ -20,6 +20,33 @@ export default function StudentsPage() {
     [data.students, selectedStudentId]
   );
 
+  const mobileCards: MobileListCard[] = data.students.map((student) => {
+    const teacher = student.teacherName || teacherName(data, student.teacherId);
+    return {
+      id: student.id,
+      title: (
+        <button className="text-left text-base font-extrabold text-brand" type="button" onClick={() => setSelectedStudentId(student.id)}>
+          {student.name}
+        </button>
+      ),
+      subtitle: `${student.major || "전공 미등록"} · 담당 ${teacher || "-"}`,
+      status: <Badge>{student.status}</Badge>,
+      meta: [
+        <span key="phone">연락처: {role === "teacher" ? "권한 제한" : student.phone || "-"}</span>,
+        <span key="memo">메모: {role === "teacher" ? maskTeacherMemo(student.memo) : student.memo || "-"}</span>
+      ],
+      action: (
+        <button
+          className="w-full rounded-xl border border-brand/20 bg-brand/5 px-3 py-2.5 text-sm font-bold text-brand transition hover:bg-brand/10"
+          type="button"
+          onClick={() => setSelectedStudentId(student.id)}
+        >
+          상세 보기
+        </button>
+      )
+    };
+  });
+
   return (
     <AppShell area="students">
       <div className="space-y-5">
@@ -34,9 +61,10 @@ export default function StudentsPage() {
 
         <ResourcePage
           title="학생 관리"
-          description="학생 목록, 상태, 보호자 연결, 수강 이력과 레슨 기록을 같은 화면 흐름에서 확인합니다."
+          description="학생 목록, 상태, 보호자 연결, 수강 이력과 레슨 기록을 같은 화면 흐름에서 확인합니다. 모바일에서는 카드형 목록으로 표시합니다."
           sourceNote={<SourceNote source={operations.source} error={operations.error} />}
           headers={["이름", "전공", "상태", "담당", "연락처", "메모", "상세"]}
+          mobileCards={mobileCards}
           rows={data.students.map((student) => [
             <button
               className="text-left font-bold text-brand underline-offset-4 hover:underline"
@@ -84,7 +112,7 @@ export default function StudentsPage() {
 function SourceNote({ source, error }: { source: DataSource; error?: string }) {
   const text = source === "live"
     ? "Apps Script bootstrap의 실사용 데이터를 표시합니다."
-    : "실사용 세션이 없거나 연결에 실패하면 같은 화면 구조에서 Next preview 데이터를 표시합니다.";
+    : "실사용 세션이 없거나 연결이 실패하면 같은 화면 구조에서 Next preview 데이터를 표시합니다.";
 
   return (
     <div className="rounded-2xl border border-line bg-white p-4 shadow-card">
