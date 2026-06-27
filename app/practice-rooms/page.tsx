@@ -44,7 +44,7 @@ export default function PracticeRoomsPage() {
             item.memo || "-"
           ])}
           emptyTitle="표시할 예약 정보가 없습니다"
-          emptyDescription="실사용 세션이 없거나 Apps Script 응답에 예약 데이터가 없으면 이곳이 비어 있을 수 있습니다."
+          emptyDescription="실사용 세션이 없거나 Apps Script 응답에 예약 데이터가 없으면 이곳은 비어 있을 수 있습니다."
           onSubmit={(values) => saveAction.run("createReservation", { reservation: mapReservationInput(values, data) })}
           submitDisabled={saveAction.pending}
           submitLabel={saveAction.pending ? "저장 중" : "예약 저장"}

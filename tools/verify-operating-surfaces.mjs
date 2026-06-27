@@ -12,13 +12,14 @@ const requiredFiles = [
   "out/legacy-preview/index.html",
   "out/legacy-preview/test.html",
   "out/legacy-preview/app.js",
-  "out/legacy-preview/config.js"
+  "out/legacy-preview/config.js",
+  "out/_next/static"
 ];
 
 const requiredSourceSignals = [
   {
     file: "app/login/page.tsx",
-    includes: ["/legacy-preview/", "preview", "loginWithAppsScript"],
+    includes: ["/legacy-preview/", "previewLogin", "loginWithAppsScript", "bonsung-logo-seal.png"],
     label: "login page separates Apps Script live login from preview role login"
   },
   {
@@ -38,13 +39,18 @@ const requiredSourceSignals = [
   },
   {
     file: "components/layout/app-shell.tsx",
-    includes: ["오늘 운영", "사람", "수업과 공간", "개인화 설정"],
-    label: "Next UI exposes grouped navigation for mobile and desktop"
+    includes: ["MobileBottomTabs", "MobileMenuSheet", "오늘 운영", "사람", "수업과 공간", "개인화 설정", "bonsung-logo-seal.png"],
+    label: "Next UI exposes app-like mobile navigation and template-derived logo"
   },
   {
     file: "components/rooms/room-reservation-board.tsx",
     includes: ["예약 가능", "예약됨", "RoomReservationSelection"],
     label: "Next UI includes visual room reservation selection"
+  },
+  {
+    file: "pages-preview/app.js",
+    includes: ["bonsung-logo-seal.png", "bonsung-design-template.png"],
+    label: "legacy preview uses uploaded template-derived brand assets"
   }
 ];
 
