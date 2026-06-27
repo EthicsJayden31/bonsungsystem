@@ -3,31 +3,67 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, type ReactNode } from "react";
 import { assetPath } from "@/lib/assets";
 import { canAccess, type CurrentUser, type Role } from "@/lib/auth-shared";
-import { APPS_SCRIPT_ENDPOINT, APPS_SCRIPT_SESSION_TOKEN_KEY, APPS_SCRIPT_USER_KEY, type AppsScriptUser } from "@/lib/apps-script-client";
+import {
+  APPS_SCRIPT_ENDPOINT,
+  APPS_SCRIPT_SESSION_TOKEN_KEY,
+  APPS_SCRIPT_USER_KEY,
+  type AppsScriptUser
+} from "@/lib/apps-script-client";
 import { usePreviewRole } from "@/lib/use-preview-role";
-import type { ReactNode } from "react";
 
-const navItems = [
-  { href: "/dashboard", label: "대시보드", area: "dashboard" },
-  { href: "/students", label: "학생", area: "students" },
-  { href: "/guardians", label: "보호자", area: "guardians" },
-  { href: "/consultations", label: "상담", area: "consultations" },
-  { href: "/enrollments", label: "수강", area: "enrollments" },
-  { href: "/lessons", label: "수업/시간표", area: "lessons" },
-  { href: "/attendance", label: "출결", area: "attendance" },
-  { href: "/lesson-notes", label: "레슨노트", area: "lesson-notes" },
-  { href: "/practice-rooms", label: "연습실", area: "practice-rooms" },
-  { href: "/payments", label: "수납", area: "payments" },
-  { href: "/data-quality", label: "데이터 점검", area: "data-quality" },
-  { href: "/tasks", label: "업무", area: "tasks" },
-  { href: "/notices", label: "공지/문서", area: "notices" }
+type NavItem = {
+  href: string;
+  label: string;
+  area: string;
+};
+
+type NavGroup = {
+  title: string;
+  items: NavItem[];
+};
+
+const navGroups: NavGroup[] = [
+  {
+    title: "오늘 운영",
+    items: [
+      { href: "/dashboard", label: "대시보드", area: "dashboard" },
+      { href: "/data-quality", label: "데이터 점검", area: "data-quality" },
+      { href: "/tasks", label: "업무", area: "tasks" },
+      { href: "/notices", label: "공지/문서", area: "notices" }
+    ]
+  },
+  {
+    title: "사람",
+    items: [
+      { href: "/students", label: "학생", area: "students" },
+      { href: "/guardians", label: "보호자", area: "guardians" },
+      { href: "/consultations", label: "상담", area: "consultations" }
+    ]
+  },
+  {
+    title: "수업과 공간",
+    items: [
+      { href: "/enrollments", label: "수강", area: "enrollments" },
+      { href: "/lessons", label: "수업/시간표", area: "lessons" },
+      { href: "/attendance", label: "출결", area: "attendance" },
+      { href: "/lesson-notes", label: "레슨노트", area: "lesson-notes" },
+      { href: "/practice-rooms", label: "강의실/연습실", area: "practice-rooms" }
+    ]
+  },
+  {
+    title: "관리",
+    items: [
+      { href: "/payments", label: "수납", area: "payments" },
+      { href: "/profile-settings", label: "개인화 설정", area: "profile-settings" }
+    ]
+  }
 ];
 
 const pageCopy: Record<string, { title: string; description: string; action: string }> = {
-  dashboard: { title: "운영 대시보드", description: "오늘의 수업, 상담, 출결, 납부 흐름을 빠르게 확인합니다.", action: "학생 등록" },
+  dashboard: { title: "운영 대시보드", description: "오늘의 수업, 상담, 출결, 수납 흐름을 빠르게 확인합니다.", action: "학생 등록" },
   students: { title: "학생 관리", description: "학생 상태와 보호자, 담당 강사 정보를 한눈에 정리합니다.", action: "학생 등록" },
   guardians: { title: "보호자 관리", description: "결제자와 비상연락 정보를 명확하게 관리합니다.", action: "보호자 등록" },
   consultations: { title: "상담 관리", description: "신규 문의부터 등록 전환까지 상담 흐름을 추적합니다.", action: "상담 등록" },
@@ -35,11 +71,12 @@ const pageCopy: Record<string, { title: string; description: string; action: str
   lessons: { title: "수업/시간표", description: "오늘의 수업 일정과 완료 상태를 확인합니다.", action: "수업 추가" },
   attendance: { title: "출결 관리", description: "출석, 지각, 결석, 보강 필요 여부를 기록합니다.", action: "출결 입력" },
   "lesson-notes": { title: "레슨노트", description: "수업 내용, 과제, 다음 목표를 일관되게 남깁니다.", action: "노트 추가" },
-  "practice-rooms": { title: "연습실 예약", description: "연습실 예약 상태와 사용 시간을 관리합니다.", action: "예약 추가" },
+  "practice-rooms": { title: "강의실/연습실 예약", description: "강의실과 연습실의 예약 상태를 시각적으로 확인합니다.", action: "예약 추가" },
   payments: { title: "수납 상태", description: "청구, 입금, 미납, 환불 상태를 분리해 확인합니다.", action: "결제 등록" },
   "data-quality": { title: "데이터 점검", description: "Google Sheets 운영 데이터의 누락, 중복, 참조 오류, 예약 충돌을 확인합니다.", action: "점검 새로고침" },
   tasks: { title: "내부 업무", description: "운영 업무의 담당자, 마감일, 우선순위를 관리합니다.", action: "업무 추가" },
-  notices: { title: "공지/문서", description: "운영 기준과 강사 매뉴얼을 정리합니다.", action: "문서 작성" }
+  notices: { title: "공지/문서", description: "운영 기준과 강사 매뉴얼을 정리합니다.", action: "문서 작성" },
+  "profile-settings": { title: "개인화 설정", description: "내 화면 밀도, 시작 화면, 메뉴 표시 방식을 조정합니다.", action: "설정 저장" }
 };
 
 const roleLabel: Record<Role, string> = {
@@ -94,37 +131,31 @@ export function AppShell({ children, area = "dashboard" }: { children: ReactNode
     );
   }
 
-  const visibleNav = navItems.filter((item) => canAccess(user.role, item.area));
+  const visibleGroups = navGroups
+    .map((group) => ({ ...group, items: group.items.filter((item) => canAccess(user.role, item.area)) }))
+    .filter((group) => group.items.length > 0);
   const current = pageCopy[area] ?? pageCopy.dashboard;
 
   return (
     <div className="min-h-screen bg-canvas">
       <aside className="fixed inset-y-0 left-0 hidden w-72 border-r border-line bg-white px-5 py-5 lg:block">
         <BrandBlock />
-        <nav className="mt-6 space-y-1.5" aria-label="주요 메뉴">
-          {visibleNav.map((item) => {
-            const active = pathname === item.href;
-            return (
-              <Link
-                className={`group relative block rounded-xl px-3.5 py-2.5 text-sm font-semibold transition ${
-                  active ? "bg-brand text-white shadow-sm" : "text-muted hover:bg-brand/5 hover:text-brand"
-                }`}
-                href={item.href}
-                key={item.href}
-                aria-current={active ? "page" : undefined}
-              >
-                {active ? <span className="absolute left-0 top-2 h-6 w-1 rounded-r-full bg-white/80" /> : null}
-                {item.label}
-              </Link>
-            );
-          })}
+        <nav className="mt-6 space-y-5" aria-label="주요 메뉴">
+          {visibleGroups.map((group) => (
+            <div key={group.title}>
+              <p className="mb-2 px-3 text-[11px] font-extrabold uppercase tracking-[0.16em] text-muted">{group.title}</p>
+              <div className="space-y-1.5">
+                {group.items.map((item) => <NavLink item={item} pathname={pathname} key={item.href} />)}
+              </div>
+            </div>
+          ))}
         </nav>
         <div className="absolute bottom-5 left-5 right-5 space-y-3">
           <Link className="block rounded-2xl border border-brand/10 bg-brand/5 p-4 text-sm font-bold text-brand hover:bg-brand/10" href="/legacy-preview/">
             실사용 Apps Script 화면
           </Link>
           <p className="rounded-2xl border border-line bg-surface-muted p-4 text-xs leading-5 text-muted">
-            현재 Next 화면은 공식 UI입니다. Apps Script 세션 토큰이 있으면 실사용 데이터를 읽고, 없으면 기능 점검 preview 데이터를 보여줍니다.
+            Next 공식 UI는 세션 토큰이 있으면 실사용 데이터를 읽고, 없으면 기능 점검 preview 데이터를 보여줍니다.
           </p>
         </div>
       </aside>
@@ -151,27 +182,64 @@ export function AppShell({ children, area = "dashboard" }: { children: ReactNode
               </button>
             </div>
           </div>
-          <nav className="mt-3 flex gap-2 overflow-x-auto pb-1 lg:hidden" aria-label="모바일 메뉴">
-            {visibleNav.map((item) => {
-              const active = pathname === item.href;
-              return (
-                <Link
-                  className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold ${
-                    active ? "border-brand bg-brand text-white" : "border-line bg-white text-slate-700"
-                  }`}
-                  href={item.href}
-                  key={item.href}
-                  aria-current={active ? "page" : undefined}
-                >
-                  {item.label}
-                </Link>
-              );
-            })}
-          </nav>
+          <MobileNav groups={visibleGroups} pathname={pathname} />
         </header>
         <main className="mx-auto max-w-7xl px-4 py-6 sm:py-8">{children}</main>
       </div>
     </div>
+  );
+}
+
+function NavLink({ item, pathname }: { item: NavItem; pathname: string }) {
+  const active = pathname === item.href;
+  return (
+    <Link
+      className={`group relative block rounded-xl px-3.5 py-2.5 text-sm font-semibold transition ${
+        active ? "bg-brand text-white shadow-sm" : "text-muted hover:bg-brand/5 hover:text-brand"
+      }`}
+      href={item.href}
+      aria-current={active ? "page" : undefined}
+    >
+      {active ? <span className="absolute left-0 top-2 h-6 w-1 rounded-r-full bg-white/80" /> : null}
+      {item.label}
+    </Link>
+  );
+}
+
+function MobileNav({ groups, pathname }: { groups: NavGroup[]; pathname: string }) {
+  return (
+    <nav className="mt-3 grid gap-2 lg:hidden" aria-label="모바일 메뉴">
+      {groups.map((group) => {
+        const open = group.items.some((item) => item.href === pathname);
+        return (
+          <details className="rounded-2xl border border-line bg-white px-3 py-2 shadow-sm" key={group.title} open={open}>
+            <summary className="cursor-pointer list-none text-sm font-extrabold text-ink">
+              <span className="flex items-center justify-between gap-3">
+                {group.title}
+                <span className="text-xs text-muted">{group.items.length}개</span>
+              </span>
+            </summary>
+            <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
+              {group.items.map((item) => {
+                const active = pathname === item.href;
+                return (
+                  <Link
+                    className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold ${
+                      active ? "border-brand bg-brand text-white" : "border-line bg-white text-slate-700"
+                    }`}
+                    href={item.href}
+                    key={item.href}
+                    aria-current={active ? "page" : undefined}
+                  >
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </div>
+          </details>
+        );
+      })}
+    </nav>
   );
 }
 

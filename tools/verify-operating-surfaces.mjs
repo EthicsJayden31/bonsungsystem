@@ -8,6 +8,7 @@ const requiredFiles = [
   "out/login/index.html",
   "out/dashboard/index.html",
   "out/data-quality/index.html",
+  "out/profile-settings/index.html",
   "out/legacy-preview/index.html",
   "out/legacy-preview/test.html",
   "out/legacy-preview/app.js",
@@ -34,6 +35,16 @@ const requiredSourceSignals = [
     file: "tools/preserve-legacy-preview.mjs",
     includes: ["pages-preview", "out", "legacy-preview"],
     label: "legacy preview is preserved into the Pages artifact"
+  },
+  {
+    file: "components/layout/app-shell.tsx",
+    includes: ["오늘 운영", "사람", "수업과 공간", "개인화 설정"],
+    label: "Next UI exposes grouped navigation for mobile and desktop"
+  },
+  {
+    file: "components/rooms/room-reservation-board.tsx",
+    includes: ["예약 가능", "예약됨", "RoomReservationSelection"],
+    label: "Next UI includes visual room reservation selection"
   }
 ];
 
