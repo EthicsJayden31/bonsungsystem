@@ -1,6 +1,6 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useEffect, useState } from "react";
 
 export type Preferences = {
   startPage: string;
@@ -54,16 +54,20 @@ export function readPreferences(): Preferences {
 }
 
 export function usePreferences() {
-  return useSyncExternalStore(subscribe, readPreferences, () => defaultPreferences);
-}
+  const [preferences, setPreferences] = useState(defaultPreferences);
 
-function subscribe(callback: () => void) {
-  window.addEventListener("storage", callback);
-  window.addEventListener("bonsung-preferences-change", callback);
-  return () => {
-    window.removeEventListener("storage", callback);
-    window.removeEventListener("bonsung-preferences-change", callback);
-  };
+  useEffect(() => {
+    const syncPreferences = () => setPreferences(readPreferences());
+    syncPreferences();
+    window.addEventListener("storage", syncPreferences);
+    window.addEventListener("bonsung-preferences-change", syncPreferences);
+    return () => {
+      window.removeEventListener("storage", syncPreferences);
+      window.removeEventListener("bonsung-preferences-change", syncPreferences);
+    };
+  }, []);
+
+  return preferences;
 }
 
 function normalizePreferences(value: Partial<Preferences>): Preferences {

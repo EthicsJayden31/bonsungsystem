@@ -25,7 +25,7 @@ const requiredSourceSignals = [
   },
   {
     file: "lib/preferences.ts",
-    includes: ["bonsung_preferences", "startPages", "useSyncExternalStore", "savePreferences"],
+    includes: ["bonsung_preferences", "startPages", "useState", "savePreferences"],
     label: "personalization settings are shared across app screens"
   },
   {
