@@ -27,8 +27,12 @@ export const startPages = [
   { value: "/lesson-notes", label: "레슨노트" }
 ];
 
+let cachedRawPreferences: string | null = null;
+let cachedPreferences = defaultPreferences;
+
 export function savePreferences(preferences: Preferences) {
   window.localStorage.setItem(PREFERENCES_STORAGE_KEY, JSON.stringify(preferences));
+  cachedRawPreferences = null;
   window.dispatchEvent(new Event("bonsung-preferences-change"));
 }
 
@@ -37,8 +41,14 @@ export function readPreferences(): Preferences {
 
   try {
     const stored = window.localStorage.getItem(PREFERENCES_STORAGE_KEY);
-    return normalizePreferences(stored ? JSON.parse(stored) : {});
+    if (stored === cachedRawPreferences) return cachedPreferences;
+
+    cachedRawPreferences = stored;
+    cachedPreferences = normalizePreferences(stored ? JSON.parse(stored) : {});
+    return cachedPreferences;
   } catch {
+    cachedRawPreferences = null;
+    cachedPreferences = defaultPreferences;
     return defaultPreferences;
   }
 }
