@@ -19,7 +19,7 @@ type NavItem = {
   href: string;
   label: string;
   area: string;
-  tab?: "home" | "people" | "classes" | "attendance" | "more";
+  tab?: "home" | "people" | "classes" | "rooms" | "more";
 };
 
 type NavGroup = {
@@ -55,9 +55,9 @@ const navGroups: NavGroup[] = [
     items: [
       { href: "/enrollments", label: "수강", area: "enrollments", tab: "more" },
       { href: "/lessons", label: "수업", area: "lessons", tab: "classes" },
-      { href: "/attendance", label: "출결", area: "attendance", tab: "attendance" },
+      { href: "/attendance", label: "출결", area: "attendance", tab: "more" },
       { href: "/lesson-notes", label: "레슨노트", area: "lesson-notes", tab: "more" },
-      { href: "/practice-rooms", label: "공간 예약", area: "practice-rooms", tab: "more" }
+      { href: "/practice-rooms", label: "공간 예약", area: "practice-rooms", tab: "rooms" }
     ]
   },
   {
@@ -100,12 +100,12 @@ const previewUsers: Record<Role, CurrentUser> = {
   teacher: { id: "teacher-1", name: "강사 계정", email: "teacher@bonsung.test", role: "teacher" }
 };
 
-const bottomTabs: Array<{ id: NonNullable<NavItem["tab"]>; label: string; fallbackHref: string; areas: string[] }> = [
-  { id: "home", label: "홈", fallbackHref: "/dashboard", areas: ["dashboard"] },
-  { id: "people", label: "학생", fallbackHref: "/students", areas: ["students"] },
-  { id: "classes", label: "수업", fallbackHref: "/lessons", areas: ["lessons"] },
-  { id: "attendance", label: "출결", fallbackHref: "/attendance", areas: ["attendance"] },
-  { id: "more", label: "더보기", fallbackHref: "#app-menu", areas: [] }
+const bottomTabs: Array<{ id: NonNullable<NavItem["tab"]>; label: string; icon: string; fallbackHref: string; areas: string[] }> = [
+  { id: "home", label: "홈", icon: "H", fallbackHref: "/dashboard", areas: ["dashboard"] },
+  { id: "people", label: "학생", icon: "S", fallbackHref: "/students", areas: ["students", "teachers", "guardians", "consultations"] },
+  { id: "classes", label: "수업", icon: "L", fallbackHref: "/lessons", areas: ["lessons", "attendance", "lesson-notes", "enrollments"] },
+  { id: "rooms", label: "예약", icon: "R", fallbackHref: "/practice-rooms", areas: ["practice-rooms"] },
+  { id: "more", label: "메뉴", icon: "+", fallbackHref: "#app-menu", areas: [] }
 ];
 
 export function AppShell({ children, area = "dashboard" }: { children: ReactNode; area?: string }) {
@@ -181,12 +181,9 @@ export function AppShell({ children, area = "dashboard" }: { children: ReactNode
       </aside>
 
       <div className="lg:pl-72">
-        <header className="sticky top-0 z-20 border-b border-line bg-white/92 px-4 py-3 backdrop-blur">
+        <header className="sticky top-0 z-20 hidden border-b border-line bg-white/92 px-4 py-3 backdrop-blur lg:block">
           <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-3">
-              <div className="lg:hidden">
-                <BrandSeal size={36} />
-              </div>
               <div className="min-w-0">
                 <p className="truncate text-lg font-extrabold tracking-tight text-ink sm:text-xl">{current.title}</p>
                 <p className="hidden text-xs text-muted sm:block">{current.description}</p>
@@ -210,8 +207,9 @@ export function AppShell({ children, area = "dashboard" }: { children: ReactNode
           </div>
         </header>
 
+        <MobileAppHeader current={current} user={user} onMenu={() => setMenuOpen(true)} onLogout={logout} />
         <MobileHomeStrip groups={visibleGroups} currentArea={area} mode={preferences.mobileMenu} />
-        <main className={`mx-auto max-w-7xl px-4 pb-[calc(6.5rem+env(safe-area-inset-bottom))] pt-4 lg:pb-8 ${compact ? "sm:py-5" : "sm:py-8"}`}>{children}</main>
+        <main className={`mx-auto max-w-7xl px-4 pb-[calc(7.5rem+env(safe-area-inset-bottom))] pt-4 lg:pb-8 ${compact ? "sm:py-5" : "sm:py-8"}`}>{children}</main>
       </div>
 
       <MobileBottomTabs groups={visibleGroups} pathname={pathname} area={area} onMore={() => setMenuOpen(true)} />
@@ -243,11 +241,18 @@ function MobileHomeStrip({ groups, currentArea, mode }: { groups: NavGroup[]; cu
 
   return (
     <section className="border-b border-line bg-white px-4 py-3 lg:hidden" aria-label={mode === "expanded" ? "전체 메뉴 빠른 이동" : "현재 영역 빠른 이동"}>
-      <div className="flex gap-2 overflow-x-auto pb-1">
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <div>
+          <p className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-brand">App Menu</p>
+          <p className="text-sm font-extrabold text-ink">{mode === "expanded" ? "전체 업무" : activeGroup.title}</p>
+        </div>
+        <p className="max-w-[12rem] truncate text-right text-xs text-muted">{mode === "expanded" ? "한 번에 펼쳐 보기" : activeGroup.helper}</p>
+      </div>
+      <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {items.map((item) => (
           <Link
-            className={`shrink-0 rounded-full border px-3 py-2 text-xs font-bold ${
-              item.area === currentArea ? "border-brand bg-brand text-white" : "border-line bg-surface-muted text-muted"
+            className={`shrink-0 rounded-2xl border px-4 py-3 text-sm font-extrabold ${
+              item.area === currentArea ? "border-brand bg-brand text-white shadow-sm" : "border-line bg-surface-muted text-ink"
             }`}
             href={item.href}
             key={item.href}
@@ -275,23 +280,26 @@ function MobileBottomTabs({
 
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-white/96 px-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2 shadow-[0_-16px_38px_rgba(60,6,8,0.08)] backdrop-blur lg:hidden"
+      className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-white/96 px-3 pb-[calc(0.65rem+env(safe-area-inset-bottom))] pt-2 shadow-[0_-16px_38px_rgba(60,6,8,0.08)] backdrop-blur lg:hidden"
       aria-label="앱 하단 메뉴"
     >
-      <div className="mx-auto grid max-w-md grid-cols-5 gap-1">
+      <div className="mx-auto grid max-w-md grid-cols-5 gap-1.5">
         {bottomTabs.map((tab) => {
           const target = allItems.find((item) => item.tab === tab.id) ?? allItems.find((item) => item.href === tab.fallbackHref);
           const href = target?.href ?? tab.fallbackHref;
           const active = tab.id === "more" ? !bottomTabs.slice(0, 4).some((item) => item.areas.includes(area)) : pathname === href || tab.areas.includes(area);
+          const itemClass = `min-h-[60px] rounded-[18px] px-1.5 py-2 text-center text-[11px] font-extrabold transition ${
+            active ? "bg-brand text-white shadow-sm" : "text-muted hover:bg-brand/5 hover:text-brand"
+          }`;
           if (tab.id === "more") {
             return (
               <button
-                className={`rounded-2xl px-2 py-2 text-center text-[11px] font-extrabold transition ${active ? "bg-brand text-white" : "text-muted hover:bg-brand/5 hover:text-brand"}`}
+                className={itemClass}
                 key={tab.id}
                 onClick={onMore}
                 type="button"
               >
-                <span className="block text-base leading-4">+</span>
+                <span className={`mx-auto mb-1 flex h-7 w-7 items-center justify-center rounded-full text-xs ${active ? "bg-white/20" : "bg-surface-muted text-brand"}`}>{tab.icon}</span>
                 {tab.label}
               </button>
             );
@@ -299,12 +307,12 @@ function MobileBottomTabs({
 
           return (
             <Link
-              className={`rounded-2xl px-2 py-2 text-center text-[11px] font-extrabold transition ${active ? "bg-brand text-white" : "text-muted hover:bg-brand/5 hover:text-brand"}`}
+              className={itemClass}
               href={href}
               key={tab.id}
               aria-current={active ? "page" : undefined}
             >
-              <span className="block text-base leading-4">{tab.label.slice(0, 1)}</span>
+              <span className={`mx-auto mb-1 flex h-7 w-7 items-center justify-center rounded-full text-xs ${active ? "bg-white/20" : "bg-surface-muted text-brand"}`}>{tab.icon}</span>
               {tab.label}
             </Link>
           );
@@ -334,7 +342,7 @@ function MobileMenuSheet({
   return (
     <div className="fixed inset-0 z-40 bg-black/30 lg:hidden" role="dialog" aria-modal="true" aria-label="전체 메뉴">
       <button className="absolute inset-0 h-full w-full cursor-default" aria-label="메뉴 닫기" onClick={onClose} type="button" />
-      <section className="absolute inset-x-0 bottom-0 max-h-[86vh] overflow-y-auto rounded-t-[28px] bg-white px-4 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-4 shadow-[0_-20px_60px_rgba(0,0,0,0.16)]">
+      <section className="absolute inset-x-0 bottom-0 max-h-[88vh] overflow-y-auto rounded-t-[28px] bg-white px-4 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-4 shadow-[0_-20px_60px_rgba(0,0,0,0.16)]">
         <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-line" />
         <div className="mb-4 flex items-center justify-between gap-3">
           <BrandBlock compact />
@@ -344,7 +352,7 @@ function MobileMenuSheet({
         </div>
         <div className="grid gap-3">
           {groups.map((group) => (
-            <section className="rounded-2xl border border-line bg-surface-muted p-3" key={group.title}>
+            <section className="rounded-[22px] border border-line bg-surface-muted p-3" key={group.title}>
               <div className="mb-3">
                 <p className="text-sm font-extrabold text-ink">{group.title}</p>
                 <p className="mt-1 text-xs text-muted">{group.helper}</p>
@@ -354,7 +362,7 @@ function MobileMenuSheet({
                   const active = pathname === item.href;
                   return (
                     <Link
-                      className={`rounded-2xl border px-3 py-3 text-sm font-bold ${active ? "border-brand bg-brand text-white" : "border-line bg-white text-ink"}`}
+                      className={`rounded-[18px] border px-3 py-4 text-sm font-extrabold ${active ? "border-brand bg-brand text-white" : "border-line bg-white text-ink"}`}
                       href={item.href}
                       key={item.href}
                       onClick={onClose}
@@ -377,6 +385,44 @@ function MobileMenuSheet({
         </div>
       </section>
     </div>
+  );
+}
+
+function MobileAppHeader({
+  current,
+  user,
+  onMenu,
+  onLogout
+}: {
+  current: { title: string; description: string; action: string };
+  user: CurrentUser;
+  onMenu: () => void;
+  onLogout: () => void;
+}) {
+  return (
+    <header className="sticky top-0 z-20 border-b border-line bg-white/96 px-4 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))] backdrop-blur lg:hidden">
+      <div className="flex items-center justify-between gap-3">
+        <Link className="flex min-w-0 items-center gap-2.5" href="/dashboard" aria-label="홈으로 이동">
+          <BrandSeal size={40} />
+          <div className="min-w-0">
+            <p className="truncate text-[11px] font-extrabold uppercase tracking-[0.14em] text-brand">Bonsung Music</p>
+            <h1 className="truncate text-xl font-extrabold tracking-tight text-ink">{current.title}</h1>
+          </div>
+        </Link>
+        <button className="rounded-2xl border border-line bg-surface-muted px-3 py-2 text-sm font-extrabold text-brand" type="button" onClick={onMenu}>
+          메뉴
+        </button>
+      </div>
+      <div className="mt-3 flex items-center justify-between gap-3 rounded-[20px] bg-brand px-4 py-3 text-white shadow-sm">
+        <div className="min-w-0">
+          <p className="truncate text-sm font-extrabold">{current.action}</p>
+          <p className="mt-0.5 truncate text-xs text-white/72">{user.name} · {roleLabel[user.role]}</p>
+        </div>
+        <button className="shrink-0 rounded-xl bg-white/12 px-3 py-2 text-xs font-extrabold text-white" type="button" onClick={onLogout}>
+          로그아웃
+        </button>
+      </div>
+    </header>
   );
 }
 
@@ -411,13 +457,18 @@ function BrandBlock({ compact = false }: { compact?: boolean }) {
 
 function BrandSeal({ size }: { size: number }) {
   return (
-    <Image
-      src={assetPath("/brand/bonsung-logo-seal.png")}
-      alt="본성뮤직 아카데미 로고"
-      width={size}
-      height={size}
-      className="shrink-0 rounded-full object-contain shadow-sm"
-      priority
-    />
+    <span
+      className="flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-brand/15 bg-white shadow-sm"
+      style={{ width: size, height: size }}
+    >
+      <Image
+        src={assetPath("/brand/bonsung-logo-seal.png")}
+        alt="본성뮤직 아카데미 로고"
+        width={size - 4}
+        height={size - 4}
+        className="h-[calc(100%-4px)] w-[calc(100%-4px)] rounded-full object-contain"
+        priority
+      />
+    </span>
   );
 }
