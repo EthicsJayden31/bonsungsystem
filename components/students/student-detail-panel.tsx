@@ -38,7 +38,7 @@ export function StudentDetailPanel({ data, studentId, role, onClose }: StudentDe
     : data.payments.filter((item) => item.studentId === student.id || item.studentName === student.name);
 
   return (
-    <section className="overflow-hidden rounded-[24px] border border-brand/15 bg-white shadow-card" aria-label={`${student.name} 상세 정보`}>
+    <section className="scroll-mt-24 overflow-hidden rounded-[24px] border border-brand/15 bg-white shadow-card" id="student-detail" aria-label={`${student.name} 상세 정보`}>
       <div className="bg-gradient-to-br from-brand-dark via-brand to-brand-soft p-5 text-white sm:p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex min-w-0 gap-4">

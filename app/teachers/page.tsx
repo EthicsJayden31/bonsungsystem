@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { AppShell } from "@/components/layout/app-shell";
 import { ResourcePage, type MobileListCard } from "@/components/layout/resource-page";
 import { Badge } from "@/components/ui/badge";
@@ -13,10 +13,37 @@ export default function TeachersPage() {
   const { data, source, error } = useOperationsData(role);
   const [selectedTeacherId, setSelectedTeacherId] = useState("");
 
+  useEffect(() => {
+    const syncFromUrl = () => {
+      const params = new URLSearchParams(window.location.search);
+      setSelectedTeacherId(params.get("teacher") ?? "");
+    };
+
+    syncFromUrl();
+    window.addEventListener("popstate", syncFromUrl);
+    return () => window.removeEventListener("popstate", syncFromUrl);
+  }, []);
+
   const selectedTeacher = useMemo(
     () => data.teachers.find((teacher) => teacher.id === selectedTeacherId),
     [data.teachers, selectedTeacherId]
   );
+
+  function openTeacherDetail(teacherId: string) {
+    setSelectedTeacherId(teacherId);
+    const url = new URL(window.location.href);
+    url.searchParams.set("teacher", teacherId);
+    url.hash = "teacher-detail";
+    window.history.pushState({}, "", url);
+  }
+
+  function closeTeacherDetail() {
+    setSelectedTeacherId("");
+    const url = new URL(window.location.href);
+    url.searchParams.delete("teacher");
+    url.hash = "";
+    window.history.pushState({}, "", url);
+  }
 
   const statsByTeacher = useMemo(() => {
     return data.teachers.map((teacher) => {
@@ -37,7 +64,7 @@ export default function TeachersPage() {
   const mobileCards: MobileListCard[] = statsByTeacher.map((item) => ({
     id: item.teacher.id,
     title: (
-      <button className="text-left text-base font-extrabold text-brand" type="button" onClick={() => setSelectedTeacherId(item.teacher.id)}>
+      <button className="text-left text-base font-extrabold text-brand" type="button" onClick={() => openTeacherDetail(item.teacher.id)}>
         {item.teacher.name}
       </button>
     ),
@@ -52,7 +79,7 @@ export default function TeachersPage() {
       <button
         className="w-full rounded-xl border border-brand/20 bg-brand/5 px-3 py-2.5 text-sm font-bold text-brand transition hover:bg-brand/10"
         type="button"
-        onClick={() => setSelectedTeacherId(item.teacher.id)}
+        onClick={() => openTeacherDetail(item.teacher.id)}
       >
         강사별 보기
       </button>
@@ -66,7 +93,7 @@ export default function TeachersPage() {
           <TeacherDetailPanel
             data={data}
             teacherId={selectedTeacher.id}
-            onClose={() => setSelectedTeacherId("")}
+            onClose={closeTeacherDetail}
           />
         ) : null}
 
@@ -81,7 +108,7 @@ export default function TeachersPage() {
               className="text-left font-bold text-brand underline-offset-4 hover:underline"
               key={`${item.teacher.id}-name`}
               type="button"
-              onClick={() => setSelectedTeacherId(item.teacher.id)}
+              onClick={() => openTeacherDetail(item.teacher.id)}
             >
               {item.teacher.name}
             </button>,
@@ -94,7 +121,7 @@ export default function TeachersPage() {
               className="rounded-xl border border-brand/20 bg-brand/5 px-3 py-1.5 text-xs font-bold text-brand transition hover:bg-brand/10"
               key={`${item.teacher.id}-detail`}
               type="button"
-              onClick={() => setSelectedTeacherId(item.teacher.id)}
+              onClick={() => openTeacherDetail(item.teacher.id)}
             >
               강사별 보기
             </button>
@@ -147,7 +174,7 @@ function TeacherDetailPanel({
   const notes = data.lessonNotes.filter((note) => note.teacherId === teacher.id || note.teacherName === teacher.name);
 
   return (
-    <section className="overflow-hidden rounded-[24px] border border-brand/15 bg-white shadow-card" aria-label={`${teacher.name} 강사별 상세`}>
+    <section className="scroll-mt-24 overflow-hidden rounded-[24px] border border-brand/15 bg-white shadow-card" id="teacher-detail" aria-label={`${teacher.name} 강사별 상세`}>
       <header className="flex flex-col gap-4 border-b border-line bg-brand/5 p-5 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-brand">Teacher Detail</p>
