@@ -39,6 +39,11 @@ const requiredSourceSignals = [
     label: "Next UI uses the shared Apps Script session and login client"
   },
   {
+    file: "lib/client-session.ts",
+    includes: ["clearClientSession", "PREVIEW_ROLE_KEY", "redirectToAppPath", "assetPath", "bonsung-session-change"],
+    label: "client session helpers clear stale roles and use basePath-aware redirects"
+  },
+  {
     file: "tools/preserve-legacy-preview.mjs",
     includes: ["pages-preview", "out", "legacy-preview"],
     label: "legacy preview is preserved into the Pages artifact"
@@ -65,23 +70,28 @@ const requiredSourceSignals = [
   },
   {
     file: "app/students/page.tsx",
-    includes: ["mobileCards", "상세 보기", "권한 제한", "학생 관리", "URLSearchParams", "student-detail"],
-    label: "student page uses mobile cards, teacher-safe masking, and detail deeplinks"
+    includes: ["mobileCards", "상세 보기", "권한 제한", "학생 관리", "URLSearchParams", "student-detail", "scrollIntoView"],
+    label: "student page uses mobile cards, teacher-safe masking, detail deeplinks, and scrolls to details"
+  },
+  {
+    file: "components/students/student-detail-panel.tsx",
+    includes: ["role === \"teacher\" ? \"권한 제한\" : student.phone", "guardian.phone", "수납 정보를 표시하지 않습니다"],
+    label: "student detail panel applies teacher-safe masking to private student data"
   },
   {
     file: "app/teachers/page.tsx",
-    includes: ["강사별 조회", "TeacherDetailPanel", "담당 학생", "수업 일정", "레슨노트", "URLSearchParams", "teacher-detail"],
-    label: "teacher page exposes teacher-specific data drilldown and detail deeplinks"
+    includes: ["강사별 조회", "TeacherDetailPanel", "담당 학생", "수업 일정", "레슨노트", "URLSearchParams", "teacher-detail", "scrollIntoView"],
+    label: "teacher page exposes teacher-specific data drilldown, detail deeplinks, and scrolls to details"
   },
   {
     file: "app/practice-rooms/page.tsx",
-    includes: ["reservationInitialValues", "예약 정보 입력하기", "initialValues={reservationInitialValues}", "formId=\"reservation-form\""],
-    label: "room reservation page prefills the form from visual slot selection and links to the reservation form"
+    includes: ["reservationInitialValues", "예약 정보 입력하기", "initialValues={reservationInitialValues}", "formId=\"reservation-form\"", "setSelection(null)", "reservationPurposeOptions", "이론수업"],
+    label: "room reservation page prefills and clears visual slot selections with role-aligned purposes"
   },
   {
     file: "components/rooms/room-reservation-board.tsx",
-    includes: ["예약 가능", "예약됨", "RoomReservationSelection", "SegmentedControl", "timeFilter", "#reservation-form"],
-    label: "Next UI includes app-like visual room reservation selection"
+    includes: ["예약 가능", "예약됨", "RoomReservationSelection | null", "SegmentedControl", "timeFilter", "#reservation-form", "clearSelection", "표시할 강의실 또는 연습실이 없습니다"],
+    label: "Next UI includes app-like visual room reservation selection with filter-safe clearing"
   },
   {
     file: "pages-preview/app.js",

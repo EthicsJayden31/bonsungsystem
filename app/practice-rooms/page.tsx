@@ -13,6 +13,8 @@ export default function PracticeRoomsPage() {
   const { data, source } = useOperationsData(role);
   const saveAction = useOperationAction();
   const [selection, setSelection] = useState<RoomReservationSelection | null>(null);
+  const [selectionResetKey, setSelectionResetKey] = useState(0);
+  const reservationPurposeOptions = role === "teacher" ? ["레슨", "이론수업", "연습"] : ["레슨", "이론수업", "회의", "연습"];
 
   const reservationInitialValues = useMemo(() => {
     if (!selection || selection.status === "reserved") return undefined;
@@ -25,6 +27,12 @@ export default function PracticeRoomsPage() {
       memo: ""
     };
   }, [selection]);
+
+  async function saveReservation(values: Record<string, string>) {
+    await saveAction.run("createReservation", { reservation: mapReservationInput(values, data) });
+    setSelection(null);
+    setSelectionResetKey((value) => value + 1);
+  }
 
   const mobileCards: MobileListCard[] = data.reservations.map((item) => ({
     id: item.id,
@@ -44,7 +52,7 @@ export default function PracticeRoomsPage() {
               방과 시간을 직접 눌러 예약 가능 여부를 확인합니다. 예약 가능한 슬롯을 선택하면 아래 등록 폼에 공간과 시간이 자동으로 채워집니다.
             </p>
           </div>
-          <RoomReservationBoard data={data} onSelectionChange={setSelection} />
+          <RoomReservationBoard data={data} onSelectionChange={setSelection} key={selectionResetKey} />
           {selection ? (
             <div className="rounded-2xl border border-brand/15 bg-brand/5 px-4 py-3 text-sm font-semibold text-brand">
               <p>
@@ -76,7 +84,7 @@ export default function PracticeRoomsPage() {
           ])}
           emptyTitle="표시할 예약 정보가 없습니다"
           emptyDescription="실사용 세션이 없거나 Apps Script 응답에 예약 데이터가 없으면 이곳은 비어 있을 수 있습니다."
-          onSubmit={(values) => saveAction.run("createReservation", { reservation: mapReservationInput(values, data) })}
+          onSubmit={saveReservation}
           submitDisabled={saveAction.pending}
           submitLabel={saveAction.pending ? "저장 중" : "예약 저장"}
           submitHelp="공간은 이름 또는 ID로 입력할 수 있습니다. Apps Script 정책에 따라 1시간 단위 예약만 저장됩니다."
@@ -86,7 +94,7 @@ export default function PracticeRoomsPage() {
             { label: "사용일", name: "date", type: "date" },
             { label: "시작 시간(HH:00)", name: "startTime" },
             { label: "종료 시간(HH:00)", name: "endTime" },
-            { label: "목적", name: "purpose", type: "select", options: ["레슨", "보강수업", "회의", "연습"] },
+            { label: "목적", name: "purpose", type: "select", options: reservationPurposeOptions },
             { label: "메모", name: "memo", type: "textarea" }
           ]}
         />

@@ -6,11 +6,8 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { assetPath } from "@/lib/assets";
 import type { Role } from "@/lib/auth-shared";
-import {
-  APPS_SCRIPT_SESSION_TOKEN_KEY,
-  APPS_SCRIPT_USER_KEY,
-  loginWithAppsScript
-} from "@/lib/apps-script-client";
+import { loginWithAppsScript } from "@/lib/apps-script-client";
+import { clearClientSession, isNextRole, PREVIEW_ROLE_KEY, redirectToAppPath, setLiveSession, setPreviewSession } from "@/lib/client-session";
 import { readPreferences } from "@/lib/preferences";
 
 const accounts: Array<{ role: Role; title: string; description: string }> = [
@@ -25,7 +22,7 @@ export default function LoginPage() {
   const [liveLoginPending, setLiveLoginPending] = useState(false);
 
   function previewLogin(role: Role) {
-    window.localStorage.setItem("bonsung_role", role);
+    setPreviewSession(role);
     router.push(readPreferences().startPage);
   }
 
@@ -43,17 +40,15 @@ export default function LoginPage() {
     setLiveLoginPending(true);
     setLiveLoginError("");
     try {
+      clearClientSession();
       const result = await loginWithAppsScript(loginId, password);
+      setLiveSession(result.token, result.user);
       if (!isNextRole(result.user.role)) {
-        window.localStorage.setItem(APPS_SCRIPT_SESSION_TOKEN_KEY, result.token);
-        window.localStorage.setItem(APPS_SCRIPT_USER_KEY, JSON.stringify(result.user));
-        window.location.assign("/legacy-preview/");
+        window.localStorage.removeItem(PREVIEW_ROLE_KEY);
+        redirectToAppPath("/legacy-preview/");
         return;
       }
 
-      window.localStorage.setItem(APPS_SCRIPT_SESSION_TOKEN_KEY, result.token);
-      window.localStorage.setItem(APPS_SCRIPT_USER_KEY, JSON.stringify(result.user));
-      window.localStorage.setItem("bonsung_role", result.user.role);
       router.replace(readPreferences().startPage);
     } catch (caught) {
       setLiveLoginError(caught instanceof Error ? caught.message : "실사용 로그인을 완료하지 못했습니다.");
@@ -134,8 +129,4 @@ export default function LoginPage() {
       </section>
     </main>
   );
-}
-
-function isNextRole(role: string | undefined): role is Role {
-  return role === "admin" || role === "staff" || role === "teacher";
 }
