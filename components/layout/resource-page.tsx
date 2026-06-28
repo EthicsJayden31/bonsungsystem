@@ -32,7 +32,8 @@ export function ResourcePage({
   onSubmit,
   submitLabel,
   submitHelp,
-  submitDisabled = false
+  submitDisabled = false,
+  formId
 }: {
   title: string;
   description: string;
@@ -48,6 +49,7 @@ export function ResourcePage({
   submitLabel?: string;
   submitHelp?: string;
   submitDisabled?: boolean;
+  formId?: string;
 }) {
   const [status, setStatus] = useState<SubmitStatus | null>(null);
   const formKey = useMemo(() => JSON.stringify(initialValues ?? {}), [initialValues]);
@@ -113,7 +115,7 @@ export function ResourcePage({
           )}
         </div>
 
-        <form className="rounded-2xl border border-line bg-white p-5 shadow-card" aria-label={`${title} 빠른 등록`} onSubmit={handleSubmit} key={formKey}>
+        <form className="scroll-mt-24 rounded-2xl border border-line bg-white p-5 shadow-card" aria-label={`${title} 빠른 등록`} id={formId} onSubmit={handleSubmit} key={formKey}>
           <div className="mb-4 flex items-start justify-between gap-2">
             <div>
               <h2 className="text-lg font-extrabold tracking-tight text-ink">빠른 등록</h2>

@@ -46,10 +46,18 @@ export default function PracticeRoomsPage() {
           </div>
           <RoomReservationBoard data={data} onSelectionChange={setSelection} />
           {selection ? (
-            <p className="rounded-2xl border border-brand/15 bg-brand/5 px-4 py-3 text-sm font-semibold text-brand">
-              선택됨: {selection.roomName} · {selection.date} {selection.startTime} ~ {selection.endTime} · {selection.status === "reserved" ? "예약됨" : "예약 가능"}
-              {selection.status === "available" ? " · 아래 폼에 자동 입력됨" : " · 이미 예약된 시간입니다"}
-            </p>
+            <div className="rounded-2xl border border-brand/15 bg-brand/5 px-4 py-3 text-sm font-semibold text-brand">
+              <p>
+                선택됨: {selection.roomName} · {selection.date} {selection.startTime} ~ {selection.endTime} · {selection.status === "reserved" ? "예약됨" : "예약 가능"}
+              </p>
+              {selection.status === "available" ? (
+                <a className="mt-3 inline-flex rounded-xl bg-brand px-4 py-2 text-sm font-bold text-white" href="#reservation-form">
+                  예약 정보 입력하기
+                </a>
+              ) : (
+                <p className="mt-2 text-xs text-brand">이미 예약된 시간입니다. 다른 슬롯을 선택해주세요.</p>
+              )}
+            </div>
           ) : null}
         </section>
 
@@ -72,6 +80,7 @@ export default function PracticeRoomsPage() {
           submitDisabled={saveAction.pending}
           submitLabel={saveAction.pending ? "저장 중" : "예약 저장"}
           submitHelp="공간은 이름 또는 ID로 입력할 수 있습니다. Apps Script 정책에 따라 1시간 단위 예약만 저장됩니다."
+          formId="reservation-form"
           fields={[
             { label: "공간명 또는 ID", name: "room" },
             { label: "사용일", name: "date", type: "date" },
