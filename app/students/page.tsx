@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/layout/app-shell";
 import { ResourcePage, type MobileListCard } from "@/components/layout/resource-page";
 import { StudentDetailPanel } from "@/components/students/student-detail-panel";
@@ -15,17 +15,44 @@ export default function StudentsPage() {
   const data = operations.data;
   const [selectedStudentId, setSelectedStudentId] = useState("");
 
+  useEffect(() => {
+    const syncFromUrl = () => {
+      const params = new URLSearchParams(window.location.search);
+      setSelectedStudentId(params.get("student") ?? "");
+    };
+
+    syncFromUrl();
+    window.addEventListener("popstate", syncFromUrl);
+    return () => window.removeEventListener("popstate", syncFromUrl);
+  }, []);
+
   const selectedStudent = useMemo(
     () => data.students.find((student) => student.id === selectedStudentId),
     [data.students, selectedStudentId]
   );
+
+  function openStudentDetail(studentId: string) {
+    setSelectedStudentId(studentId);
+    const url = new URL(window.location.href);
+    url.searchParams.set("student", studentId);
+    url.hash = "student-detail";
+    window.history.pushState({}, "", url);
+  }
+
+  function closeStudentDetail() {
+    setSelectedStudentId("");
+    const url = new URL(window.location.href);
+    url.searchParams.delete("student");
+    url.hash = "";
+    window.history.pushState({}, "", url);
+  }
 
   const mobileCards: MobileListCard[] = data.students.map((student) => {
     const teacher = student.teacherName || teacherName(data, student.teacherId);
     return {
       id: student.id,
       title: (
-        <button className="text-left text-base font-extrabold text-brand" type="button" onClick={() => setSelectedStudentId(student.id)}>
+        <button className="text-left text-base font-extrabold text-brand" type="button" onClick={() => openStudentDetail(student.id)}>
           {student.name}
         </button>
       ),
@@ -39,7 +66,7 @@ export default function StudentsPage() {
         <button
           className="w-full rounded-xl border border-brand/20 bg-brand/5 px-3 py-2.5 text-sm font-bold text-brand transition hover:bg-brand/10"
           type="button"
-          onClick={() => setSelectedStudentId(student.id)}
+          onClick={() => openStudentDetail(student.id)}
         >
           상세 보기
         </button>
@@ -55,7 +82,7 @@ export default function StudentsPage() {
             data={data}
             role={role}
             studentId={selectedStudent.id}
-            onClose={() => setSelectedStudentId("")}
+            onClose={closeStudentDetail}
           />
         ) : null}
 
@@ -70,7 +97,7 @@ export default function StudentsPage() {
               className="text-left font-bold text-brand underline-offset-4 hover:underline"
               key={`${student.id}-name`}
               type="button"
-              onClick={() => setSelectedStudentId(student.id)}
+              onClick={() => openStudentDetail(student.id)}
             >
               {student.name}
             </button>,
@@ -83,7 +110,7 @@ export default function StudentsPage() {
               className="rounded-xl border border-brand/20 bg-brand/5 px-3 py-1.5 text-xs font-bold text-brand transition hover:bg-brand/10"
               key={`${student.id}-detail`}
               type="button"
-              onClick={() => setSelectedStudentId(student.id)}
+              onClick={() => openStudentDetail(student.id)}
             >
               상세 보기
             </button>

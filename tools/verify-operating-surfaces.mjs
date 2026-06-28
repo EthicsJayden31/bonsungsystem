@@ -60,13 +60,13 @@ const requiredSourceSignals = [
   },
   {
     file: "app/students/page.tsx",
-    includes: ["mobileCards", "상세 보기", "권한 제한", "학생 관리"],
-    label: "student page uses mobile cards with teacher-safe masking"
+    includes: ["mobileCards", "상세 보기", "권한 제한", "학생 관리", "URLSearchParams", "student-detail"],
+    label: "student page uses mobile cards, teacher-safe masking, and detail deeplinks"
   },
   {
     file: "app/teachers/page.tsx",
-    includes: ["강사별 조회", "TeacherDetailPanel", "담당 학생", "수업 일정", "레슨노트"],
-    label: "teacher page exposes teacher-specific data drilldown"
+    includes: ["강사별 조회", "TeacherDetailPanel", "담당 학생", "수업 일정", "레슨노트", "URLSearchParams", "teacher-detail"],
+    label: "teacher page exposes teacher-specific data drilldown and detail deeplinks"
   },
   {
     file: "app/practice-rooms/page.tsx",
