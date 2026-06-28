@@ -31,6 +31,13 @@ export default function StudentsPage() {
     [data.students, selectedStudentId]
   );
 
+  useEffect(() => {
+    if (!selectedStudent) return;
+    window.requestAnimationFrame(() => {
+      document.getElementById("student-detail")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }, [selectedStudent]);
+
   function openStudentDetail(studentId: string) {
     setSelectedStudentId(studentId);
     const url = new URL(window.location.href);

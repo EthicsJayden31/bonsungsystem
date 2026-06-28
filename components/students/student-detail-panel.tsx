@@ -66,7 +66,7 @@ export function StudentDetailPanel({ data, studentId, role, onClose }: StudentDe
       <div className="grid gap-5 p-5 lg:grid-cols-[320px_minmax(0,1fr)]">
         <aside className="space-y-4">
           <InfoBlock title="기본 정보">
-            <DetailRow label="연락처" value={student.phone || "-"} />
+            <DetailRow label="연락처" value={role === "teacher" ? "권한 제한" : student.phone || "-"} />
             <DetailRow label="생년월일" value={student.birthDate || "-"} />
             <DetailRow label="메모" value={role === "teacher" ? maskTeacherMemo(student.memo) : student.memo || "-"} />
           </InfoBlock>

@@ -2,14 +2,19 @@
 
 import { useSyncExternalStore } from "react";
 import type { Role } from "@/lib/auth-shared";
+import { PREVIEW_ROLE_KEY, SESSION_CHANGE_EVENT } from "@/lib/client-session";
 
 function subscribe(callback: () => void) {
   window.addEventListener("storage", callback);
-  return () => window.removeEventListener("storage", callback);
+  window.addEventListener(SESSION_CHANGE_EVENT, callback);
+  return () => {
+    window.removeEventListener("storage", callback);
+    window.removeEventListener(SESSION_CHANGE_EVENT, callback);
+  };
 }
 
 function getSnapshot() {
-  return window.localStorage.getItem("bonsung_role") as Role | null;
+  return window.localStorage.getItem(PREVIEW_ROLE_KEY) as Role | null;
 }
 
 function getServerSnapshot() {

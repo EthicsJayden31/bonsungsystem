@@ -12,6 +12,7 @@ import {
   APPS_SCRIPT_USER_KEY,
   type AppsScriptUser
 } from "@/lib/apps-script-client";
+import { clearClientSession, PREVIEW_ROLE_KEY } from "@/lib/client-session";
 import { usePreferences } from "@/lib/preferences";
 import { usePreviewRole } from "@/lib/use-preview-role";
 
@@ -117,7 +118,7 @@ export function AppShell({ children, area = "dashboard" }: { children: ReactNode
   const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
-    const stored = window.localStorage.getItem("bonsung_role") as Role | null;
+    const stored = window.localStorage.getItem(PREVIEW_ROLE_KEY) as Role | null;
     if (!stored) {
       router.replace("/login");
       return;
@@ -136,9 +137,7 @@ export function AppShell({ children, area = "dashboard" }: { children: ReactNode
         body: JSON.stringify({ action: "logout", token })
       }).catch(() => {});
     }
-    window.localStorage.removeItem("bonsung_role");
-    window.localStorage.removeItem(APPS_SCRIPT_SESSION_TOKEN_KEY);
-    window.localStorage.removeItem(APPS_SCRIPT_USER_KEY);
+    clearClientSession();
     router.push("/login");
   }
 

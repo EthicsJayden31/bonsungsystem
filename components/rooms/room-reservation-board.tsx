@@ -20,7 +20,7 @@ type RoomReservationBoardProps = {
   roomMode?: "all" | "lesson" | "practice";
   startHour?: number;
   endHour?: number;
-  onSelectionChange?: (selection: RoomReservationSelection) => void;
+  onSelectionChange?: (selection: RoomReservationSelection | null) => void;
 };
 
 type Slot = {
@@ -53,6 +53,11 @@ export function RoomReservationBoard({
   const reservationsByRoomTime = useMemo(() => indexReservations(data), [data]);
   const [selected, setSelected] = useState<RoomReservationSelection | null>(null);
 
+  function clearSelection() {
+    setSelected(null);
+    onSelectionChange?.(null);
+  }
+
   function selectSlot(slot: Slot) {
     const nextSelection: RoomReservationSelection = {
       roomId: slot.roomId,
@@ -66,14 +71,6 @@ export function RoomReservationBoard({
 
     setSelected(nextSelection);
     onSelectionChange?.(nextSelection);
-  }
-
-  if (!visibleRooms.length) {
-    return (
-      <section className="rounded-2xl border border-dashed border-line bg-white p-6 text-sm text-muted">
-        표시할 강의실 또는 연습실이 없습니다.
-      </section>
-    );
   }
 
   return (
@@ -101,7 +98,7 @@ export function RoomReservationBoard({
               value={selectedDate}
               onChange={(event) => {
                 setSelectedDate(event.target.value);
-                setSelected(null);
+                clearSelection();
               }}
             />
           </label>
@@ -115,7 +112,7 @@ export function RoomReservationBoard({
             value={selectedRoomMode}
             onChange={(value) => {
               setSelectedRoomMode(value as typeof selectedRoomMode);
-              setSelected(null);
+              clearSelection();
             }}
           />
           <SegmentedControl
@@ -129,14 +126,15 @@ export function RoomReservationBoard({
             value={timeFilter}
             onChange={(value) => {
               setTimeFilter(value as typeof timeFilter);
-              setSelected(null);
+              clearSelection();
             }}
           />
         </div>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-        {visibleRooms.map((room) => {
+      {visibleRooms.length ? (
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {visibleRooms.map((room) => {
           const roomSlots = hours.map((hour) => {
             const reservation = reservationsByRoomTime.get(slotKey(room.id, selectedDate, hour));
             const requester = reservation ? reservation.requester || reservation.studentName || studentName(data, reservation.studentId) : "";
@@ -199,8 +197,14 @@ export function RoomReservationBoard({
               </div>
             </article>
           );
-        })}
-      </div>
+          })}
+        </div>
+      ) : (
+        <section className="rounded-2xl border border-dashed border-line bg-white p-6 text-sm text-muted">
+          <p className="font-bold text-ink">표시할 강의실 또는 연습실이 없습니다.</p>
+          <p className="mt-2">위의 날짜, 공간, 시간대 필터는 그대로 사용할 수 있습니다. 다른 조건을 선택해 다시 확인해 주세요.</p>
+        </section>
+      )}
 
       <div className="rounded-2xl border border-line bg-white p-4 shadow-card">
         <p className="text-sm font-extrabold text-ink">선택 내용</p>

@@ -29,6 +29,13 @@ export default function TeachersPage() {
     [data.teachers, selectedTeacherId]
   );
 
+  useEffect(() => {
+    if (!selectedTeacher) return;
+    window.requestAnimationFrame(() => {
+      document.getElementById("teacher-detail")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }, [selectedTeacher]);
+
   function openTeacherDetail(teacherId: string) {
     setSelectedTeacherId(teacherId);
     const url = new URL(window.location.href);
