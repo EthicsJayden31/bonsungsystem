@@ -1,149 +1,81 @@
-# 본성뮤직 아카데미 인트라넷
+# Bonsung Music Academy Intranet
 
-본성뮤직 아카데미 내부 운영을 위한 설치형 없는 웹앱입니다. GitHub Pages가 화면을 제공하고, 비공개 Google Sheets와 Apps Script 웹앱이 데이터 저장, 로그인, 권한 검사를 담당합니다.
-
-## 운영 주소
+본성뮤직 인트라넷은 GitHub Pages에 배포되는 Next.js 기반 운영 화면입니다.
+현재 공식 운영 기준 브랜치는 `codex/v1-intranet`이며, 공개 주소는 다음과 같습니다.
 
 ```text
 https://ethicsjayden31.github.io/bonsungsystem/
 ```
 
-현재 운영 브랜치 `codex/v1-intranet`은 Next.js 브랜드 UI를 GitHub Pages 루트에 배포합니다. 기존 Apps Script 정적 운영 화면은 `/legacy-preview/`에 보존해 실사용 로그인과 데이터 입력 흐름을 확인할 수 있습니다.
+## 현재 운영 기준
 
-## 주요 기능
+- 공식 화면: Next.js App Router (`app/`)
+- 데이터 연동: Apps Script + Google Sheets (`google-apps-script/Code.gs`)
+- 기존 실사용 화면: `/legacy-preview/`로 보존 (`pages-preview/`)
+- preview 데이터: 실사용 세션이 없거나 Apps Script 연결이 실패할 때만 사용
 
-- `admin`, `staff`, `teacher`, `student` 역할별 로그인과 메뉴 제한
-- 로그인 전 신규 계정 요청과 admin·원장 승인
-- 시스템에서 수정 가능한 로그인 소개 문구와 운영 공지 팝업
-- 관리자·직원용 계정, 수강생, 수강 등록, 반복 일정 관리
-- 관리자용 로그인·페이지 조회·업무 처리 이용 현황
-- 강사용 담당 수강생, 담당 과목, 예정 수업, 최근 수업일지 화면
-- 수강생용 수강 과목, 수강 기간, 다음 수업, 학습 기록 화면
-- 수업일지 템플릿, 이전 일지 불러오기, 자동 임시 저장
-- 강사·수강생·과목·기간·내용 검색 필터
-- 수강생, 수업일지, 회의, 일정 빠른 검색·필터·정렬
-- 로그인 후 시작 화면, 화면 밀도, 홈 카드 구성을 계정별로 저장
-- 모바일 320px 이상에서 가로 스크롤 없이 세로로 재배치되는 화면
-- Next 공식 UI의 기능 점검용 preview 모드와 Apps Script 세션 기반 실사용 데이터 표시
-- 기존 Apps Script 운영 화면을 `/legacy-preview/`로 보존
+`pages-preview/`는 아직 삭제하지 않습니다. Next UI의 저장 기능이 충분히 검증될 때까지 기존 Apps Script 운영 화면을 안전망으로 유지합니다.
 
-## 구조
+## 주요 경로
+
+| 경로 | 용도 |
+| --- | --- |
+| `/` | 공식 홈 |
+| `/login/` | Apps Script 실사용 로그인 및 preview 로그인 |
+| `/dashboard/` | 운영 대시보드 |
+| `/students/` | 학생 목록과 상세 관리 |
+| `/teachers/` | 강사별 데이터 조회 |
+| `/practice-rooms/` | 강의실/연습실 예약 |
+| `/data-quality/` | 데이터 점검 |
+| `/profile-settings/` | 개인화 설정 |
+| `/legacy-preview/` | 기존 Apps Script 운영 화면 |
+
+## 유지할 핵심 파일
 
 ```text
-app/                      GitHub Pages 루트에 배포되는 Next.js 공식 UI
-components/               공통 레이아웃, 목록, 입력 폼, 상태 표시 컴포넌트
-lib/operations-data.ts    Apps Script 세션 데이터와 preview 데이터 전환
-pages-preview/            기존 Apps Script 정적 운영 화면 원본
-  index.html
-  config.js               Apps Script 배포 URL
-  app.js                  legacy 운영 화면, 상태, 권한별 업무 흐름
-  styles.css              legacy 화면 스타일
-google-apps-script/
-  Code.gs                 Google Sheets API, 인증, 권한, 이용 기록
-tools/
-  preserve-legacy-preview.mjs  빌드 후 pages-preview를 out/legacy-preview에 복사
-docs/
-  google-sheets-setup.md  운영 데이터와 Apps Script 연결
-  github-pages.md         검증 및 배포 절차
-  project/                작업 지시와 GitHub 연동 운영 문서
+app/                       Next.js 공식 운영 화면
+components/                공통 레이아웃, 목록, 상세, 예약 컴포넌트
+lib/                       세션, 권한, Apps Script 클라이언트, 데이터 변환
+google-apps-script/Code.gs Apps Script API 원본
+pages-preview/             legacy 운영 화면 원본
+public/brand/              브랜드 디자인 자산
+tools/                     Pages 빌드와 운영 표면 검증 도구
+docs/                      현재 운영과 배포에 필요한 문서만 유지
 ```
-
-현재 GitHub Pages 공식 화면은 Next.js App Router입니다. `pages-preview/`는 삭제하지 않고 `/legacy-preview/`로 배포해 Apps Script 실사용 흐름과 기존 운영 기능을 분리해 유지합니다.
-
-## 프로젝트 운영
-
-작업 지시 분류, GitHub Issue 작성 방식, 로컬 작업 템플릿은 [프로젝트 운영 문서](docs/project/README.md)를 기준으로 관리합니다.
-
-## Google Sheets
-
-운영 DB:
-
-[본성뮤직 인트라넷 운영 DB v1](https://docs.google.com/spreadsheets/d/1TSrqeLgrgcVdj6LD4nf9rFs4Lko95HMoerOBIvfqbZ0/edit)
-
-사용 시트:
-
-| 시트 | 용도 |
-| --- | --- |
-| `계정` | 로그인 계정, 비밀번호 해시, 역할, 사용 상태 |
-| `수강생` | 보컬 수강생·보호자 기본 정보, 상태, 기본 담당 강사 |
-| `수강등록` | 등록 기준, 강사, 수강 기간, 주간 반복 일정 |
-| `수업일정` | 보강·임시 수업을 포함한 개별 일정 |
-| `수업일지` | 수업 내용, 과제, 다음 목표, 출결 |
-| `수업일지템플릿` | 강사별 빠른 작성 템플릿 |
-| `이용기록` | 로그인, 페이지 조회, 주요 데이터 변경 기록 |
-| `세션` | 로그인 세션과 만료 시간 |
-| `설정` | 학원명, 스키마 버전, 로그인 전 공개 문구와 공지 |
-| `업무` | 직원별 직접 등록 업무와 상태 |
-| `수업종류` | 수정 가능한 보컬 등록 기준 설정 |
-| `계정요청` | 신규 계정 요청, 승인·반려 상태와 검토 이력 |
-
-연결과 배포 방법은 [Google Sheets 설정](docs/google-sheets-setup.md)을 따릅니다.
-
-## 권한
-
-| 역할 | 접근 범위 |
-| --- | --- |
-| admin | 모든 운영 데이터, 계정, 이용 현황 |
-| staff | 계정·수강생·수강·일정·수업일지, 관리자 계정 변경 제외 |
-| teacher | 본인 담당 수강생·수강·일정·수업일지 |
-| student | 본인 수강·일정·수업일지, 내부 메모 제외 |
-
-## 데모 확인
-
-실사용 세션 없이 Next UI에 들어가면 기능 점검용 preview 데이터가 표시됩니다. 기존 legacy 화면의 로컬/테스트 데이터는 아래 주소로 확인합니다.
-
-기능 테스트 페이지에는 `admin` 계정 외에 원장 1명, 팀장 2명, 사원 3명, 강사 3명, 수강생 12명이 준비되어 있습니다. 모든 테스트 계정의 비밀번호는 `bonsung1`이며, 상단 계정 전환 메뉴에서 각 계정의 권한과 화면을 바로 확인할 수 있습니다.
-
-```text
-/legacy-preview/index.html?demo=1
-```
-
-모든 데모 계정의 비밀번호는 `bonsung1`입니다.
-
-| 아이디 | 역할 |
-| --- | --- |
-| `admin` | 관리자 |
-| `staff` | 직원 |
-| `teacher` | 강사 |
-| `student` | 수강생 |
-
-데모 데이터는 브라우저 로컬 저장소에만 기록되고 운영 Google Sheets에는 저장되지 않습니다.
 
 ## 검증
 
-GitHub Actions는 정적 웹앱과 Apps Script의 JavaScript 문법을 검사합니다. 운영 반영 전에는 Chrome에서 관리자·강사·수강생 흐름과 390px·320px 모바일 화면을 직접 검증합니다.
-
-자세한 절차는 [GitHub Pages 배포](docs/github-pages.md)를 참고합니다.
-
-## 운영 기능 v3
-
-등록·재등록, 공간 예약, 직원 직급과 근태, 회의, 통합 캘린더, 다크모드와 로그인 성능 개선은 [운영 기능 v3](docs/v3-operations.md)에 정리되어 있습니다.
-
-운영 데이터와 분리된 기능 테스트 화면:
+변경 후 기본 검증은 다음 네 가지입니다.
 
 ```text
-/legacy-preview/test.html
+pnpm typecheck
+pnpm lint
+pnpm build:pages
+pnpm verify:surfaces
 ```
 
-정적 파일 서버에서 `test.html`을 열면 관리자, 원장, 팀장, 사원, 강사, 수강생 계정으로 즉시 전환하면서 모든 기능을 샘플 데이터로 시험할 수 있습니다.
+배포 후에는 다음 공개 경로를 확인합니다.
 
-## 모바일·연결형 운영 기능 v4
+```text
+https://ethicsjayden31.github.io/bonsungsystem/
+https://ethicsjayden31.github.io/bonsungsystem/login/
+https://ethicsjayden31.github.io/bonsungsystem/dashboard/
+https://ethicsjayden31.github.io/bonsungsystem/legacy-preview/
+```
 
-모바일 하위 메뉴, 앱 내부 뒤로가기, 1시간 공간 예약, 프로필·공간·일정 연결, 계정 로그인 이력, 수업 회차와 결석·보강 관리, 수업 종류 설정은 [모바일·연결형 운영 기능 v4](docs/v4-mobile-operations.md)에 정리되어 있습니다.
+## 보안 원칙
 
-## 계정 요청·로그인 설정 v5
-
-로그인 전 화면 편집, 운영 공지 팝업, 신규 계정 요청과 승인, admin 프로필 편집은 [계정 요청·로그인 설정 v5](docs/v5-account-requests.md)에 정리되어 있습니다.
-
-## 개인화와 빠른 조회 v6
-
-계정별 시작 화면, 화면 밀도, 홈 화면 카드 구성과 주요 목록 검색·정렬 개선은 [개인화와 빠른 조회 v6](docs/v6-personalization-filters.md)에 정리되어 있습니다.
-
-## 보안
-
-- `.env`, 비밀번호, API 키, Apps Script `SETUP_KEY`를 커밋하지 않습니다.
+- `.env`, 비밀번호, API 키, Apps Script `SETUP_KEY`는 커밋하지 않습니다.
 - Google Sheets는 공개 공유하지 않습니다.
-- 계정 비밀번호는 salt가 적용된 SHA-256 해시로 저장합니다.
-- 신규 계정 요청 비밀번호도 평문으로 저장하지 않으며, 승인 또는 반려 후 요청 시트의 해시 정보를 제거합니다.
-- 운영 API URL은 공개 클라이언트 설정이므로 비밀값으로 취급하지 않습니다. 실제 데이터 보호는 서버의 세션·역할 검사로 수행합니다.
-- 수강생에게는 보호자 연락처, 내부 메모, 이용 기록을 반환하지 않습니다.
+- teacher 권한에는 수납 정보, 보호자 연락처, 내부 메모 같은 민감 정보를 노출하지 않습니다.
+- student 계정은 Next 공식 UI가 아니라 `/legacy-preview/`로 이동합니다.
+- preview 데이터는 운영 원본이 아닙니다.
+
+## 다음 개발 방향
+
+다음 작업은 `docs/project/operating-surfaces.md`의 기준을 따릅니다.
+
+1. 학생별/강사별 데이터 조회와 관리 기능을 Next UI에 통합합니다.
+2. 강의실/연습실 예약을 모바일 앱형 GUI로 개선합니다.
+3. 개인화 설정을 실제 화면 밀도, 시작 화면, 목록 표시 방식에 연결합니다.
+4. 모든 기능은 390px와 320px 모바일 폭에서 검증합니다.
