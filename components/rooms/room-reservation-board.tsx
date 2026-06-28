@@ -45,9 +45,11 @@ export function RoomReservationBoard({
   endHour = 22,
   onSelectionChange
 }: RoomReservationBoardProps) {
-  const selectedDate = date ?? todayInSeoul();
-  const rooms = useMemo(() => filterRooms(data.rooms, roomMode), [data.rooms, roomMode]);
-  const hours = useMemo(() => buildHours(startHour, endHour), [startHour, endHour]);
+  const [selectedDate, setSelectedDate] = useState(date ?? todayInSeoul());
+  const [selectedRoomMode, setSelectedRoomMode] = useState(roomMode);
+  const [timeFilter, setTimeFilter] = useState<"all" | "morning" | "afternoon" | "evening">("all");
+  const visibleRooms = useMemo(() => filterRooms(data.rooms, selectedRoomMode), [data.rooms, selectedRoomMode]);
+  const hours = useMemo(() => filterHours(buildHours(startHour, endHour), timeFilter), [startHour, endHour, timeFilter]);
   const reservationsByRoomTime = useMemo(() => indexReservations(data), [data]);
   const [selected, setSelected] = useState<RoomReservationSelection | null>(null);
 
@@ -66,7 +68,7 @@ export function RoomReservationBoard({
     onSelectionChange?.(nextSelection);
   }
 
-  if (!rooms.length) {
+  if (!visibleRooms.length) {
     return (
       <section className="rounded-2xl border border-dashed border-line bg-white p-6 text-sm text-muted">
         표시할 강의실 또는 연습실이 없습니다.
@@ -89,8 +91,52 @@ export function RoomReservationBoard({
         </div>
       </div>
 
+      <div className="rounded-2xl border border-line bg-white p-4 shadow-card lg:hidden">
+        <div className="grid gap-3">
+          <label>
+            <span className="text-xs font-extrabold text-muted">사용일</span>
+            <input
+              className="mt-1 h-11 w-full rounded-xl border border-line px-3 text-sm font-bold outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/15"
+              type="date"
+              value={selectedDate}
+              onChange={(event) => {
+                setSelectedDate(event.target.value);
+                setSelected(null);
+              }}
+            />
+          </label>
+          <SegmentedControl
+            label="공간"
+            options={[
+              { value: "all", label: "전체" },
+              { value: "lesson", label: "강의실" },
+              { value: "practice", label: "연습실" }
+            ]}
+            value={selectedRoomMode}
+            onChange={(value) => {
+              setSelectedRoomMode(value as typeof selectedRoomMode);
+              setSelected(null);
+            }}
+          />
+          <SegmentedControl
+            label="시간대"
+            options={[
+              { value: "all", label: "전체" },
+              { value: "morning", label: "오전" },
+              { value: "afternoon", label: "오후" },
+              { value: "evening", label: "저녁" }
+            ]}
+            value={timeFilter}
+            onChange={(value) => {
+              setTimeFilter(value as typeof timeFilter);
+              setSelected(null);
+            }}
+          />
+        </div>
+      </div>
+
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-        {rooms.map((room) => {
+        {visibleRooms.map((room) => {
           const roomSlots = hours.map((hour) => {
             const reservation = reservationsByRoomTime.get(slotKey(room.id, selectedDate, hour));
             const requester = reservation ? reservation.requester || reservation.studentName || studentName(data, reservation.studentId) : "";
@@ -169,7 +215,57 @@ export function RoomReservationBoard({
           <p className="mt-2 text-sm text-muted">방 카드 또는 시간 슬롯을 선택하면 여기에 표시합니다.</p>
         )}
       </div>
+
+      {selected ? (
+        <div className="sticky bottom-[5.75rem] z-20 rounded-2xl border border-brand/15 bg-white p-3 shadow-[0_16px_40px_rgba(60,6,8,0.14)] lg:hidden">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="truncate text-sm font-extrabold text-ink">{selected.roomName}</p>
+              <p className="text-xs font-bold text-muted">
+                {selected.startTime} ~ {selected.endTime} · {selected.status === "reserved" ? "예약됨" : "예약 가능"}
+              </p>
+            </div>
+            {selected.status === "available" ? (
+              <a className="shrink-0 rounded-xl bg-brand px-3 py-2 text-xs font-extrabold text-white" href="#reservation-form">
+                입력
+              </a>
+            ) : (
+              <span className="shrink-0 rounded-xl bg-brand/5 px-3 py-2 text-xs font-extrabold text-brand">불가</span>
+            )}
+          </div>
+        </div>
+      ) : null}
     </section>
+  );
+}
+
+function SegmentedControl({
+  label,
+  options,
+  value,
+  onChange
+}: {
+  label: string;
+  options: Array<{ value: string; label: string }>;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div>
+      <p className="text-xs font-extrabold text-muted">{label}</p>
+      <div className="mt-1 grid grid-cols-3 gap-2">
+        {options.map((option) => (
+          <button
+            className={`rounded-xl border px-3 py-2 text-xs font-extrabold ${value === option.value ? "border-brand bg-brand text-white" : "border-line bg-surface-muted text-muted"}`}
+            key={option.value}
+            type="button"
+            onClick={() => onChange(option.value)}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -219,6 +315,16 @@ function buildHours(startHour: number, endHour: number) {
   const start = Math.max(0, Math.min(23, Math.floor(startHour)));
   const end = Math.max(start + 1, Math.min(24, Math.floor(endHour)));
   return Array.from({ length: end - start }, (_, index) => formatHour(start + index));
+}
+
+function filterHours(hours: string[], timeFilter: "all" | "morning" | "afternoon" | "evening") {
+  if (timeFilter === "all") return hours;
+  return hours.filter((time) => {
+    const hour = Number(time.slice(0, 2));
+    if (timeFilter === "morning") return hour < 12;
+    if (timeFilter === "afternoon") return hour >= 12 && hour < 18;
+    return hour >= 18;
+  });
 }
 
 function todayInSeoul() {
