@@ -1796,7 +1796,8 @@ function render() {
   if (state.user.must_change_password) state.page = "profile";
   if (!menus.some(([key]) => key === state.page)) state.page = preferredPage(state.user);
   if (!state.subview) state.subview = defaultSubview(state.page);
-  const primaryMobile = menus.filter(([key]) => key !== "profile").slice(0, 3);
+  const primaryMobile = mobilePrimaryMenus(menus, state.user);
+  const canGoBack = state.navigationStack.length > 0;
 
   root.innerHTML = `
     ${TEST_MODE ? renderTestToolbar() : ""}
@@ -1829,10 +1830,7 @@ function render() {
       </nav>
       ${state.mobileMenu ? renderMobileMenu(menus) : ""}
       ${state.selectedLogId ? renderLogModal() : ""}
-      <div class="mobile-float-actions">
-        <button onclick="appBack()" aria-label="이전 화면">${icon("arrowLeft")}</button>
-        <button onclick="scrollTopPage()" aria-label="맨 위로">${icon("arrowUp")}</button>
-      </div>
+      ${canGoBack ? `<div class="mobile-float-actions"><button onclick="appBack()" aria-label="이전 화면">${icon("arrowLeft")}</button></div>` : ""}
     </div>`;
   labelResponsiveTables();
 }
@@ -1927,8 +1925,37 @@ function currentPageLabel(menus) {
   return menus.find(([key]) => key === state.page)?.[1] || "홈";
 }
 
+function mobilePrimaryMenus(menus, user) {
+  const menuMap = keyBy(menus.map(([key, label, iconName]) => ({ key, label, iconName })), "key");
+  const preferred = user.role === "teacher"
+    ? ["my-overview", "lesson-logs", "reservations"]
+    : user.role === "student"
+      ? ["my-overview", "lesson-logs", "registrations"]
+      : ["dashboard", "students", "reservations"];
+  const picked = preferred.map((key) => menuMap[key]).filter(Boolean);
+  const fallback = menus
+    .filter(([key]) => key !== "profile" && !picked.some((item) => item.key === key))
+    .slice(0, Math.max(0, 3 - picked.length))
+    .map(([key, label, iconName]) => ({ key, label, iconName }));
+  return [...picked, ...fallback].slice(0, 3).map((item) => [item.key, item.label, item.iconName]);
+}
+
 function renderMobileMenu(menus) {
-  return `<div class="mobile-menu-backdrop" onclick="toggleMobileMenu()"><section class="mobile-menu-sheet" onclick="event.stopPropagation()"><div class="mobile-menu-head"><strong>전체 메뉴</strong><button class="icon-button" onclick="toggleMobileMenu()" aria-label="닫기">${icon("close")}</button></div><nav>${menus.map(([key, label, iconName]) => `<div class="mobile-menu-group">${navButton(key, label, iconName)}${mobileMenuChildren(key)}</div>`).join("")}<button onclick="logout()">${icon("logout")}<span>로그아웃</span></button></nav></section></div>`;
+  const menuMap = keyBy(menus.map(([key, label, iconName]) => ({ key, label, iconName })), "key");
+  const sections = mobileMenuSections().map((section) => ({
+    ...section,
+    items: section.keys.map((key) => menuMap[key]).filter(Boolean)
+  })).filter((section) => section.items.length);
+  return `<div class="mobile-menu-backdrop" onclick="toggleMobileMenu()"><section class="mobile-menu-sheet" onclick="event.stopPropagation()"><div class="mobile-menu-grip" aria-hidden="true"></div><div class="mobile-menu-head"><div><strong>전체 메뉴</strong><small>업무를 하나씩 선택해 들어갑니다.</small></div><button class="icon-button" onclick="toggleMobileMenu()" aria-label="닫기">${icon("close")}</button></div><nav>${sections.map((section) => `<section class="mobile-menu-section"><h3>${escapeHtml(section.title)}</h3>${section.items.map((item) => `<div class="mobile-menu-group">${navButton(item.key, item.label, item.iconName)}${mobileMenuChildren(item.key)}</div>`).join("")}</section>`).join("")}<section class="mobile-menu-section mobile-menu-section-utility"><h3>계정</h3><button onclick="logout()">${icon("logout")}<span>로그아웃</span></button></section></nav></section></div>`;
+}
+
+function mobileMenuSections() {
+  return [
+    { title: "오늘 업무", keys: ["dashboard", "my-overview", "calendar"] },
+    { title: "수강생·수업", keys: ["students", "enrollments", "lesson-logs"] },
+    { title: "예약·운영", keys: ["reservations", "registrations", "team", "meetings"] },
+    { title: "관리·설정", keys: ["accounts", "usage", "system-settings", "profile"] }
+  ];
 }
 
 function mobileMenuChildren(page) {
