@@ -1,31 +1,28 @@
-# 본성뮤직 인트라넷 프로젝트 운영
+# 프로젝트 운영 기준
 
-이 폴더는 본성뮤직 아카데미 인트라넷을 계속 개선하기 위한 작업 지시 허브입니다.
-로컬에서는 이 문서를 기준으로 작업을 정리하고, GitHub에서는 같은 분류의 Issue Template과 Label로 세부 요청을 등록합니다.
+이 폴더는 본성뮤직 인트라넷을 앞으로 개발할 때 필요한 최소 운영 기준만 보관합니다.
 
-## 작업 분류
+## 기준 브랜치
 
-| 분류 | GitHub label | 사용 시점 |
-| --- | --- | --- |
-| 페이지 코드 분석 및 유지보수 | `area:maintenance` | 기존 코드 이해, 버그 조사, 리팩터링, 불필요한 코드 정리 |
-| 세부 기능 설정 조정 및 개선 | `area:feature-settings` | 권한, 데이터 항목, 필터, 개인화, 운영 설정 등 기능 동작 변경 |
-| 페이지 디자인 및 GUI 조정 | `area:gui` | 모바일/데스크톱 레이아웃, 문구, 버튼, 입력폼, 시각적 사용성 개선 |
+- 배포 기준: `codex/v1-intranet`
+- 작업 브랜치: `codex/` 접두어 사용
+- 공개 URL: `https://ethicsjayden31.github.io/bonsungsystem/`
 
-## 작업 등록 방식
+## 작업 원칙
 
-1. `docs/project/task-template.md`를 복사해 로컬 작업 메모를 만든다.
-2. GitHub에서는 `.github/ISSUE_TEMPLATE/`의 세 분류 중 하나를 선택해 Issue를 만든다.
-3. 작업 브랜치는 `codex/` 접두사를 사용한다.
-4. 운영 반영 전에는 Chrome에서 실제 화면을 확인하고, 가능하면 GitHub Pages 배포 상태도 확인한다.
+1. 먼저 `codex/v1-intranet` 기준 worktree에서 작업 중인지 확인합니다.
+2. 기능 구현 전 `docs/project/operating-surfaces.md`를 확인합니다.
+3. `pages-preview/`와 `google-apps-script/`는 legacy 실사용 흐름이므로 무심코 삭제하지 않습니다.
+4. 저장/권한/개인정보 변경은 teacher, student, admin 흐름을 함께 검증합니다.
+5. 모바일 390px와 320px 화면을 완료 기준에 포함합니다.
 
-## 화면 구분
+## 기본 검증
 
-공식 Next UI, 실사용 Apps Script 화면, 기능 점검 preview의 구분은
-[본성_인트라넷 화면 구분 기준](operating-surfaces.md)을 따른다.
+```text
+pnpm typecheck
+pnpm lint
+pnpm build:pages
+pnpm verify:surfaces
+```
 
-## 기본 완료 기준
-
-- 변경 이유와 영향 범위가 문서나 PR 설명에 남아 있다.
-- 기존 사용자 권한, 운영 데이터, 모바일 화면을 깨뜨리지 않는다.
-- 로컬 또는 GitHub Actions에서 가능한 검증을 수행한다.
-- 실패한 검증은 숨기지 않고 원인과 남은 조치를 기록한다.
+배포 후에는 `/`, `/login/`, `/dashboard/`, `/legacy-preview/` 공개 URL을 확인합니다.
