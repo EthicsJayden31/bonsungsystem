@@ -4,10 +4,10 @@
 
 :root {
   color-scheme: light;
-  --color-primary: #6b0f12;
+  --color-primary: #680f12;
   --color-primary-dark: #3c0608;
-  --color-primary-soft: #8a1a1e;
-  --color-bg: #f7f5f3;
+  --color-primary-soft: #7f1518;
+  --color-bg: #f2f2f2;
   --color-surface: #ffffff;
   --color-surface-muted: #f2f2f2;
   --color-text: #111111;
@@ -21,7 +21,7 @@
 body {
   margin: 0;
   background:
-    radial-gradient(circle at top right, rgba(107, 15, 18, 0.08), transparent 28rem),
+    radial-gradient(circle at top right, rgba(104, 15, 18, 0.08), transparent 28rem),
     var(--color-bg);
   color: var(--color-text);
   font-family: var(--font-sans);
@@ -42,5 +42,5 @@ textarea {
 }
 
 ::selection {
-  background: rgba(107, 15, 18, 0.16);
+  background: rgba(104, 15, 18, 0.16);
 }

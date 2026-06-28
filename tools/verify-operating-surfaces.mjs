@@ -45,8 +45,13 @@ const requiredSourceSignals = [
   },
   {
     file: "components/layout/app-shell.tsx",
-    includes: ["MobileBottomTabs", "MobileMenuSheet", "usePreferences", "preferences.mobileMenu", "preferences.density", "오늘 운영", "사람", "강사", "수업과 공간", "개인화 설정", "bonsung-logo-seal.png"],
+    includes: ["MobileAppHeader", "MobileBottomTabs", "MobileMenuSheet", "usePreferences", "preferences.mobileMenu", "preferences.density", "오늘 운영", "사람", "강사", "수업과 공간", "개인화 설정", "bonsung-logo-seal.png"],
     label: "Next UI exposes app-like mobile navigation, teacher menu, user preferences, and template-derived logo"
+  },
+  {
+    file: "components/ui/table.tsx",
+    includes: ["모바일 표 카드", "lg:hidden", "lg:block"],
+    label: "data tables convert to mobile cards on small screens"
   },
   {
     file: "app/dashboard/page.tsx",

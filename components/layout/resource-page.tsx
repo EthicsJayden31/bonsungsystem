@@ -53,6 +53,7 @@ export function ResourcePage({
 }) {
   const [status, setStatus] = useState<SubmitStatus | null>(null);
   const formKey = useMemo(() => JSON.stringify(initialValues ?? {}), [initialValues]);
+  const quickFormId = formId ?? "quick-form";
   const cards = mobileCards ?? rows.map((row, index) => ({
     id: String(index),
     title: row[0],
@@ -97,10 +98,15 @@ export function ResourcePage({
               <p className="text-sm font-bold text-ink">목록 관리</p>
               <p className="mt-1 text-xs text-muted">총 {rows.length.toLocaleString("ko-KR")}건의 항목을 확인합니다.</p>
             </div>
-            <label className="w-full sm:max-w-xs">
-              <span className="sr-only">목록 검색</span>
-              <input className="h-11 w-full rounded-xl border border-line bg-surface-muted px-3 text-sm outline-none transition focus:border-brand focus:bg-white focus:ring-2 focus:ring-brand/15" placeholder="이름, 상태, 메모 검색" type="search" />
-            </label>
+            <div className="flex w-full gap-2 sm:max-w-md">
+              <label className="min-w-0 flex-1">
+                <span className="sr-only">목록 검색</span>
+                <input className="h-11 w-full rounded-xl border border-line bg-surface-muted px-3 text-sm outline-none transition focus:border-brand focus:bg-white focus:ring-2 focus:ring-brand/15" placeholder="이름, 상태, 메모 검색" type="search" />
+              </label>
+              <a className="inline-flex h-11 shrink-0 items-center justify-center rounded-xl bg-brand px-4 text-sm font-extrabold text-white shadow-sm xl:hidden" href={`#${quickFormId}`}>
+                등록
+              </a>
+            </div>
           </div>
 
           {rows.length ? (
@@ -115,7 +121,7 @@ export function ResourcePage({
           )}
         </div>
 
-        <form className="scroll-mt-24 rounded-2xl border border-line bg-white p-5 shadow-card" aria-label={`${title} 빠른 등록`} id={formId} onSubmit={handleSubmit} key={formKey}>
+        <form className="scroll-mt-28 rounded-[24px] border border-line bg-white p-5 shadow-card" aria-label={`${title} 빠른 등록`} id={quickFormId} onSubmit={handleSubmit} key={formKey}>
           <div className="mb-4 flex items-start justify-between gap-2">
             <div>
               <h2 className="text-lg font-extrabold tracking-tight text-ink">빠른 등록</h2>
@@ -156,7 +162,7 @@ function MobileCardList({ cards }: { cards: MobileListCard[] }) {
   return (
     <div className="grid gap-3 lg:hidden" aria-label="모바일 카드 목록">
       {cards.map((card) => (
-        <article className="rounded-2xl border border-line bg-white p-4 shadow-card" key={card.id}>
+        <article className="rounded-[22px] border border-line bg-white p-4 shadow-card" key={card.id}>
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <div className="text-base font-extrabold text-ink">{card.title}</div>
@@ -165,7 +171,7 @@ function MobileCardList({ cards }: { cards: MobileListCard[] }) {
             {card.status ? <div className="shrink-0">{card.status}</div> : null}
           </div>
           {card.meta?.length ? (
-            <dl className="mt-3 grid gap-2 text-xs text-muted">
+            <dl className="mt-3 grid gap-2 text-xs text-muted sm:grid-cols-2">
               {card.meta.map((item, index) => (
                 <div className="rounded-xl bg-surface-muted px-3 py-2" key={index}>
                   {item}
