@@ -11,6 +11,7 @@ import {
   APPS_SCRIPT_USER_KEY,
   loginWithAppsScript
 } from "@/lib/apps-script-client";
+import { readPreferences } from "@/lib/preferences";
 
 const accounts: Array<{ role: Role; title: string; description: string }> = [
   { role: "admin", title: "원장 관리자", description: "전체 운영 현황, 수납, 데이터 점검, 설정 권한을 확인합니다." },
@@ -25,7 +26,7 @@ export default function LoginPage() {
 
   function previewLogin(role: Role) {
     window.localStorage.setItem("bonsung_role", role);
-    router.push("/dashboard");
+    router.push(readPreferences().startPage);
   }
 
   async function liveLogin(event: FormEvent<HTMLFormElement>) {
@@ -53,7 +54,7 @@ export default function LoginPage() {
       window.localStorage.setItem(APPS_SCRIPT_SESSION_TOKEN_KEY, result.token);
       window.localStorage.setItem(APPS_SCRIPT_USER_KEY, JSON.stringify(result.user));
       window.localStorage.setItem("bonsung_role", result.user.role);
-      router.replace("/dashboard");
+      router.replace(readPreferences().startPage);
     } catch (caught) {
       setLiveLoginError(caught instanceof Error ? caught.message : "실사용 로그인을 완료하지 못했습니다.");
     } finally {

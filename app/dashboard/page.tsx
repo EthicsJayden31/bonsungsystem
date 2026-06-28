@@ -7,11 +7,21 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Section } from "@/components/ui/section";
 import { DataTable } from "@/components/ui/table";
 import { courseName, studentName, teacherName, useOperationsData, type DataSource } from "@/lib/operations-data";
+import { usePreferences } from "@/lib/preferences";
 import { usePreviewRole } from "@/lib/use-preview-role";
 import type { ReactNode } from "react";
 
+type QuickCardData = {
+  href: string;
+  label: string;
+  value: number;
+  helper: string;
+  tone?: "default" | "warn" | "good";
+};
+
 export default function DashboardPage() {
   const role = usePreviewRole();
+  const preferences = usePreferences();
   const operations = useOperationsData(role);
   const data = operations.data;
 
@@ -21,6 +31,12 @@ export default function DashboardPage() {
   const makeupStudents = data.attendance.filter((item) => item.makeupNeeded);
   const recentStudents = data.students.slice(0, 3);
   const today = new Intl.DateTimeFormat("ko-KR", { dateStyle: "full" }).format(new Date());
+  const mobileQuickCards = buildMobileQuickCards(preferences.dashboardFocus, {
+    lessons: data.lessons.length,
+    attendance: pendingAttendance.length,
+    students: data.students.length,
+    rooms: data.rooms.length
+  });
 
   return (
     <AppShell area="dashboard">
@@ -34,10 +50,9 @@ export default function DashboardPage() {
             <p className="mt-2 text-sm leading-6 text-white/78">{today} 기준으로 먼저 처리할 항목만 모았습니다.</p>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <QuickCard href="/lessons" label="오늘 수업" value={data.lessons.length} helper="일정 확인" />
-            <QuickCard href="/attendance" label="출결 미처리" value={pendingAttendance.length} helper="바로 입력" tone={pendingAttendance.length ? "warn" : "good"} />
-            <QuickCard href="/students" label="학생 관리" value={data.students.length} helper="상세 조회" />
-            <QuickCard href="/practice-rooms" label="공간 예약" value={data.rooms.length} helper="시간 선택" />
+            {mobileQuickCards.map((card) => (
+              <QuickCard href={card.href} label={card.label} value={card.value} helper={card.helper} tone={card.tone} key={card.href} />
+            ))}
           </div>
           <div className="grid grid-cols-2 gap-2">
             {[
@@ -145,6 +160,28 @@ export default function DashboardPage() {
       </Section>
     </AppShell>
   );
+}
+
+function buildMobileQuickCards(
+  focus: "operations" | "lessons" | "students",
+  counts: { lessons: number; attendance: number; students: number; rooms: number }
+) {
+  const cards: Record<"lessons" | "attendance" | "students" | "rooms", QuickCardData> = {
+    lessons: { href: "/lessons", label: "오늘 수업", value: counts.lessons, helper: "일정 확인" },
+    attendance: {
+      href: "/attendance",
+      label: "출결 미처리",
+      value: counts.attendance,
+      helper: "바로 입력",
+      tone: counts.attendance ? "warn" : "good"
+    },
+    students: { href: "/students", label: "학생 관리", value: counts.students, helper: "상세 조회" },
+    rooms: { href: "/practice-rooms", label: "공간 예약", value: counts.rooms, helper: "시간 선택" }
+  };
+
+  if (focus === "lessons") return [cards.lessons, cards.attendance, cards.rooms, cards.students];
+  if (focus === "students") return [cards.students, cards.lessons, cards.attendance, cards.rooms];
+  return [cards.attendance, cards.lessons, cards.students, cards.rooms];
 }
 
 function SourceBanner({ source, error, hasLiveSession }: { source: DataSource; error: string; hasLiveSession: boolean }) {

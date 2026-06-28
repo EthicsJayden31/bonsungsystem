@@ -3,31 +3,8 @@
 import { useState, type ReactNode } from "react";
 import { AppShell } from "@/components/layout/app-shell";
 import { Badge } from "@/components/ui/badge";
+import { readPreferences, savePreferences, startPages, type Preferences } from "@/lib/preferences";
 import { usePreviewRole } from "@/lib/use-preview-role";
-
-type Preferences = {
-  startPage: string;
-  density: "comfortable" | "compact";
-  mobileMenu: "grouped" | "expanded";
-  dashboardFocus: "operations" | "lessons" | "students";
-};
-
-const STORAGE_KEY = "bonsung_preferences";
-
-const defaultPreferences: Preferences = {
-  startPage: "/dashboard",
-  density: "comfortable",
-  mobileMenu: "grouped",
-  dashboardFocus: "operations"
-};
-
-const startPages = [
-  { value: "/dashboard", label: "대시보드" },
-  { value: "/students", label: "학생 관리" },
-  { value: "/lessons", label: "수업/시간표" },
-  { value: "/practice-rooms", label: "강의실/연습실 예약" },
-  { value: "/lesson-notes", label: "레슨노트" }
-];
 
 export default function ProfileSettingsPage() {
   const role = usePreviewRole();
@@ -40,7 +17,7 @@ export default function ProfileSettingsPage() {
   }
 
   function save() {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(preferences));
+    savePreferences(preferences);
     setSaved(true);
   }
 
@@ -107,7 +84,7 @@ export default function ProfileSettingsPage() {
               설정 저장
             </button>
             <p className="mt-3 rounded-xl bg-brand/5 px-3 py-2 text-xs leading-5 text-muted">
-              현재는 이 브라우저에 저장됩니다. Apps Script 계정별 설정 저장은 다음 단계에서 연결합니다.
+              저장 후 다음 로그인부터 선택한 시작 화면으로 이동합니다. 모바일 메뉴와 화면 밀도는 현재 브라우저에서 바로 반영됩니다.
             </p>
             {saved ? <p className="mt-3 rounded-xl border border-success/20 bg-success/10 px-3 py-2 text-xs font-bold text-success">설정이 저장되었습니다.</p> : null}
           </aside>
@@ -156,13 +133,3 @@ function focusLabel(value: Preferences["dashboardFocus"]) {
   return "운영 현황";
 }
 
-function readPreferences(): Preferences {
-  if (typeof window === "undefined") return defaultPreferences;
-
-  try {
-    const stored = window.localStorage.getItem(STORAGE_KEY);
-    return stored ? { ...defaultPreferences, ...JSON.parse(stored) } : defaultPreferences;
-  } catch {
-    return defaultPreferences;
-  }
-}
