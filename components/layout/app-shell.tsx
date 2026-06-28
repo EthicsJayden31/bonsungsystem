@@ -12,6 +12,7 @@ import {
   APPS_SCRIPT_USER_KEY,
   type AppsScriptUser
 } from "@/lib/apps-script-client";
+import { usePreferences } from "@/lib/preferences";
 import { usePreviewRole } from "@/lib/use-preview-role";
 
 type NavItem = {
@@ -111,6 +112,7 @@ export function AppShell({ children, area = "dashboard" }: { children: ReactNode
   const router = useRouter();
   const pathname = usePathname();
   const role = usePreviewRole();
+  const preferences = usePreferences();
   const user = useMemo(() => (role ? getSessionUser(role) ?? previewUsers[role] : null), [role]);
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -152,9 +154,10 @@ export function AppShell({ children, area = "dashboard" }: { children: ReactNode
     .map((group) => ({ ...group, items: group.items.filter((item) => canAccess(user.role, item.area)) }))
     .filter((group) => group.items.length > 0);
   const current = pageCopy[area] ?? pageCopy.dashboard;
+  const compact = preferences.density === "compact";
 
   return (
-    <div className="min-h-screen bg-canvas">
+    <div className={`min-h-screen bg-canvas ${compact ? "text-[95%]" : ""}`}>
       <aside className="fixed inset-y-0 left-0 hidden w-72 border-r border-line bg-white px-5 py-5 lg:block">
         <BrandBlock />
         <nav className="mt-6 space-y-5" aria-label="주요 메뉴">
@@ -207,12 +210,12 @@ export function AppShell({ children, area = "dashboard" }: { children: ReactNode
           </div>
         </header>
 
-        <MobileHomeStrip groups={visibleGroups} currentArea={area} />
-        <main className="mx-auto max-w-7xl px-4 pb-[calc(6.5rem+env(safe-area-inset-bottom))] pt-4 sm:py-8 lg:pb-8">{children}</main>
+        <MobileHomeStrip groups={visibleGroups} currentArea={area} mode={preferences.mobileMenu} />
+        <main className={`mx-auto max-w-7xl px-4 pb-[calc(6.5rem+env(safe-area-inset-bottom))] pt-4 lg:pb-8 ${compact ? "sm:py-5" : "sm:py-8"}`}>{children}</main>
       </div>
 
       <MobileBottomTabs groups={visibleGroups} pathname={pathname} area={area} onMore={() => setMenuOpen(true)} />
-      <MobileMenuSheet groups={visibleGroups} open={menuOpen} pathname={pathname} role={user.role} onClose={() => setMenuOpen(false)} />
+      <MobileMenuSheet groups={visibleGroups} open={menuOpen} pathname={pathname} role={user.role} mode={preferences.mobileMenu} onClose={() => setMenuOpen(false)} />
     </div>
   );
 }
@@ -233,14 +236,15 @@ function NavLink({ item, pathname }: { item: NavItem; pathname: string }) {
   );
 }
 
-function MobileHomeStrip({ groups, currentArea }: { groups: NavGroup[]; currentArea: string }) {
+function MobileHomeStrip({ groups, currentArea, mode }: { groups: NavGroup[]; currentArea: string; mode: "grouped" | "expanded" }) {
   const activeGroup = groups.find((group) => group.items.some((item) => item.area === currentArea)) ?? groups[0];
   if (!activeGroup) return null;
+  const items = mode === "expanded" ? groups.flatMap((group) => group.items) : activeGroup.items;
 
   return (
-    <section className="border-b border-line bg-white px-4 py-3 lg:hidden" aria-label="현재 영역 빠른 이동">
+    <section className="border-b border-line bg-white px-4 py-3 lg:hidden" aria-label={mode === "expanded" ? "전체 메뉴 빠른 이동" : "현재 영역 빠른 이동"}>
       <div className="flex gap-2 overflow-x-auto pb-1">
-        {activeGroup.items.map((item) => (
+        {items.map((item) => (
           <Link
             className={`shrink-0 rounded-full border px-3 py-2 text-xs font-bold ${
               item.area === currentArea ? "border-brand bg-brand text-white" : "border-line bg-surface-muted text-muted"
@@ -315,12 +319,14 @@ function MobileMenuSheet({
   open,
   pathname,
   role,
+  mode,
   onClose
 }: {
   groups: NavGroup[];
   open: boolean;
   pathname: string;
   role: Role;
+  mode: "grouped" | "expanded";
   onClose: () => void;
 }) {
   if (!open) return null;
@@ -343,7 +349,7 @@ function MobileMenuSheet({
                 <p className="text-sm font-extrabold text-ink">{group.title}</p>
                 <p className="mt-1 text-xs text-muted">{group.helper}</p>
               </div>
-              <div className="grid grid-cols-2 gap-2">
+              <div className={`grid gap-2 ${mode === "expanded" ? "grid-cols-1" : "grid-cols-2"}`}>
                 {group.items.map((item) => {
                   const active = pathname === item.href;
                   return (

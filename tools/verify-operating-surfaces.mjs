@@ -20,8 +20,13 @@ const requiredFiles = [
 const requiredSourceSignals = [
   {
     file: "app/login/page.tsx",
-    includes: ["/legacy-preview/", "previewLogin", "loginWithAppsScript", "bonsung-logo-seal.png"],
-    label: "login page separates Apps Script live login from preview role login"
+    includes: ["/legacy-preview/", "previewLogin", "loginWithAppsScript", "readPreferences().startPage", "bonsung-logo-seal.png"],
+    label: "login page separates Apps Script live login from preview role login and respects the preferred start page"
+  },
+  {
+    file: "lib/preferences.ts",
+    includes: ["bonsung_preferences", "startPages", "useSyncExternalStore", "savePreferences"],
+    label: "personalization settings are shared across app screens"
   },
   {
     file: "lib/operations-data.ts",
@@ -40,8 +45,13 @@ const requiredSourceSignals = [
   },
   {
     file: "components/layout/app-shell.tsx",
-    includes: ["MobileBottomTabs", "MobileMenuSheet", "오늘 운영", "사람", "강사", "수업과 공간", "개인화 설정", "bonsung-logo-seal.png"],
-    label: "Next UI exposes app-like mobile navigation, teacher menu, and template-derived logo"
+    includes: ["MobileBottomTabs", "MobileMenuSheet", "usePreferences", "preferences.mobileMenu", "preferences.density", "오늘 운영", "사람", "강사", "수업과 공간", "개인화 설정", "bonsung-logo-seal.png"],
+    label: "Next UI exposes app-like mobile navigation, teacher menu, user preferences, and template-derived logo"
+  },
+  {
+    file: "app/dashboard/page.tsx",
+    includes: ["usePreferences", "buildMobileQuickCards", "preferences.dashboardFocus"],
+    label: "dashboard mobile quick actions respect the user's preferred focus"
   },
   {
     file: "components/layout/resource-page.tsx",
