@@ -1074,6 +1074,21 @@ function navigate(page) {
   loadPageData(page);
 }
 
+function navigateSubview(page, subview) {
+  if (state.page !== page || state.selectedEntity) {
+    state.navigationStack.push({ page: state.page, subview: state.subview, selectedEntity: state.selectedEntity });
+    if (state.navigationStack.length > 20) state.navigationStack.shift();
+  }
+  state.page = page;
+  state.subview = subview || defaultSubview(page);
+  state.selectedEntity = null;
+  state.mobileMenu = false;
+  state.message = "";
+  render();
+  api("recordPageView", { page }).catch(() => {});
+  loadPageData(page);
+}
+
 function defaultSubview(page) {
   if (page === "lesson-logs") return "browse";
   if (page === "reservations") return "schedule";
@@ -1781,7 +1796,7 @@ function menusFor(role) {
     if (key === "accounts" && !state.capabilities.viewAccounts) return false;
     if (key === "system-settings" && !state.capabilities.managePublicSettings) return false;
     if (key === "registrations" && !state.capabilities.viewPayments) return false;
-    if (key === "meetings" && state.accountType === "student") return false;
+    if (key === "meetings" && !state.capabilities.viewMeetings) return false;
     if (key === "students" && !state.capabilities.viewStudents) return false;
     if (key === "lesson-logs" && !state.capabilities.viewLessonLogs) return false;
     if (key === "reservations" && !state.capabilities.viewReservations) return false;
@@ -1932,10 +1947,12 @@ function currentPageLabel(menus) {
 function mobilePrimaryMenus(menus, user) {
   const menuMap = keyBy(menus.map(([key, label, iconName]) => ({ key, label, iconName })), "key");
   const preferred = user.role === "teacher"
-    ? ["my-overview", "lesson-logs", "reservations"]
+    ? ["my-overview", "lesson-logs", "students"]
     : user.role === "student"
-      ? ["my-overview", "lesson-logs", "registrations"]
-      : ["dashboard", "students", "reservations"];
+      ? ["my-overview", "lesson-logs", "reservations"]
+      : user.role === "staff"
+        ? ["students", "enrollments", "registrations"]
+        : ["dashboard", "students", "accounts"];
   const picked = preferred.map((key) => menuMap[key]).filter(Boolean);
   const fallback = menus
     .filter(([key]) => key !== "profile" && !picked.some((item) => item.key === key))
@@ -1946,19 +1963,49 @@ function mobilePrimaryMenus(menus, user) {
 
 function renderMobileMenu(menus) {
   const menuMap = keyBy(menus.map(([key, label, iconName]) => ({ key, label, iconName })), "key");
-  const sections = mobileMenuSections().map((section) => ({
+  const sections = mobileMenuSections(state.user).map((section) => ({
     ...section,
     items: section.keys.map((key) => menuMap[key]).filter(Boolean)
   })).filter((section) => section.items.length);
-  return `<div class="mobile-menu-backdrop" onclick="toggleMobileMenu()"><section class="mobile-menu-sheet" onclick="event.stopPropagation()"><div class="mobile-menu-grip" aria-hidden="true"></div><div class="mobile-menu-head"><div><strong>전체 메뉴</strong><small>업무를 하나씩 선택해 들어갑니다.</small></div><button class="icon-button" onclick="toggleMobileMenu()" aria-label="닫기">${icon("close")}</button></div><nav>${sections.map((section) => `<section class="mobile-menu-section"><h3>${escapeHtml(section.title)}</h3>${section.items.map((item) => `<div class="mobile-menu-group">${navButton(item.key, item.label, item.iconName)}${mobileMenuChildren(item.key)}</div>`).join("")}</section>`).join("")}<section class="mobile-menu-section mobile-menu-section-utility"><h3>계정</h3><button onclick="logout()">${icon("logout")}<span>로그아웃</span></button></section></nav></section></div>`;
+  return `<div class="mobile-menu-backdrop" onclick="toggleMobileMenu()"><section class="mobile-menu-sheet" onclick="event.stopPropagation()"><div class="mobile-menu-grip" aria-hidden="true"></div><div class="mobile-menu-head"><div><strong>더보기</strong><small>${escapeHtml(mobileMenuHelp(state.user))}</small></div><button class="icon-button" onclick="toggleMobileMenu()" aria-label="닫기">${icon("close")}</button></div><nav>${sections.map((section) => `<section class="mobile-menu-section"><h3>${escapeHtml(section.title)}</h3>${section.items.map((item) => `<div class="mobile-menu-group">${navButton(item.key, item.label, item.iconName)}${mobileMenuChildren(item.key)}</div>`).join("")}</section>`).join("")}<section class="mobile-menu-section mobile-menu-section-utility"><h3>계정</h3><button onclick="logout()">${icon("logout")}<span>로그아웃</span></button></section></nav></section></div>`;
 }
 
-function mobileMenuSections() {
+function mobileMenuHelp(user) {
+  if (user.role === "teacher") return "오늘 수업과 담당 수강생 업무를 먼저 모았습니다.";
+  if (user.role === "student") return "내 수업, 피드백, 연습실 예약을 빠르게 확인합니다.";
+  if (user.role === "staff") return "접수와 운영 업무를 하나씩 선택해 들어갑니다.";
+  return "관리자가 자주 보는 운영·권한 업무를 먼저 모았습니다.";
+}
+
+function mobileMenuSections(user) {
+  if (user.role === "teacher") {
+    return [
+      { title: "오늘 수업", keys: ["my-overview", "calendar"] },
+      { title: "담당 수강생", keys: ["students", "lesson-logs"] },
+      { title: "예약·협업", keys: ["reservations", "meetings"] },
+      { title: "내 설정", keys: ["team", "profile"] }
+    ];
+  }
+  if (user.role === "student") {
+    return [
+      { title: "내 수업", keys: ["my-overview", "lesson-logs"] },
+      { title: "이용하기", keys: ["reservations", "calendar"] },
+      { title: "결제·설정", keys: ["registrations", "profile"] }
+    ];
+  }
+  if (user.role === "staff") {
+    return [
+      { title: "접수·상담", keys: ["students", "enrollments", "registrations"] },
+      { title: "오늘 운영", keys: ["dashboard", "calendar", "reservations"] },
+      { title: "팀 업무", keys: ["team", "meetings"] },
+      { title: "계정·설정", keys: ["accounts", "system-settings", "profile"] }
+    ];
+  }
   return [
-    { title: "오늘 업무", keys: ["dashboard", "my-overview", "calendar"] },
-    { title: "수강생·수업", keys: ["students", "enrollments", "lesson-logs"] },
-    { title: "예약·운영", keys: ["reservations", "registrations", "team", "meetings"] },
-    { title: "관리·설정", keys: ["accounts", "usage", "system-settings", "profile"] }
+    { title: "운영 현황", keys: ["dashboard", "usage", "calendar"] },
+    { title: "수강·등록", keys: ["students", "enrollments", "registrations", "lesson-logs"] },
+    { title: "공간·팀", keys: ["reservations", "team", "meetings"] },
+    { title: "권한·설정", keys: ["accounts", "system-settings", "profile"] }
   ];
 }
 
@@ -1978,7 +2025,7 @@ function mobileMenuChildren(page) {
   if (state.capabilities.reviewAccountRequests) childMap.accounts.push(["requests", "신규 요청"]);
   if (state.capabilities.manageAccounts) childMap.accounts.push(["create", "계정 생성"]);
   const children = childMap[page] || [];
-  return children.map(([subview, label]) => `<button class="mobile-child" onclick="navigate('${page}');setSubview('${subview}')">${icon("chevron")}<span>${label}</span></button>`).join("");
+  return children.map(([subview, label]) => `<button class="mobile-child" onclick="navigateSubview('${page}', '${subview}')">${icon("chevron")}<span>${label}</span></button>`).join("");
 }
 
 function labelResponsiveTables() {
