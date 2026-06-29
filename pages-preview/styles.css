@@ -528,6 +528,10 @@ td.wrap { min-width: 210px; white-space: normal; line-height: 1.5; }
 .subview-tabs button { flex: 0 0 auto; min-height: 38px; display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--muted); padding: 7px 12px; font-size: 11px; font-weight: 750; }
 .subview-tabs button.active { border-color: var(--brand); background: var(--brand-soft); color: var(--brand-dark); }
 .subview-tabs .icon { width: 16px; height: 16px; }
+.mobile-subview-picker { display: none; }
+.mobile-subview-picker label { display: grid; gap: 6px; }
+.mobile-subview-picker span { color: var(--muted); font-size: 10px; font-weight: 850; letter-spacing: .04em; }
+.mobile-subview-picker select { width: 100%; min-height: 44px; border: 1px solid rgba(107, 15, 18, 0.18); border-radius: 14px; background: white; color: var(--brand-dark); padding: 0 12px; font-size: 14px; font-weight: 850; box-shadow: 0 10px 22px rgba(60, 6, 8, 0.06); }
 .focused-panel, .single-composer { width: min(760px, 100%); margin: 0 auto; }
 .single-composer .composer-panel { position: static; max-height: none; }
 .absence-detail { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; border: 1px solid #efc1bd; border-radius: 6px; background: var(--danger-soft); padding: 11px; }
@@ -785,7 +789,8 @@ button.floor-room:hover { transform: translateY(-1px); border-color: var(--brand
   .calendar-day.today { box-shadow: inset 3px 0 0 var(--brand); }
   .calendar-event { min-height: 31px; padding: 7px; font-size: 10px; white-space: normal; }
   .month-controls { width: 100%; justify-content: space-between; }
-  .subview-tabs { position: sticky; z-index: 6; top: 61px; margin: -5px -12px 14px; border-bottom: 1px solid var(--line); background: color-mix(in srgb, var(--background) 94%, transparent); padding: 8px 12px; backdrop-filter: blur(8px); }
+  .mobile-subview-picker { position: sticky; z-index: 6; top: 61px; display: block; margin: -5px -12px 14px; border-bottom: 1px solid var(--line); background: color-mix(in srgb, var(--background) 94%, transparent); padding: 8px 12px; backdrop-filter: blur(8px); }
+  .subview-tabs { display: none; }
   .subview-tabs button { min-height: 42px; }
   .absence-detail { grid-template-columns: 1fr; }
   .floor-plan { overflow: visible; border-radius: 18px; }

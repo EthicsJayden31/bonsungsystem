@@ -2011,7 +2011,8 @@ function renderPage() {
 }
 
 function subviewTabs(items) {
-  return `<nav class="subview-tabs" aria-label="세부 메뉴">${items.map(([key, label, iconName]) => `<button class="${state.subview === key ? "active" : ""}" onclick="setSubview('${key}')">${icon(iconName || "list")}<span>${label}</span></button>`).join("")}</nav>`;
+  const options = items.map(([key, label]) => `<option value="${key}" ${state.subview === key ? "selected" : ""}>${escapeHtml(label)}</option>`).join("");
+  return `<div class="mobile-subview-picker"><label><span>작업 선택</span><select onchange="setSubview(this.value)">${options}</select></label></div><nav class="subview-tabs" aria-label="세부 메뉴">${items.map(([key, label, iconName]) => `<button class="${state.subview === key ? "active" : ""}" onclick="setSubview('${key}')">${icon(iconName || "list")}<span>${label}</span></button>`).join("")}</nav>`;
 }
 
 function renderTestToolbar() {
