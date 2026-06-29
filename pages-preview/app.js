@@ -141,6 +141,7 @@ const state = {
   calendarSort: "dateAsc",
   calendarFilter: "all",
   reservationFilter: { date: today(), room: "all" },
+  reservationDraft: null,
   lessonDraft: readJson(STORAGE.lessonDraft) || {},
   theme: localStorage.getItem(STORAGE.theme) || "system",
   density: localStorage.getItem(STORAGE.density) || "comfortable",
@@ -1351,6 +1352,9 @@ async function createReservation(event) {
   try {
     await api("createReservation", { reservation });
     await refreshFeature("reservations");
+    state.reservationDraft = null;
+    state.subview = "schedule";
+    state.reservationFilter = { date: reservation.reservation_date, room: reservation.room_id };
     state.message = "공간 예약을 등록했습니다.";
     render();
   } catch (error) { setBusy(false, error.message); }
@@ -2409,13 +2413,26 @@ function renderReservations() {
   if (state.capabilities.manageReservations) tabs.push(["rooms", "공간 관리", "settings"]);
   const heading = `${pageHeading("레슨실·연습실 예약", "접근 가능한 공간의 1시간 예약 현황을 확인하고 예약합니다.")}${subviewTabs(tabs)}`;
   if (state.subview === "create") {
+    const draft = state.reservationDraft || {};
+    const draftRoomId = draft.room_id || "";
+    const draftDate = draft.reservation_date || state.reservationFilter.date || today();
+    const draftStart = draft.start_time || "09:00";
+    const draftEnd = addMinutesClient(draftStart, 60);
+    const draftRoom = selectableRooms.find((item) => item.room_id === draftRoomId);
+    const selectionSummary = draftRoom ? `<div class="reservation-selection-summary" aria-live="polite">
+      <span>선택한 예약</span>
+      <strong>${escapeHtml(draftRoom.name)}</strong>
+      <p>${escapeHtml(formatDate(draftDate))} · ${escapeHtml(draftStart)}-${escapeHtml(draftEnd)}</p>
+      <button class="text-action" type="button" onclick="returnReservationSchedule()">시간 다시 선택 ${icon("chevron")}</button>
+    </div>` : "";
     return `${heading}<section class="panel form-panel focused-panel"><div class="panel-head"><div><h2>새 공간 예약</h2><p>정각부터 1시간 단위</p></div></div>
+      ${selectionSummary}
       <form class="panel-body form-grid two" onsubmit="createReservation(event)">
-        <label class="field wide"><span>공간</span><select name="room_id" required><option value="">선택</option>${selectableRooms.map((item) => `<option value="${item.room_id}">${escapeHtml(item.name)} · ${item.room_type === "lesson" ? "레슨실" : "연습실"}</option>`).join("")}</select></label>
-        <label class="field"><span>예약일</span><input name="reservation_date" type="date" value="${today()}" required /></label>
+        <label class="field wide"><span>공간</span><select name="room_id" required><option value="">선택</option>${selectableRooms.map((item) => `<option value="${item.room_id}" ${draftRoomId === item.room_id ? "selected" : ""}>${escapeHtml(item.name)} · ${item.room_type === "lesson" ? "레슨실" : "연습실"}</option>`).join("")}</select></label>
+        <label class="field"><span>예약일</span><input name="reservation_date" type="date" value="${escapeAttr(draftDate)}" required /></label>
         <label class="field"><span>목적</span><select name="purpose" required>${purposes.map((item) => `<option>${item}</option>`).join("")}</select></label>
-        <label class="field"><span>시작</span><select name="start_time" onchange="syncReservationEnd(this)" required>${hourOptions()}</select></label>
-        <label class="field"><span>종료</span><input name="end_time" value="10:00" readonly /></label>
+        <label class="field"><span>시작</span><select name="start_time" onchange="syncReservationEnd(this)" required>${hourOptions(draftStart)}</select></label>
+        <label class="field"><span>종료</span><input name="end_time" value="${escapeAttr(draftEnd)}" readonly /></label>
         <label class="field wide"><span>메모</span><textarea name="memo" placeholder="예약 대상이나 준비 사항"></textarea></label>
         <div class="form-actions wide"><button class="btn">${icon("plus")}1시간 예약하기</button></div>
       </form>
@@ -2429,15 +2446,20 @@ function renderReservations() {
     <section class="panel"><div class="panel-head"><div><h2>예약 목록</h2><p>공간명과 예약자명을 눌러 상세 보기</p></div></div>${reservationsTable(state.reservations)}</section>`;
 }
 
-function hourOptions() {
+function hourOptions(selected = "09:00") {
   return Array.from({ length: 14 }, (_, index) => {
     const time = `${String(index + 9).padStart(2, "0")}:00`;
-    return `<option value="${time}">${time} - ${addMinutesClient(time, 60)}</option>`;
+    return `<option value="${time}" ${selected === time ? "selected" : ""}>${time} - ${addMinutesClient(time, 60)}</option>`;
   }).join("");
 }
 
 function setReservationFilter(key, value) {
   state.reservationFilter[key] = value;
+  render();
+}
+
+function returnReservationSchedule() {
+  state.subview = "schedule";
   render();
 }
 
@@ -2511,7 +2533,8 @@ function reservationSchedule() {
   const hours = Array.from({ length: 14 }, (_, index) => `${String(index + 9).padStart(2, "0")}:00`);
   return `<div class="reservation-schedule">${rooms.map((room) => `<section><button class="schedule-room" onclick="openEntity('room','${room.room_id}')">${escapeHtml(room.name)}</button><div class="schedule-slots">${hours.map((hour) => {
     const reservation = state.reservations.find((item) => item.room_id === room.room_id && item.reservation_date === date && item.start_time === hour && item.status === "예약");
-    return reservation ? `<button class="slot occupied purpose-${reservationPurposeKey(reservation.purpose)}" onclick="openEntity('reservation','${reservation.reservation_id}')"><time>${hour}</time><span>${escapeHtml(reservation.purpose)}</span><small>${escapeHtml(reservation.reserved_by_name)}</small></button>` : `<button class="slot open" onclick="prefillReservation('${room.room_id}','${date}','${hour}')"><time>${hour}</time><span>예약 가능</span></button>`;
+    const slotLabel = `${room.name} ${formatDate(date)} ${hour}부터 1시간 예약하기`;
+    return reservation ? `<button class="slot occupied purpose-${reservationPurposeKey(reservation.purpose)}" onclick="openEntity('reservation','${reservation.reservation_id}')"><time>${hour}</time><span>${escapeHtml(reservation.purpose)}</span><small>${escapeHtml(reservation.reserved_by_name)}</small></button>` : `<button class="slot open" aria-label="${escapeAttr(slotLabel)}" onclick="prefillReservation('${room.room_id}','${date}','${hour}')"><time>${hour}</time><span>예약 가능</span></button>`;
   }).join("")}</div></section>`).join("")}</div>`;
 }
 
@@ -2520,14 +2543,9 @@ function reservationPurposeKey(purpose) {
 }
 
 function prefillReservation(roomId, date, time) {
+  state.reservationDraft = { room_id: roomId, reservation_date: date, start_time: time };
   state.subview = "create";
   render();
-  const form = root.querySelector("form");
-  if (!form) return;
-  form.room_id.value = roomId;
-  form.reservation_date.value = date;
-  form.start_time.value = time;
-  syncReservationEnd(form.start_time);
 }
 
 function renderTeam() {
@@ -3224,6 +3242,7 @@ window.createEnrollment = createEnrollment;
 window.createLesson = createLesson;
 window.createRegistration = createRegistration;
 window.createReservation = createReservation;
+window.returnReservationSchedule = returnReservationSchedule;
 window.updateReservationStatus = updateReservationStatus;
 window.clockWork = clockWork;
 window.createMeeting = createMeeting;

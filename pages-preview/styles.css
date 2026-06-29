@@ -623,6 +623,11 @@ button.floor-room:hover { transform: translateY(-1px); border-color: var(--brand
 .slot.purpose-practice { border-color: #b8ddc9; background: var(--success-soft); }
 .slot.purpose-theory { border-color: #f0d2ae; background: var(--warning-soft); }
 .room-link { border: 0; background: transparent; color: var(--brand-dark); padding: 0; font-size: 10px; font-weight: 750; }
+.reservation-selection-summary { margin: 14px 16px 0; border: 1px solid rgba(107, 15, 18, 0.18); border-radius: 16px; background: linear-gradient(135deg, rgba(107, 15, 18, 0.08), rgba(255, 255, 255, 0.96)); padding: 14px; box-shadow: 0 12px 26px rgba(60, 6, 8, 0.07); }
+.reservation-selection-summary span { display: block; color: var(--brand-dark); font-size: 10px; font-weight: 850; letter-spacing: .06em; }
+.reservation-selection-summary strong { display: block; margin-top: 5px; color: var(--ink); font-size: 17px; }
+.reservation-selection-summary p { margin-top: 4px; color: var(--muted); font-size: 12px; font-weight: 700; }
+.reservation-selection-summary .text-action { margin-top: 10px; }
 .calendar-filters { display: flex; gap: 6px; margin-bottom: 12px; overflow: auto; scrollbar-width: none; }
 .calendar-filters button { flex: 0 0 auto; min-height: 32px; border: 1px solid var(--line); border-radius: 5px; background: var(--surface); color: var(--muted); padding: 5px 10px; font-size: 10px; font-weight: 750; }
 .calendar-filters button.active { border-color: var(--brand); background: var(--brand-soft); color: var(--brand-dark); }
