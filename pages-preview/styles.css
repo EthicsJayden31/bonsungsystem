@@ -806,28 +806,58 @@ button.floor-room:hover { transform: translateY(-1px); border-color: var(--brand
 }
 
 @media (max-width: 760px) {
-  .table-wrap { overflow: visible; }
+  .table-wrap { overflow: visible; background: transparent; }
+  .table-wrap table { background: transparent; }
   table, thead, tbody, tr, th, td { display: block; width: 100%; }
   thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-  tbody { padding: 0 10px 10px; }
-  tr { margin-top: 10px; border: 1px solid var(--line); border-radius: 6px; background: white; overflow: hidden; }
+  tbody { display: grid; gap: 12px; padding: 0 10px 12px; }
+  tr {
+    margin-top: 0;
+    border: 1px solid rgba(60, 6, 8, 0.1);
+    border-radius: 18px;
+    background: white;
+    box-shadow: 0 14px 32px rgba(60, 6, 8, 0.08);
+    overflow: hidden;
+  }
   tbody tr:hover { background: white; }
   td, td.wrap {
     display: grid;
-    grid-template-columns: minmax(80px, 31%) minmax(0, 1fr);
+    grid-template-columns: minmax(82px, 30%) minmax(0, 1fr);
     gap: 10px;
     min-width: 0;
     min-height: 0;
     max-width: none;
-    border-bottom: 1px solid #edf0f2;
-    padding: 9px 10px;
+    border-bottom: 1px solid #f0e9e7;
+    padding: 10px 13px;
     white-space: normal;
     overflow-wrap: anywhere;
     line-height: 1.5;
   }
+  td:first-child {
+    display: block;
+    border-bottom-color: rgba(107, 15, 18, 0.1);
+    background: linear-gradient(180deg, rgba(107, 15, 18, 0.06), rgba(107, 15, 18, 0));
+    padding: 13px;
+  }
+  td:first-child::before { display: none; }
+  td:first-child .entity-link,
+  td:first-child strong { color: var(--brand); font-size: 15px; font-weight: 850; }
+  td:first-child small { display: block; margin-top: 4px; color: var(--muted); font-size: 11px; }
   td:last-child { border-bottom: 0; }
-  td::before { content: attr(data-label); color: var(--muted); font-size: 10px; font-weight: 750; }
+  td::before { content: attr(data-label); color: var(--muted); font-size: 10px; font-weight: 800; letter-spacing: 0.02em; }
   td .icon-button { justify-self: start; }
+  td .status-badge { width: fit-content; }
+  td .row-actions { display: grid; grid-template-columns: 1fr; gap: 7px; }
+  td .row-actions .btn,
+  td > .btn,
+  td > .icon-button { min-height: 40px; }
+  .journal-table .summary-cell {
+    display: -webkit-box;
+    max-width: none;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    overflow: hidden;
+  }
 }
 
 @media (max-width: 620px) {
