@@ -2009,23 +2009,26 @@ function mobileMenuSections(user) {
   ];
 }
 
-function mobileMenuChildren(page) {
+function subviewActionsFor(page) {
   const childMap = {
-    "lesson-logs": [["browse", "일지 조회"]],
-    reservations: [["schedule", "예약 현황"], ["list", "예약 목록"], ["create", "새 예약"]],
-    enrollments: [["history", "수강 이력"], ["schedule", "수업 일정"]],
-    accounts: [["list", "계정 목록"]],
-    students: [["list", "수강생 목록"]]
+    "lesson-logs": [{ subview: "browse", label: "일지 조회" }],
+    reservations: [{ subview: "schedule", label: "예약 현황" }, { subview: "list", label: "예약 목록" }, { subview: "create", label: "새 예약" }],
+    enrollments: [{ subview: "history", label: "수강 이력" }, { subview: "schedule", label: "수업 일정" }],
+    accounts: [{ subview: "list", label: "계정 목록" }],
+    students: [{ subview: "list", label: "수강생 목록" }]
   };
-  if (state.capabilities.writeLessonLogs) childMap["lesson-logs"].push(["create", "일지 작성"]);
-  if (state.capabilities.manageReservations) childMap.reservations.push(["rooms", "공간 관리"]);
-  if (state.capabilities.manageOperations) childMap.enrollments.push(["create", "수강 등록"]);
-  if (state.capabilities.manageCalendar) childMap.enrollments.push(["types", "등록 기준"]);
-  if (state.capabilities.manageStudents) childMap.students.push(["create", "수강생 등록"]);
-  if (state.capabilities.reviewAccountRequests) childMap.accounts.push(["requests", "신규 요청"]);
-  if (state.capabilities.manageAccounts) childMap.accounts.push(["create", "계정 생성"]);
-  const children = childMap[page] || [];
-  return children.map(([subview, label]) => `<button class="mobile-child" onclick="navigateSubview('${page}', '${subview}')">${icon("chevron")}<span>${label}</span></button>`).join("");
+  if (state.capabilities.writeLessonLogs) childMap["lesson-logs"].push({ subview: "create", label: "일지 작성" });
+  if (state.capabilities.manageReservations) childMap.reservations.push({ subview: "rooms", label: "공간 관리" });
+  if (state.capabilities.manageOperations) childMap.enrollments.push({ subview: "create", label: "수강 등록" });
+  if (state.capabilities.manageCalendar) childMap.enrollments.push({ subview: "types", label: "등록 기준" });
+  if (state.capabilities.manageStudents) childMap.students.push({ subview: "create", label: "수강생 등록" });
+  if (state.capabilities.reviewAccountRequests) childMap.accounts.push({ subview: "requests", label: "신규 요청" });
+  if (state.capabilities.manageAccounts) childMap.accounts.push({ subview: "create", label: "계정 생성" });
+  return childMap[page] || [];
+}
+
+function mobileMenuChildren(page) {
+  return subviewActionsFor(page).map(({ subview, label }) => `<button class="mobile-child" onclick="navigateSubview('${page}', '${subview}')">${icon("chevron")}<span>${label}</span></button>`).join("");
 }
 
 function labelResponsiveTables() {
@@ -2099,32 +2102,36 @@ function dashboardWidgetOptions() {
 function quickActionsFor(user = state.user) {
   const c = state.capabilities || {};
   const action = (label, hint, iconName, page, subview = "") => ({ label, hint, iconName, page, subview });
+  const subviewAction = (page, subview, label, hint, iconName) => {
+    const target = subviewActionsFor(page).find((item) => item.subview === subview);
+    return target ? action(label || target.label, hint, iconName, page, target.subview) : null;
+  };
   const byRole = user.role === "teacher"
     ? [
-        c.writeLessonLogs ? action("수업일지 작성", "오늘 수업 기록 남기기", "plus", "lesson-logs", "create") : null,
+        subviewAction("lesson-logs", "create", "수업일지 작성", "오늘 수업 기록 남기기", "plus"),
         action("오늘 수업", "내 일정 바로 확인", "calendar", "my-overview"),
-        c.viewStudents ? action("담당 수강생", "학생별 기록 확인", "users", "students", "list") : null,
-        c.viewReservations ? action("공간 예약", "레슨실·연습실 예약", "building", "reservations", "create") : null
+        subviewAction("students", "list", "담당 수강생", "학생별 기록 확인", "users"),
+        subviewAction("reservations", "create", "공간 예약", "레슨실·연습실 예약", "building")
       ]
     : user.role === "student"
       ? [
           action("다음 수업", "예정된 수업 확인", "calendar", "my-overview"),
-          c.viewLessonLogs ? action("수업 피드백", "선생님 기록 보기", "book", "lesson-logs", "browse") : null,
-          c.viewReservations ? action("연습실 예약", "가능한 공간 예약", "building", "reservations", "create") : null,
+          subviewAction("lesson-logs", "browse", "수업 피드백", "선생님 기록 보기", "book"),
+          subviewAction("reservations", "create", "연습실 예약", "가능한 공간 예약", "building"),
           c.viewPayments ? action("결제 내역", "등록·결제 상태 확인", "credit", "registrations") : null
         ]
       : user.role === "staff"
         ? [
-            c.manageStudents ? action("상담/수강생 등록", "신규 학생 정보 입력", "users", "students", "create") : null,
-            c.manageOperations ? action("수강 등록", "수강과 수업 일정 연결", "calendar", "enrollments", "create") : null,
+            subviewAction("students", "create", "상담/수강생 등록", "신규 학생 정보 입력", "users"),
+            subviewAction("enrollments", "create", "수강 등록", "수강과 수업 일정 연결", "calendar"),
             c.viewPayments ? action("수납 확인", "재등록·결제 예정 점검", "credit", "registrations") : null,
             c.viewTeam ? action("출근·퇴근", "오늘 근태 기록", "briefcase", "team") : null
           ]
         : [
-            c.reviewAccountRequests ? action("신규 계정 승인", `${pendingAccountRequests().length}건 대기`, "userCog", "accounts", "requests") : null,
+            subviewAction("accounts", "requests", "신규 계정 승인", `${pendingAccountRequests().length}건 대기`, "userCog"),
             c.viewPayments ? action("재등록·수납 점검", "14일 내 예정 확인", "credit", "registrations") : null,
             action("운영 현황", "오늘 운영 흐름 보기", "home", "dashboard"),
-            c.viewAccounts ? action("권한 관리", "계정 권한 설정", "settings", "accounts", "list") : null
+            subviewAction("accounts", "list", "권한 관리", "계정 권한 설정", "settings")
           ];
   return byRole.filter(Boolean).slice(0, 4);
 }
