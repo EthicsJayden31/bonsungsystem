@@ -1965,7 +1965,7 @@ function mobileMenuSections() {
 function mobileMenuChildren(page) {
   const childMap = {
     "lesson-logs": [["browse", "일지 조회"]],
-    reservations: [["schedule", "예약 현황"], ["create", "새 예약"]],
+    reservations: [["schedule", "예약 현황"], ["list", "예약 목록"], ["create", "새 예약"]],
     enrollments: [["history", "수강 이력"], ["schedule", "수업 일정"]],
     accounts: [["list", "계정 목록"]],
     students: [["list", "수강생 목록"]]
@@ -2409,7 +2409,7 @@ function renderReservations() {
   });
   const upcoming = state.reservations.filter((item) => item.reservation_date >= today() && item.status === "예약");
   const purposes = state.accountType === "student" ? ["연습"] : state.employeePosition === "teacher" ? ["레슨", "이론수업", "연습"] : RESERVATION_PURPOSES;
-  const tabs = [["schedule", "예약 현황", "calendar"], ["create", "새 예약", "plus"]];
+  const tabs = [["schedule", "예약 현황", "calendar"], ["list", "예약 목록", "list"], ["create", "새 예약", "plus"]];
   if (state.capabilities.manageReservations) tabs.push(["rooms", "공간 관리", "settings"]);
   const heading = `${pageHeading("레슨실·연습실 예약", "접근 가능한 공간의 1시간 예약 현황을 확인하고 예약합니다.")}${subviewTabs(tabs)}`;
   if (state.subview === "create") {
@@ -2441,9 +2441,12 @@ function renderReservations() {
   if (state.subview === "rooms" && state.capabilities.manageReservations) {
     return `${heading}${roomZoneMap(upcoming)}<section class="panel"><div class="panel-head"><div><h2>공간 이름 관리</h2><p>공간 카드를 누르면 예정 사용 일정을 확인합니다.</p></div></div><div class="room-settings">${state.rooms.map((room) => `<form onsubmit="updateRoom(event)"><input type="hidden" name="room_id" value="${room.room_id}" /><button type="button" class="room-link" onclick="openEntity('room','${room.room_id}')">${room.room_type === "lesson" ? "레슨" : "연습"}</button><input name="name" value="${escapeAttr(room.name)}" required /><button class="icon-button" aria-label="공간 이름 저장">${icon("save")}</button></form>`).join("")}</div></section>`;
   }
+  if (state.subview === "list") {
+    return `${heading}<section class="panel reservation-list-panel"><div class="panel-head"><div><h2>예약 목록</h2><p>${state.reservations.length}건 · 공간명과 예약자명을 눌러 상세 보기</p></div><button class="btn secondary small" type="button" onclick="setSubview('schedule')">${icon("calendar")}시간표 보기</button></div>${reservationsTable(state.reservations)}</section>`;
+  }
   return `${heading}${roomZoneMap(upcoming, "reserve")}
     <section class="panel reservation-board"><div class="panel-head"><div><h2>시간별 예약 현황</h2><p>${upcoming.length}건 예정</p></div><div class="inline-filters"><input type="date" value="${escapeAttr(state.reservationFilter.date)}" onchange="setReservationFilter('date',this.value)" /><select onchange="setReservationFilter('room',this.value)"><option value="all">전체 공간</option>${selectableRooms.map((item) => `<option value="${item.room_id}" ${state.reservationFilter.room === item.room_id ? "selected" : ""}>${escapeHtml(item.name)}</option>`).join("")}</select></div></div>${reservationSchedule()}</section>
-    <section class="panel"><div class="panel-head"><div><h2>예약 목록</h2><p>공간명과 예약자명을 눌러 상세 보기</p></div></div>${reservationsTable(state.reservations)}</section>`;
+    <button class="mobile-list-shortcut" type="button" onclick="setSubview('list')">${icon("list")}예약 목록 ${state.reservations.length}건 보기</button>`;
 }
 
 function hourOptions(selected = "09:00") {
