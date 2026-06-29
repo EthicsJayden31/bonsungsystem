@@ -2096,12 +2096,59 @@ function dashboardWidgetOptions() {
   return `<fieldset class="field wide preference-field"><legend>홈 화면 구성</legend><div>${defaults.map((key) => `<label><input type="checkbox" name="dashboard_widgets" value="${key}" ${selected.includes(key) ? "checked" : ""} /><span>${DASHBOARD_WIDGET_LABELS[key]}</span></label>`).join("")}</div></fieldset>`;
 }
 
+function quickActionsFor(user = state.user) {
+  const c = state.capabilities || {};
+  const action = (label, hint, iconName, page, subview = "") => ({ label, hint, iconName, page, subview });
+  const byRole = user.role === "teacher"
+    ? [
+        c.writeLessonLogs ? action("수업일지 작성", "오늘 수업 기록 남기기", "plus", "lesson-logs", "create") : null,
+        action("오늘 수업", "내 일정 바로 확인", "calendar", "my-overview"),
+        c.viewStudents ? action("담당 수강생", "학생별 기록 확인", "users", "students", "list") : null,
+        c.viewReservations ? action("공간 예약", "레슨실·연습실 예약", "building", "reservations", "create") : null
+      ]
+    : user.role === "student"
+      ? [
+          action("다음 수업", "예정된 수업 확인", "calendar", "my-overview"),
+          c.viewLessonLogs ? action("수업 피드백", "선생님 기록 보기", "book", "lesson-logs", "browse") : null,
+          c.viewReservations ? action("연습실 예약", "가능한 공간 예약", "building", "reservations", "create") : null,
+          c.viewPayments ? action("결제 내역", "등록·결제 상태 확인", "credit", "registrations") : null
+        ]
+      : user.role === "staff"
+        ? [
+            c.manageStudents ? action("상담/수강생 등록", "신규 학생 정보 입력", "users", "students", "create") : null,
+            c.manageOperations ? action("수강 등록", "수강과 수업 일정 연결", "calendar", "enrollments", "create") : null,
+            c.viewPayments ? action("수납 확인", "재등록·결제 예정 점검", "credit", "registrations") : null,
+            c.viewTeam ? action("출근·퇴근", "오늘 근태 기록", "briefcase", "team") : null
+          ]
+        : [
+            c.reviewAccountRequests ? action("신규 계정 승인", `${pendingAccountRequests().length}건 대기`, "userCog", "accounts", "requests") : null,
+            c.viewPayments ? action("재등록·수납 점검", "14일 내 예정 확인", "credit", "registrations") : null,
+            action("운영 현황", "오늘 운영 흐름 보기", "home", "dashboard"),
+            c.viewAccounts ? action("권한 관리", "계정 권한 설정", "settings", "accounts", "list") : null
+          ];
+  return byRole.filter(Boolean).slice(0, 4);
+}
+
+function quickActionIntro(user = state.user) {
+  if (user.role === "teacher") return "오늘 수업과 기록을 빠르게 챙겨요.";
+  if (user.role === "student") return "내 수업, 피드백, 연습 예약을 확인해요.";
+  if (user.role === "staff") return "접수부터 등록까지 바로 이어가요.";
+  return "운영 흐름을 한눈에 정리해요.";
+}
+
+function renderQuickActions() {
+  const actions = quickActionsFor();
+  if (!actions.length) return "";
+  return `<section class="quick-actions" aria-label="빠른 작업"><div class="quick-actions-head"><span>오늘 먼저 할 일</span><p>${escapeHtml(quickActionIntro())}</p></div><div class="quick-action-grid">${actions.map((item, index) => `<button class="quick-action-card ${index === 0 ? "primary" : ""}" onclick="${item.subview ? `navigateSubview('${item.page}', '${item.subview}')` : `navigate('${item.page}')`}">${icon(item.iconName)}<strong>${escapeHtml(item.label)}</strong><small>${escapeHtml(item.hint)}</small></button>`).join("")}</div></section>`;
+}
+
 function renderDashboard() {
   const overview = state.overview || { stats: {}, todayLessons: [], workload: [], recentLogs: [] };
   const stats = overview.stats || {};
   const dueSoon = registrationDueSoon();
   return `
     ${pageHeading("오늘의 운영", `${formatFullDate(new Date())} 기준 학원 운영 현황입니다.`, `<button class="btn secondary small" onclick="refreshData()">${icon("refresh")}새로고침</button>`)}
+    ${renderQuickActions()}
     ${dashboardWidgetEnabled("stats") ? `<section class="stats">
       ${statItem("재원 수강생", stats.activeStudents || 0, "명")}
       ${statItem("활성 계정", stats.activeAccounts || 0, "명")}
@@ -2137,6 +2184,7 @@ function renderMyOverview() {
   const description = teacher ? "담당 수업과 수강생, 최근 기록을 한눈에 확인합니다." : "수강 과목과 다음 수업, 학습 기록을 확인합니다.";
   return `
     ${pageHeading(title, description, teacher ? `<button class="btn" onclick="navigate('lesson-logs')">${icon("plus")}수업일지 작성</button>` : "")}
+    ${renderQuickActions()}
     ${dashboardWidgetEnabled("stats") ? `<section class="stats">
       ${teacher ? statItem("담당 수강생", stats.activeStudents || 0, "명") : statItem("수강 과목", stats.activeCourses || 0, "개")}
       ${teacher ? statItem("담당 과목", stats.subjects || 0, "개") : statItem("수강 기간", durationText(stats.enrolledDays || 0))}
