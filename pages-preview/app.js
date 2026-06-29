@@ -36,6 +36,12 @@ const BRAND_MARK_HTML = '<span class="brand-mark"><img src="./assets/bonsung-log
 
 const DEFAULT_ADMIN_WIDGETS = ["stats", "calendar", "today", "activity", "workload", "registrations"];
 const DEFAULT_PERSONAL_WIDGETS = ["stats", "calendar", "upcoming", "enrollments", "logs"];
+const ROLE_DASHBOARD_DEFAULTS = {
+  admin: ["stats", "calendar", "registrations", "today"],
+  staff: ["stats", "today", "registrations"],
+  teacher: ["upcoming", "logs", "enrollments"],
+  student: ["upcoming", "logs", "enrollments"]
+};
 const DASHBOARD_WIDGET_LABELS = {
   stats: "핵심 지표",
   calendar: "다가오는 일정",
@@ -2079,14 +2085,25 @@ function statItem(label, value, suffix = "", tone = "") {
 }
 
 function dashboardPrefs(user = state.user) {
-  const defaults = user?.role === "teacher" || user?.role === "student" ? DEFAULT_PERSONAL_WIDGETS : DEFAULT_ADMIN_WIDGETS;
+  const available = dashboardAvailableWidgets(user);
+  const defaults = dashboardDefaultWidgets(user);
   try {
     const parsed = JSON.parse(user?.dashboard_prefs_json || "{}");
-    const widgets = Array.isArray(parsed.widgets) && parsed.widgets.length ? parsed.widgets.filter((item) => defaults.includes(item)) : defaults;
+    const widgets = Array.isArray(parsed.widgets) && parsed.widgets.length ? parsed.widgets.filter((item) => available.includes(item)) : defaults;
     return { widgets };
   } catch (_error) {
     return { widgets: defaults };
   }
+}
+
+function dashboardAvailableWidgets(user = state.user) {
+  return user?.role === "teacher" || user?.role === "student" ? DEFAULT_PERSONAL_WIDGETS : DEFAULT_ADMIN_WIDGETS;
+}
+
+function dashboardDefaultWidgets(user = state.user) {
+  const available = dashboardAvailableWidgets(user);
+  const defaults = ROLE_DASHBOARD_DEFAULTS[user?.role] || available;
+  return defaults.filter((item) => available.includes(item));
 }
 
 function dashboardWidgetEnabled(key) {
@@ -2094,7 +2111,7 @@ function dashboardWidgetEnabled(key) {
 }
 
 function dashboardWidgetOptions() {
-  const defaults = state.user?.role === "teacher" || state.user?.role === "student" ? DEFAULT_PERSONAL_WIDGETS : DEFAULT_ADMIN_WIDGETS;
+  const defaults = dashboardAvailableWidgets();
   const selected = dashboardPrefs().widgets;
   return `<fieldset class="field wide preference-field"><legend>홈 화면 구성</legend><div>${defaults.map((key) => `<label><input type="checkbox" name="dashboard_widgets" value="${key}" ${selected.includes(key) ? "checked" : ""} /><span>${DASHBOARD_WIDGET_LABELS[key]}</span></label>`).join("")}</div></fieldset>`;
 }
