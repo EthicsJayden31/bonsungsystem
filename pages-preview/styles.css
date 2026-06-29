@@ -584,6 +584,8 @@ button.floor-room:hover { transform: translateY(-1px); border-color: var(--brand
 .floor-room.disabled { opacity: .48; }
 .floor-room.has-booking { box-shadow: inset 0 0 0 3px rgba(123,8,8,.1); }
 .floor-room.has-booking small { color: var(--brand-dark); }
+.floor-room.selected { border-color: var(--brand); background: #fff0ef; box-shadow: 0 0 0 3px rgba(107, 15, 18, 0.12), 0 12px 28px rgba(60, 6, 8, 0.12); }
+.floor-room.selected small { color: var(--brand-dark); }
 .area-lesson-large { grid-column: 1; grid-row: 1 / 3; }
 .area-lesson-medium { grid-column: 2; grid-row: 1; }
 .area-lesson-small-1 { grid-column: 3; grid-row: 1; }

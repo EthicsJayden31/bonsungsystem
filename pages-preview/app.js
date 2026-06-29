@@ -2424,7 +2424,7 @@ function renderReservations() {
   if (state.subview === "rooms" && state.capabilities.manageReservations) {
     return `${heading}${roomZoneMap(upcoming)}<section class="panel"><div class="panel-head"><div><h2>공간 이름 관리</h2><p>공간 카드를 누르면 예정 사용 일정을 확인합니다.</p></div></div><div class="room-settings">${state.rooms.map((room) => `<form onsubmit="updateRoom(event)"><input type="hidden" name="room_id" value="${room.room_id}" /><button type="button" class="room-link" onclick="openEntity('room','${room.room_id}')">${room.room_type === "lesson" ? "레슨" : "연습"}</button><input name="name" value="${escapeAttr(room.name)}" required /><button class="icon-button" aria-label="공간 이름 저장">${icon("save")}</button></form>`).join("")}</div></section>`;
   }
-  return `${heading}${roomZoneMap(upcoming)}
+  return `${heading}${roomZoneMap(upcoming, "reserve")}
     <section class="panel reservation-board"><div class="panel-head"><div><h2>시간별 예약 현황</h2><p>${upcoming.length}건 예정</p></div><div class="inline-filters"><input type="date" value="${escapeAttr(state.reservationFilter.date)}" onchange="setReservationFilter('date',this.value)" /><select onchange="setReservationFilter('room',this.value)"><option value="all">전체 공간</option>${selectableRooms.map((item) => `<option value="${item.room_id}" ${state.reservationFilter.room === item.room_id ? "selected" : ""}>${escapeHtml(item.name)}</option>`).join("")}</select></div></div>${reservationSchedule()}</section>
     <section class="panel"><div class="panel-head"><div><h2>예약 목록</h2><p>공간명과 예약자명을 눌러 상세 보기</p></div></div>${reservationsTable(state.reservations)}</section>`;
 }
@@ -2441,7 +2441,7 @@ function setReservationFilter(key, value) {
   render();
 }
 
-function roomZoneMap(upcoming) {
+function roomZoneMap(upcoming, mode = "detail") {
   const visibleRooms = state.rooms.filter((room) => room.room_type === "lesson" ? state.capabilities.reserveLessonRoom : state.capabilities.reservePracticeRoom);
   const roomById = keyBy(visibleRooms, "room_id");
   return `<section class="room-map floor-plan" aria-label="본성뮤직 아카데미 내부 공간 구조도">
@@ -2453,17 +2453,17 @@ function roomZoneMap(upcoming) {
       <a class="floor-plan-reference" href="./assets/bonsung-floor-plan-reference.png" target="_blank" rel="noreferrer">원본 구조도 보기</a>
     </header>
     <div class="floor-grid">
-      ${floorTile(roomById, upcoming, "room-lesson-large-1", "lesson-large", "lesson")}
-      ${floorTile(roomById, upcoming, "room-lesson-medium-1", "lesson-medium", "lesson")}
-      ${floorTile(roomById, upcoming, "room-lesson-small-1", "lesson-small-1", "lesson")}
-      ${floorTile(roomById, upcoming, "room-lesson-small-2", "lesson-small-2", "lesson")}
+      ${floorTile(roomById, upcoming, "room-lesson-large-1", "lesson-large", "lesson", mode)}
+      ${floorTile(roomById, upcoming, "room-lesson-medium-1", "lesson-medium", "lesson", mode)}
+      ${floorTile(roomById, upcoming, "room-lesson-small-1", "lesson-small-1", "lesson", mode)}
+      ${floorTile(roomById, upcoming, "room-lesson-small-2", "lesson-small-2", "lesson", mode)}
       ${floorStaticTile("창고 / 팬트리", "storage", "storage")}
       ${floorStaticTile("이론 강의실", "theory", "theory")}
       ${floorStaticTile("복도 공간", "corridor", "corridor")}
       ${floorStaticTile("원장(대표)실", "office-owner", "office")}
-      ${floorTile(roomById, upcoming, "room-practice-a", "practice-a", "practice")}
-      ${floorTile(roomById, upcoming, "room-practice-b", "practice-b", "practice")}
-      ${floorTile(roomById, upcoming, "room-practice-c", "practice-c", "practice")}
+      ${floorTile(roomById, upcoming, "room-practice-a", "practice-a", "practice", mode)}
+      ${floorTile(roomById, upcoming, "room-practice-b", "practice-b", "practice", mode)}
+      ${floorTile(roomById, upcoming, "room-practice-c", "practice-c", "practice", mode)}
       ${floorStaticTile("로비 및 카페테리아", "lobby", "lobby")}
       ${floorStaticTile("교무실", "office-staff", "staff")}
       <div class="floor-entrance">출입구</div>
@@ -2477,11 +2477,13 @@ function roomZoneMap(upcoming) {
   </section>`;
 }
 
-function floorTile(roomById, upcoming, roomId, area, type) {
+function floorTile(roomById, upcoming, roomId, area, type, mode = "detail") {
   const room = roomById[roomId];
   if (!room) return floorStaticTile(roomNameFallback(roomId), area, `${type} disabled`);
   const count = upcoming.filter((item) => item.room_id === room.room_id).length;
-  return `<button class="floor-room ${type} area-${area} ${count ? "has-booking" : ""}" onclick="openEntity('room','${room.room_id}')">
+  const selected = mode === "reserve" && state.reservationFilter.room === room.room_id;
+  const action = mode === "reserve" ? `setReservationFilter('room','${room.room_id}')` : `openEntity('room','${room.room_id}')`;
+  return `<button class="floor-room ${type} area-${area} ${count ? "has-booking" : ""} ${selected ? "selected" : ""}" onclick="${action}">
     <span>${escapeHtml(room.name)}</span>
     <small>${count ? `${count}건 예정` : "예약 가능"}</small>
   </button>`;
