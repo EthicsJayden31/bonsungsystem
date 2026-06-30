@@ -388,8 +388,9 @@ td.wrap { min-width: 210px; white-space: normal; line-height: 1.5; }
 .filter-bar .search-box { flex: 1 1 220px; min-width: 180px; }
 .filter-bar .btn { flex: 0 0 auto; }
 .lesson-log-filters { align-items: stretch; }
-.lesson-log-advanced-filters { display: contents; }
-.lesson-log-advanced-filters > summary { display: none; }
+.student-filters { align-items: stretch; }
+.lesson-log-advanced-filters, .student-advanced-filters { display: contents; }
+.lesson-log-advanced-filters > summary, .student-advanced-filters > summary { display: none; }
 .advanced-filter-grid { display: contents; }
 .advanced-filter-grid select, .advanced-filter-grid input { width: auto; min-height: 34px; padding: 6px 8px; font-size: 11px; }
 .search-box { min-width: 180px; flex: 1 1 220px; position: relative; }
@@ -796,9 +797,10 @@ button.floor-room:hover { transform: translateY(-1px); border-color: var(--brand
   .search-box { grid-column: 1 / -1; width: 100%; min-width: 0; }
   .filter-bar select, .filter-bar > input, .filter-bar .btn { width: 100%; }
   .lesson-log-filters { grid-template-columns: minmax(0, 1fr) auto; gap: 8px; padding: 10px; }
-  .lesson-log-filters .search-box { grid-column: 1; }
-  .lesson-log-advanced-filters { display: block; grid-column: 2; min-width: 0; }
-  .lesson-log-advanced-filters > summary {
+  .student-filters { grid-template-columns: minmax(0, 1fr) auto; gap: 8px; padding: 10px; }
+  .lesson-log-filters .search-box, .student-filters .search-box { grid-column: 1; }
+  .lesson-log-advanced-filters, .student-advanced-filters { display: block; grid-column: 2; min-width: 0; }
+  .lesson-log-advanced-filters > summary, .student-advanced-filters > summary {
     min-height: 34px;
     display: inline-flex;
     align-items: center;
@@ -814,15 +816,15 @@ button.floor-room:hover { transform: translateY(-1px); border-color: var(--brand
     list-style: none;
     white-space: nowrap;
   }
-  .lesson-log-advanced-filters > summary::-webkit-details-marker { display: none; }
-  .lesson-log-advanced-filters > summary small {
+  .lesson-log-advanced-filters > summary::-webkit-details-marker, .student-advanced-filters > summary::-webkit-details-marker { display: none; }
+  .lesson-log-advanced-filters > summary small, .student-advanced-filters > summary small {
     color: var(--muted);
     font-size: 10px;
     font-weight: 750;
   }
-  .lesson-log-advanced-filters[open] { grid-column: 1 / -1; }
-  .lesson-log-advanced-filters[open] > summary { margin-bottom: 8px; }
-  .lesson-log-advanced-filters[open] .advanced-filter-grid {
+  .lesson-log-advanced-filters[open], .student-advanced-filters[open] { grid-column: 1 / -1; }
+  .lesson-log-advanced-filters[open] > summary, .student-advanced-filters[open] > summary { margin-bottom: 8px; }
+  .lesson-log-advanced-filters[open] .advanced-filter-grid, .student-advanced-filters[open] .advanced-filter-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 8px;
@@ -1002,6 +1004,26 @@ button.floor-room:hover { transform: translateY(-1px); border-color: var(--brand
     border-radius: 14px;
     color: var(--brand-dark);
   }
+  .student-table-wrap tbody { padding: 0 12px 12px; }
+  .student-table tr { border-radius: 20px; }
+  .student-table td:first-child .entity-link {
+    color: var(--brand);
+    font-size: 15px;
+    font-weight: 850;
+  }
+  .student-table td[data-label="분야"] { display: none; }
+  .student-table td[data-label="관리"] {
+    display: block;
+    padding: 12px 13px;
+  }
+  .student-table td[data-label="관리"]::before { display: none; }
+  .student-table .student-edit-button {
+    width: 100%;
+    min-height: 42px;
+    border-color: rgba(107, 15, 18, 0.18);
+    border-radius: 14px;
+    color: var(--brand-dark);
+  }
 }
 
 @media (max-width: 620px) {
@@ -1015,7 +1037,7 @@ button.floor-room:hover { transform: translateY(-1px); border-color: var(--brand
   .timeline-item > .status-badge { grid-column: 3; justify-self: start; }
   .compact-log-list > button { grid-template-columns: 62px minmax(0, 1fr) 16px; }
   .compact-log-list .status-badge { display: none; }
-  .lesson-log-advanced-filters[open] .advanced-filter-grid { grid-template-columns: 1fr; }
+  .lesson-log-advanced-filters[open] .advanced-filter-grid, .student-advanced-filters[open] .advanced-filter-grid { grid-template-columns: 1fr; }
   .topbar { padding: 7px 10px; }
   .mobile-brand strong { display: none; }
   .row-actions { align-items: stretch; flex-direction: column; }

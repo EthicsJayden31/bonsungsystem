@@ -2418,13 +2418,29 @@ function renderStudents() {
 }
 
 function studentFilters(teachers) {
-  return `<div class="filter-bar">
+  const open = !isMobileViewport() || hasAdvancedStudentFilters();
+  return `<div class="filter-bar student-filters">
     <form class="search-box" onsubmit="applyStudentSearch(event)">${icon("search")}<input name="query" value="${escapeAttr(state.studentFilters.query)}" placeholder="이름, 연락처, 목표 검색" /><button type="submit" class="sr-only">검색</button></form>
-    <select aria-label="상태 필터" onchange="setStudentFilter('status', this.value)"><option value="">전체 상태</option>${STATUS_OPTIONS.map((item) => `<option ${state.studentFilters.status === item ? "selected" : ""}>${item}</option>`).join("")}</select>
-    <select aria-label="담당 강사 필터" onchange="setStudentFilter('teacher', this.value)"><option value="">전체 강사</option>${teachers.map((item) => `<option value="${item.account_id}" ${state.studentFilters.teacher === item.account_id ? "selected" : ""}>${escapeHtml(item.name)}</option>`).join("")}</select>
-    <select aria-label="정렬" onchange="setStudentFilter('sort', this.value)"><option value="nameAsc" ${state.studentFilters.sort === "nameAsc" ? "selected" : ""}>이름순</option><option value="enrolledDesc" ${state.studentFilters.sort === "enrolledDesc" ? "selected" : ""}>최근 등록순</option><option value="status" ${state.studentFilters.sort === "status" ? "selected" : ""}>상태순</option><option value="teacher" ${state.studentFilters.sort === "teacher" ? "selected" : ""}>강사순</option></select>
-    <button type="button" class="btn ghost small" onclick="resetStudentFilters()">${icon("refresh")}초기화</button>
+    <details class="student-advanced-filters" ${open ? "open" : ""}>
+      <summary><span>필터</span><small>${activeStudentFilterCount()}개 적용</small></summary>
+      <div class="advanced-filter-grid">
+        <select aria-label="상태 필터" onchange="setStudentFilter('status', this.value)"><option value="">전체 상태</option>${STATUS_OPTIONS.map((item) => `<option ${state.studentFilters.status === item ? "selected" : ""}>${item}</option>`).join("")}</select>
+        <select aria-label="담당 강사 필터" onchange="setStudentFilter('teacher', this.value)"><option value="">전체 강사</option>${teachers.map((item) => `<option value="${item.account_id}" ${state.studentFilters.teacher === item.account_id ? "selected" : ""}>${escapeHtml(item.name)}</option>`).join("")}</select>
+        <select aria-label="정렬" onchange="setStudentFilter('sort', this.value)"><option value="nameAsc" ${state.studentFilters.sort === "nameAsc" ? "selected" : ""}>이름순</option><option value="enrolledDesc" ${state.studentFilters.sort === "enrolledDesc" ? "selected" : ""}>최근 등록순</option><option value="status" ${state.studentFilters.sort === "status" ? "selected" : ""}>상태순</option><option value="teacher" ${state.studentFilters.sort === "teacher" ? "selected" : ""}>강사순</option></select>
+        <button type="button" class="btn ghost small" onclick="resetStudentFilters()">${icon("refresh")}초기화</button>
+      </div>
+    </details>
   </div>`;
+}
+
+function hasAdvancedStudentFilters() {
+  const filters = state.studentFilters;
+  return [filters.status, filters.teacher].filter(Boolean).length > 0 || filters.sort !== "nameAsc";
+}
+
+function activeStudentFilterCount() {
+  const filters = state.studentFilters;
+  return [filters.query, filters.status, filters.teacher, filters.sort !== "nameAsc" ? filters.sort : ""].filter(Boolean).length;
 }
 
 function filteredStudents() {
@@ -2444,7 +2460,7 @@ function filteredStudents() {
 
 function studentsTable(canEdit, items = state.students) {
   if (!items.length) return empty("조건에 맞는 수강생이 없습니다.", "검색어와 필터를 조정하면 다시 표시됩니다.");
-  return `<div class="table-wrap"><table><thead><tr><th>이름</th><th>분야</th><th>상태</th><th>${canEdit ? "보호자" : "목표"}</th><th>연락처</th><th>담당 강사</th>${canEdit ? "<th>관리</th>" : ""}</tr></thead><tbody>${items.map((item) => `<tr><td>${entityLink("student", item.student_id, item.name)}</td><td>${escapeHtml(item.major || "보컬")}</td><td>${statusBadge(item.status, item.status === "재원" ? "success" : "muted")}</td><td>${escapeHtml(canEdit ? item.guardian_name || "-" : item.goal || "-")}</td><td>${escapeHtml(canEdit ? item.guardian_phone || item.phone || "-" : item.phone || "-")}</td><td>${entityLink("account", item.teacher_id, accountName(item.teacher_id) || enrollmentTeacherName(item.student_id) || "-")}</td>${canEdit ? `<td><button class="btn secondary small" onclick="beginStudentEdit('${item.student_id}')">수정</button></td>` : ""}</tr>`).join("")}</tbody></table></div>`;
+  return `<div class="table-wrap student-table-wrap"><table class="student-table"><thead><tr><th>이름</th><th>분야</th><th>상태</th><th>${canEdit ? "보호자" : "목표"}</th><th>연락처</th><th>담당 강사</th>${canEdit ? "<th>관리</th>" : ""}</tr></thead><tbody>${items.map((item) => `<tr><td data-label="이름">${entityLink("student", item.student_id, item.name)}</td><td data-label="분야">${escapeHtml(item.major || "보컬")}</td><td data-label="상태">${statusBadge(item.status, item.status === "재원" ? "success" : "muted")}</td><td data-label="${canEdit ? "보호자" : "목표"}">${escapeHtml(canEdit ? item.guardian_name || "-" : item.goal || "-")}</td><td data-label="연락처">${escapeHtml(canEdit ? item.guardian_phone || item.phone || "-" : item.phone || "-")}</td><td data-label="담당 강사">${entityLink("account", item.teacher_id, accountName(item.teacher_id) || enrollmentTeacherName(item.student_id) || "-")}</td>${canEdit ? `<td data-label="관리"><button class="btn secondary small student-edit-button" onclick="beginStudentEdit('${item.student_id}')">수정</button></td>` : ""}</tr>`).join("")}</tbody></table></div>`;
 }
 
 function studentForm(student, teachers, editing) {
