@@ -387,10 +387,15 @@ td.wrap { min-width: 210px; white-space: normal; line-height: 1.5; }
 .filter-bar select, .filter-bar > input { width: auto; min-height: 34px; padding: 6px 8px; font-size: 11px; }
 .filter-bar .search-box { flex: 1 1 220px; min-width: 180px; }
 .filter-bar .btn { flex: 0 0 auto; }
+.lesson-log-filters { align-items: stretch; }
+.lesson-log-advanced-filters { display: contents; }
+.lesson-log-advanced-filters > summary { display: none; }
+.advanced-filter-grid { display: contents; }
+.advanced-filter-grid select, .advanced-filter-grid input { width: auto; min-height: 34px; padding: 6px 8px; font-size: 11px; }
 .search-box { min-width: 180px; flex: 1 1 220px; position: relative; }
 .search-box .icon { position: absolute; z-index: 1; left: 9px; top: 8px; width: 16px; height: 16px; color: #7b8992; }
 .search-box input { min-height: 34px; padding: 6px 9px 6px 32px; font-size: 11px; }
-.journal-table .icon-button { width: 30px; height: 30px; }
+.journal-detail-button { min-height: 30px; padding: 5px 9px; }
 
 .template-strip { border-bottom: 1px solid var(--line); background: var(--surface-alt); padding: 10px 14px; }
 .template-strip > span { display: block; margin-bottom: 7px; color: var(--muted); font-size: 10px; font-weight: 750; }
@@ -790,6 +795,39 @@ button.floor-room:hover { transform: translateY(-1px); border-color: var(--brand
   .filter-bar { display: grid; grid-template-columns: 1fr 1fr; }
   .search-box { grid-column: 1 / -1; width: 100%; min-width: 0; }
   .filter-bar select, .filter-bar > input, .filter-bar .btn { width: 100%; }
+  .lesson-log-filters { grid-template-columns: minmax(0, 1fr) auto; gap: 8px; padding: 10px; }
+  .lesson-log-filters .search-box { grid-column: 1; }
+  .lesson-log-advanced-filters { display: block; grid-column: 2; min-width: 0; }
+  .lesson-log-advanced-filters > summary {
+    min-height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    border: 1px solid rgba(107, 15, 18, 0.18);
+    border-radius: 999px;
+    background: white;
+    color: var(--brand-dark);
+    padding: 0 11px;
+    font-size: 11px;
+    font-weight: 850;
+    list-style: none;
+    white-space: nowrap;
+  }
+  .lesson-log-advanced-filters > summary::-webkit-details-marker { display: none; }
+  .lesson-log-advanced-filters > summary small {
+    color: var(--muted);
+    font-size: 10px;
+    font-weight: 750;
+  }
+  .lesson-log-advanced-filters[open] { grid-column: 1 / -1; }
+  .lesson-log-advanced-filters[open] > summary { margin-bottom: 8px; }
+  .lesson-log-advanced-filters[open] .advanced-filter-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .advanced-filter-grid select, .advanced-filter-grid input, .advanced-filter-grid .btn { width: 100%; }
   .calendar-list button { grid-template-columns: 74px 10px minmax(0, 1fr) 16px; padding: 10px; }
   .preference-field > div { grid-template-columns: 1fr; }
   .bar-chart { gap: 3px; padding-left: 9px; padding-right: 9px; }
@@ -931,6 +969,39 @@ button.floor-room:hover { transform: translateY(-1px); border-color: var(--brand
     -webkit-line-clamp: 3;
     overflow: hidden;
   }
+  .journal-list-panel .journal-table tbody { padding: 0 12px 12px; }
+  .journal-list-panel .journal-table tr { border-radius: 20px; }
+  .journal-list-panel .journal-table td:first-child {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .journal-list-panel .journal-table td:first-child small {
+    margin-top: 0;
+    border-radius: 999px;
+    background: rgba(107, 15, 18, 0.08);
+    color: var(--brand-dark);
+    padding: 3px 8px;
+    font-weight: 800;
+  }
+  .journal-list-panel .journal-table td[data-label="수강생"] .entity-link {
+    color: var(--ink);
+    font-size: 14px;
+    font-weight: 850;
+  }
+  .journal-list-panel .journal-table td[data-label="상세"] {
+    display: block;
+    padding: 12px 13px;
+  }
+  .journal-list-panel .journal-table td[data-label="상세"]::before { display: none; }
+  .journal-list-panel .journal-table td[data-label="상세"] .journal-detail-button {
+    width: 100%;
+    min-height: 42px;
+    border-color: rgba(107, 15, 18, 0.18);
+    border-radius: 14px;
+    color: var(--brand-dark);
+  }
 }
 
 @media (max-width: 620px) {
@@ -944,6 +1015,7 @@ button.floor-room:hover { transform: translateY(-1px); border-color: var(--brand
   .timeline-item > .status-badge { grid-column: 3; justify-self: start; }
   .compact-log-list > button { grid-template-columns: 62px minmax(0, 1fr) 16px; }
   .compact-log-list .status-badge { display: none; }
+  .lesson-log-advanced-filters[open] .advanced-filter-grid { grid-template-columns: 1fr; }
   .topbar { padding: 7px 10px; }
   .mobile-brand strong { display: none; }
   .row-actions { align-items: stretch; flex-direction: column; }

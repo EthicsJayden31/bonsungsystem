@@ -2847,16 +2847,36 @@ function lessonLogFilters() {
   const teachers = uniqueBy(state.lessonLogs.map((item) => ({ id: item.teacher_id, name: item.teacher_name || accountName(item.teacher_id) })), "id");
   const students = uniqueBy(state.lessonLogs.map((item) => ({ id: item.student_id, name: item.student_name || studentName(item.student_id) })), "id");
   const subjects = unique(state.lessonLogs.map((item) => item.subject).filter(Boolean)).sort();
-  return `<div class="filter-bar">
+  const open = !isMobileViewport() || hasAdvancedLogFilters();
+  return `<div class="filter-bar lesson-log-filters">
     <form class="search-box" onsubmit="applyLogSearch(event)">${icon("search")}<input name="query" value="${escapeAttr(state.logFilters.query)}" placeholder="수업 내용 검색" /><button type="submit" class="sr-only">검색</button></form>
-    ${state.user.role !== "student" ? `<select aria-label="수강생 필터" onchange="setLogFilter('student', this.value)"><option value="">전체 수강생</option>${students.map((item) => `<option value="${item.id}" ${state.logFilters.student === item.id ? "selected" : ""}>${escapeHtml(item.name)}</option>`).join("")}</select>` : ""}
-    ${["admin", "staff"].includes(state.user.role) ? `<select aria-label="강사 필터" onchange="setLogFilter('teacher', this.value)"><option value="">전체 강사</option>${teachers.map((item) => `<option value="${item.id}" ${state.logFilters.teacher === item.id ? "selected" : ""}>${escapeHtml(item.name)}</option>`).join("")}</select>` : ""}
-    <select aria-label="과목 필터" onchange="setLogFilter('subject', this.value)"><option value="">전체 과목</option>${subjects.map((item) => `<option ${state.logFilters.subject === item ? "selected" : ""}>${escapeHtml(item)}</option>`).join("")}</select>
-    <input aria-label="시작일" type="date" value="${escapeAttr(state.logFilters.from)}" onchange="setLogFilter('from', this.value)" />
-    <input aria-label="종료일" type="date" value="${escapeAttr(state.logFilters.to)}" onchange="setLogFilter('to', this.value)" />
-    <select aria-label="정렬" onchange="setLogFilter('sort', this.value)"><option value="dateDesc" ${state.logFilters.sort === "dateDesc" ? "selected" : ""}>최근 수업순</option><option value="dateAsc" ${state.logFilters.sort === "dateAsc" ? "selected" : ""}>오래된 수업순</option><option value="student" ${state.logFilters.sort === "student" ? "selected" : ""}>수강생순</option><option value="teacher" ${state.logFilters.sort === "teacher" ? "selected" : ""}>강사순</option><option value="subject" ${state.logFilters.sort === "subject" ? "selected" : ""}>과목순</option></select>
-    <button type="button" class="btn ghost small" onclick="resetLogFilters()">${icon("refresh")}초기화</button>
+    <details class="lesson-log-advanced-filters" ${open ? "open" : ""}>
+      <summary><span>필터</span><small>${activeLogFilterCount()}개 적용</small></summary>
+      <div class="advanced-filter-grid">
+        ${state.user.role !== "student" ? `<select aria-label="수강생 필터" onchange="setLogFilter('student', this.value)"><option value="">전체 수강생</option>${students.map((item) => `<option value="${item.id}" ${state.logFilters.student === item.id ? "selected" : ""}>${escapeHtml(item.name)}</option>`).join("")}</select>` : ""}
+        ${["admin", "staff"].includes(state.user.role) ? `<select aria-label="강사 필터" onchange="setLogFilter('teacher', this.value)"><option value="">전체 강사</option>${teachers.map((item) => `<option value="${item.id}" ${state.logFilters.teacher === item.id ? "selected" : ""}>${escapeHtml(item.name)}</option>`).join("")}</select>` : ""}
+        <select aria-label="과목 필터" onchange="setLogFilter('subject', this.value)"><option value="">전체 과목</option>${subjects.map((item) => `<option ${state.logFilters.subject === item ? "selected" : ""}>${escapeHtml(item)}</option>`).join("")}</select>
+        <input aria-label="시작일" type="date" value="${escapeAttr(state.logFilters.from)}" onchange="setLogFilter('from', this.value)" />
+        <input aria-label="종료일" type="date" value="${escapeAttr(state.logFilters.to)}" onchange="setLogFilter('to', this.value)" />
+        <select aria-label="정렬" onchange="setLogFilter('sort', this.value)"><option value="dateDesc" ${state.logFilters.sort === "dateDesc" ? "selected" : ""}>최근 수업순</option><option value="dateAsc" ${state.logFilters.sort === "dateAsc" ? "selected" : ""}>오래된 수업순</option><option value="student" ${state.logFilters.sort === "student" ? "selected" : ""}>수강생순</option><option value="teacher" ${state.logFilters.sort === "teacher" ? "selected" : ""}>강사순</option><option value="subject" ${state.logFilters.sort === "subject" ? "selected" : ""}>과목순</option></select>
+        <button type="button" class="btn ghost small" onclick="resetLogFilters()">${icon("refresh")}초기화</button>
+      </div>
+    </details>
   </div>`;
+}
+
+function hasAdvancedLogFilters() {
+  const filters = state.logFilters;
+  return [filters.teacher, filters.student, filters.subject, filters.from, filters.to].filter(Boolean).length > 0;
+}
+
+function isMobileViewport() {
+  return typeof window !== "undefined" && window.matchMedia("(max-width: 760px)").matches;
+}
+
+function activeLogFilterCount() {
+  const filters = state.logFilters;
+  return [filters.query, filters.teacher, filters.student, filters.subject, filters.from, filters.to].filter(Boolean).length;
 }
 
 function filteredLessonLogs() {
@@ -2912,7 +2932,7 @@ function renderLessonLogComposer() {
 
 function logsTable(logs) {
   if (!logs.length) return empty("조건에 맞는 수업일지가 없습니다.");
-  return `<div class="table-wrap"><table class="journal-table"><thead><tr><th>날짜·회차</th><th>수강생</th><th>강사</th><th>과목</th><th>출결</th><th>수업 내용 요약</th><th>보기</th></tr></thead><tbody>${logs.map((item) => `<tr><td>${escapeHtml(formatDate(item.lesson_date))}<br /><small>${item.lesson_number ? `${item.lesson_number}회차` : "-"}</small></td><td>${entityLink("student", item.student_id, item.student_name || studentName(item.student_id) || "-")}</td><td>${entityLink("account", item.teacher_id, item.teacher_name || accountName(item.teacher_id) || "-")}</td><td>${escapeHtml(item.subject || "-")}</td><td>${statusBadge(item.attendance_status, item.attendance_status === "출석" ? "success" : item.attendance_status === "지각" ? "warning" : "danger")}</td><td class="wrap summary-cell">${escapeHtml(item.lesson_content || "-")}</td><td><button class="icon-button" onclick="viewLog('${item.log_id}')" aria-label="수업일지 보기">${icon("eye")}</button></td></tr>`).join("")}</tbody></table></div>`;
+  return `<div class="table-wrap"><table class="journal-table"><thead><tr><th>날짜·회차</th><th>수강생</th><th>강사</th><th>과목</th><th>출결</th><th>수업 내용 요약</th><th>보기</th></tr></thead><tbody>${logs.map((item) => `<tr><td data-label="날짜·회차">${escapeHtml(formatDate(item.lesson_date))}<br /><small>${item.lesson_number ? `${item.lesson_number}회차` : "-"}</small></td><td data-label="수강생">${entityLink("student", item.student_id, item.student_name || studentName(item.student_id) || "-")}</td><td data-label="강사">${entityLink("account", item.teacher_id, item.teacher_name || accountName(item.teacher_id) || "-")}</td><td data-label="과목">${escapeHtml(item.subject || "-")}</td><td data-label="출결">${statusBadge(item.attendance_status, item.attendance_status === "출석" ? "success" : item.attendance_status === "지각" ? "warning" : "danger")}</td><td data-label="요약" class="wrap summary-cell">${escapeHtml(item.lesson_content || "-")}</td><td data-label="상세"><button class="btn secondary small journal-detail-button" onclick="viewLog('${item.log_id}')">${icon("eye")}자세히</button></td></tr>`).join("")}</tbody></table></div>`;
 }
 
 function renderLogModal() {
