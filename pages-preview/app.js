@@ -1102,12 +1102,26 @@ function navigateSubview(page, subview) {
 }
 
 function defaultSubview(page) {
-  if (page === "lesson-logs") return state.user?.role === "teacher" && state.capabilities.writeLessonLogs ? "create" : "browse";
+  if (page === "lesson-logs") return shouldOpenLessonLogComposer() ? "create" : "browse";
   if (page === "reservations") return "schedule";
   if (page === "enrollments") return "schedule";
   if (page === "accounts") return "list";
   if (page === "students") return "list";
   return "";
+}
+
+function shouldOpenLessonLogComposer() {
+  if (state.user?.role !== "teacher" || !state.capabilities.writeLessonLogs) return false;
+  const todayString = today();
+  return state.lessons.some((lesson) => {
+    if (lesson.teacher_id !== state.user.account_id || lesson.lesson_date !== todayString || lesson.status === "취소") return false;
+    return !state.lessonLogs.some((log) =>
+      log.teacher_id === lesson.teacher_id
+      && log.student_id === lesson.student_id
+      && log.subject === lesson.subject
+      && log.lesson_date === lesson.lesson_date
+    );
+  });
 }
 
 function setSubview(subview) {
