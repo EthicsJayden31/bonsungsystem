@@ -2745,7 +2745,7 @@ function renderTeam() {
     ${state.capabilities.clockWork ? `<section class="clock-panel"><div><span>${open ? "근무 중" : "근무 시작 전"}</span><strong>${open ? `${formatTime(open.clock_in_at)} 출근` : formatFullDate(new Date())}</strong><small>${open ? "업무 종료 시 퇴근 버튼을 눌러 주세요." : "출근 버튼을 누르면 현재 시간이 기록됩니다."}</small></div><button class="btn ${open ? "secondary" : ""}" onclick="clockWork('${open ? "out" : "in"}')">${icon("clock")}${open ? "퇴근하기" : "출근하기"}</button></section>` : ""}
     <div class="overview-grid">
       <section class="panel"><div class="panel-head"><div><h2>근태 기록</h2><p>${state.capabilities.manageOperations ? "전체 직원" : "나의 기록"}</p></div></div>${workLogsTable(state.workLogs)}</section>
-      <section class="panel"><div class="panel-head"><div><h2>직원 구성</h2><p>${staffAccounts.length ? `${staffAccounts.length}명` : "조회 권한 없음"}</p></div></div>${staffAccounts.length ? `<div class="staff-list">${staffAccounts.map((item) => `<div><span class="avatar">${escapeHtml(item.name.slice(0, 1))}</span><div>${entityLink("account", item.account_id, item.name)}<p>${escapeHtml(accountLabel(item))}</p></div>${statusBadge(item.active ? "재직" : "중지", item.active ? "success" : "muted")}</div>`).join("")}</div>` : empty("직원 목록 조회 권한이 없습니다.")}</section>
+      <section class="panel team-staff-panel"><div class="panel-head"><div><h2>직원 구성</h2><p>${staffAccounts.length ? `${staffAccounts.length}명` : "조회 권한 없음"}</p></div></div>${staffAccounts.length ? `<div class="staff-list team-staff-list">${staffAccounts.map((item) => `<div><span class="avatar">${escapeHtml(item.name.slice(0, 1))}</span><div>${entityLink("account", item.account_id, item.name)}<p>${escapeHtml(accountLabel(item))}</p></div>${statusBadge(item.active ? "재직" : "중지", item.active ? "success" : "muted")}</div>`).join("")}</div>` : empty("직원 목록 조회 권한이 없습니다.")}</section>
     </div>`;
 }
 
@@ -3179,7 +3179,7 @@ function reservationsTable(items) {
 
 function workLogsTable(items) {
   if (!items.length) return empty("근태 기록이 없습니다.");
-  return `<div class="table-wrap"><table><thead><tr><th>날짜</th><th>직원</th><th>출근</th><th>퇴근</th><th>근무 시간</th></tr></thead><tbody>${items.map((item) => `<tr><td>${escapeHtml(formatDate(item.work_date))}</td><td><strong>${escapeHtml(item.account_name || state.user.name)}</strong></td><td>${escapeHtml(formatTime(item.clock_in_at))}</td><td>${item.clock_out_at ? escapeHtml(formatTime(item.clock_out_at)) : statusBadge("근무 중", "success")}</td><td>${item.clock_out_at ? durationBetween(item.clock_in_at, item.clock_out_at) : "-"}</td></tr>`).join("")}</tbody></table></div>`;
+  return `<div class="table-wrap work-log-table-wrap"><table class="work-log-table"><thead><tr><th>날짜</th><th>직원</th><th>출근</th><th>퇴근</th><th>근무 시간</th></tr></thead><tbody>${items.map((item) => `<tr><td data-label="날짜">${escapeHtml(formatDate(item.work_date))}</td><td data-label="직원"><strong>${escapeHtml(item.account_name || state.user.name)}</strong></td><td data-label="출근">${escapeHtml(formatTime(item.clock_in_at))}</td><td data-label="퇴근">${item.clock_out_at ? escapeHtml(formatTime(item.clock_out_at)) : statusBadge("근무 중", "success")}</td><td data-label="근무 시간">${item.clock_out_at ? durationBetween(item.clock_in_at, item.clock_out_at) : "-"}</td></tr>`).join("")}</tbody></table></div>`;
 }
 
 function meetingsList(items) {
