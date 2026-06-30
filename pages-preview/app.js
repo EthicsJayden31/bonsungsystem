@@ -2173,7 +2173,9 @@ function quickActionMobileLimit(user = state.user) {
 function renderQuickActions() {
   const actions = quickActionsFor();
   if (!actions.length) return "";
-  return `<section class="quick-actions" data-mobile-limit="${quickActionMobileLimit()}" aria-label="빠른 작업"><div class="quick-actions-head"><span>오늘 먼저 할 일</span><p>${escapeHtml(quickActionIntro())}</p></div><div class="quick-action-grid">${actions.map((item, index) => `<button class="quick-action-card ${index === 0 ? "primary" : ""}" onclick="${item.subview ? `navigateSubview('${item.page}', '${item.subview}')` : `navigate('${item.page}')`}">${icon(item.iconName)}<strong>${escapeHtml(item.label)}</strong><small>${escapeHtml(item.hint)}</small></button>`).join("")}</div></section>`;
+  const mobileLimit = quickActionMobileLimit();
+  const more = actions.length > mobileLimit ? `<button class="quick-actions-more" type="button" aria-expanded="${state.mobileMenu ? "true" : "false"}" aria-label="전체 메뉴 열기" onclick="toggleMobileMenu()">${icon("menu")}전체 메뉴</button>` : "";
+  return `<section class="quick-actions" data-mobile-limit="${mobileLimit}" aria-label="빠른 작업"><div class="quick-actions-head"><div><span>오늘 먼저 할 일</span><p>${escapeHtml(quickActionIntro())}</p></div>${more}</div><div class="quick-action-grid">${actions.map((item, index) => `<button class="quick-action-card ${index === 0 ? "primary" : ""}" onclick="${item.subview ? `navigateSubview('${item.page}', '${item.subview}')` : `navigate('${item.page}')`}">${icon(item.iconName)}<strong>${escapeHtml(item.label)}</strong><small>${escapeHtml(item.hint)}</small></button>`).join("")}</div></section>`;
 }
 
 function renderDashboard() {
