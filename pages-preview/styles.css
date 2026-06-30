@@ -770,6 +770,8 @@ button.floor-room:hover { transform: translateY(-1px); border-color: var(--brand
   .quick-action-grid { grid-template-columns: 1fr 1fr; }
   .quick-action-card.primary { grid-column: 1 / -1; min-height: 88px; }
   .quick-action-card { min-height: 74px; padding: 11px; }
+  .quick-actions[data-mobile-limit="3"] .quick-action-card:nth-child(n+4) { display: none; }
+  .quick-actions[data-mobile-limit="2"] .quick-action-card:nth-child(n+3) { display: none; }
   .stats { grid-template-columns: 1fr 1fr; }
   .stat { min-height: 88px; padding: 14px; }
   .stat:nth-child(2) { border-right: 0; }

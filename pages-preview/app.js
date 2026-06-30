@@ -42,6 +42,12 @@ const ROLE_DASHBOARD_DEFAULTS = {
   teacher: ["upcoming", "logs", "enrollments"],
   student: ["upcoming", "logs", "enrollments"]
 };
+const ROLE_MOBILE_QUICK_ACTION_LIMITS = {
+  admin: 3,
+  staff: 3,
+  teacher: 3,
+  student: 3
+};
 const DASHBOARD_WIDGET_LABELS = {
   stats: "핵심 지표",
   calendar: "다가오는 일정",
@@ -2160,10 +2166,14 @@ function quickActionIntro(user = state.user) {
   return "운영 흐름을 한눈에 정리해요.";
 }
 
+function quickActionMobileLimit(user = state.user) {
+  return ROLE_MOBILE_QUICK_ACTION_LIMITS[user.role] || 3;
+}
+
 function renderQuickActions() {
   const actions = quickActionsFor();
   if (!actions.length) return "";
-  return `<section class="quick-actions" aria-label="빠른 작업"><div class="quick-actions-head"><span>오늘 먼저 할 일</span><p>${escapeHtml(quickActionIntro())}</p></div><div class="quick-action-grid">${actions.map((item, index) => `<button class="quick-action-card ${index === 0 ? "primary" : ""}" onclick="${item.subview ? `navigateSubview('${item.page}', '${item.subview}')` : `navigate('${item.page}')`}">${icon(item.iconName)}<strong>${escapeHtml(item.label)}</strong><small>${escapeHtml(item.hint)}</small></button>`).join("")}</div></section>`;
+  return `<section class="quick-actions" data-mobile-limit="${quickActionMobileLimit()}" aria-label="빠른 작업"><div class="quick-actions-head"><span>오늘 먼저 할 일</span><p>${escapeHtml(quickActionIntro())}</p></div><div class="quick-action-grid">${actions.map((item, index) => `<button class="quick-action-card ${index === 0 ? "primary" : ""}" onclick="${item.subview ? `navigateSubview('${item.page}', '${item.subview}')` : `navigate('${item.page}')`}">${icon(item.iconName)}<strong>${escapeHtml(item.label)}</strong><small>${escapeHtml(item.hint)}</small></button>`).join("")}</div></section>`;
 }
 
 function renderDashboard() {
