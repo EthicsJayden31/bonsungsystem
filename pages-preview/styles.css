@@ -744,8 +744,7 @@ button.floor-room:hover { transform: translateY(-1px); border-color: var(--brand
   .mobile-menu-section-utility { background: white; }
   .mobile-menu-group { min-width: 0; display: grid; gap: 5px; }
   .mobile-menu-group > button:first-child { width: 100%; }
-  .mobile-menu-sheet nav .mobile-child { min-height: 40px; justify-content: flex-start; border-color: rgba(107, 15, 18, 0.16); border-style: solid; background: color-mix(in srgb, var(--brand-soft) 45%, white); padding-left: 12px; font-size: 10px; font-weight: 820; }
-  .mobile-menu-sheet nav .mobile-child .icon { width: 14px; height: 14px; color: var(--brand); }
+  .mobile-child-summary { display: block; border: 1px solid rgba(107, 15, 18, 0.11); border-radius: 999px; background: rgba(107, 15, 18, 0.04); color: var(--muted); padding: 6px 9px; font-size: 10px; font-weight: 760; line-height: 1.35; }
   .mobile-menu-sheet nav button { min-height: 48px; border: 1px solid var(--line); border-radius: 11px; color: #3d505b; background: white; }
   .mobile-menu-sheet nav button.active { border-color: rgba(123,8,8,.24); background: var(--brand-soft); color: var(--brand-dark); }
   .mobile-float-actions { position: fixed; z-index: 39; left: 12px; bottom: calc(78px + env(safe-area-inset-bottom)); display: flex; justify-content: flex-start; pointer-events: none; }

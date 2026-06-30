@@ -2046,7 +2046,11 @@ function subviewActionsFor(page) {
 }
 
 function mobileMenuChildren(page) {
-  return subviewActionsFor(page).map(({ subview, label }) => `<button class="mobile-child" onclick="navigateSubview('${page}', '${subview}')">${icon("chevron")}<span>${label}</span></button>`).join("");
+  const actions = subviewActionsFor(page);
+  if (actions.length < 2) return "";
+  const preview = actions.slice(0, 2).map(({ label }) => label).join(" · ");
+  const suffix = actions.length > 2 ? ` 외 ${actions.length - 2}개` : "";
+  return `<small class="mobile-child-summary">작업 선택 ${actions.length}개 · ${escapeHtml(preview)}${suffix}</small>`;
 }
 
 function labelResponsiveTables() {
