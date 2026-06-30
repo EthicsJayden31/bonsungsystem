@@ -285,6 +285,7 @@ input::placeholder, textarea::placeholder { color: #9aa7af; }
 .quick-actions-head p { margin: 0; color: var(--muted); font-size: 11px; }
 .quick-actions-more { display: none; align-items: center; justify-content: center; gap: 5px; min-height: 34px; border: 1px solid rgba(107, 15, 18, 0.18); border-radius: 999px; background: rgba(107, 15, 18, 0.06); color: var(--brand); padding: 0 11px; font-size: 11px; font-weight: 860; white-space: nowrap; }
 .quick-actions-more .icon { width: 15px; height: 15px; }
+.quick-actions-count { display: inline-grid; min-width: 20px; height: 20px; place-items: center; border-radius: 999px; background: var(--brand); color: white; padding: 0 6px; font-size: 10px; line-height: 1; }
 .quick-action-grid { display: grid; grid-template-columns: 1.2fr repeat(3, minmax(0, 1fr)); gap: 9px; }
 .quick-action-card { min-width: 0; min-height: 82px; display: grid; justify-items: start; align-content: center; gap: 5px; border: 1px solid rgba(107, 15, 18, 0.12); border-radius: 8px; background: white; color: var(--ink); padding: 12px; text-align: left; box-shadow: 0 8px 20px rgba(60, 6, 8, 0.04); }
 .quick-action-card.primary { border-color: transparent; background: linear-gradient(135deg, var(--brand-dark), var(--brand)); color: white; }
