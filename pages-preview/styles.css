@@ -1024,6 +1024,40 @@ button.floor-room:hover { transform: translateY(-1px); border-color: var(--brand
     border-radius: 14px;
     color: var(--brand-dark);
   }
+  .enrollment-table-wrap tbody,
+  .lesson-table-wrap tbody {
+    gap: 10px;
+    padding: 0 12px 12px;
+  }
+  .enrollment-table tr,
+  .lesson-table tr {
+    border-radius: 20px;
+    box-shadow: 0 12px 28px rgba(60, 6, 8, 0.07);
+  }
+  .enrollment-table td:first-child,
+  .lesson-table td:first-child {
+    padding: 14px 13px;
+  }
+  .enrollment-table td:first-child .entity-link,
+  .lesson-table td:first-child {
+    color: var(--brand);
+    font-size: 15px;
+    font-weight: 850;
+  }
+  .enrollment-table td:nth-child(6),
+  .lesson-table td:nth-child(6) {
+    align-items: center;
+  }
+  .lesson-table .clickable-row::after {
+    display: block;
+    border-top: 1px solid #f0e9e7;
+    padding: 11px 13px 12px;
+    color: var(--brand-dark);
+    content: "탭해서 수업 상세 보기";
+    font-size: 12px;
+    font-weight: 850;
+    text-align: center;
+  }
 }
 
 @media (max-width: 620px) {

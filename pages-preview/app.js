@@ -2077,7 +2077,7 @@ function labelResponsiveTables() {
     const labels = Array.from(table.querySelectorAll("thead th")).map((cell) => cell.textContent.trim());
     table.querySelectorAll("tbody tr").forEach((row) => {
       Array.from(row.children).forEach((cell, index) => {
-        cell.dataset.label = labels[index] || "정보";
+        if (!cell.dataset.label) cell.dataset.label = labels[index] || "정보";
       });
     });
   });
@@ -3144,12 +3144,12 @@ function logsCompactList(items) {
 
 function enrollmentsTable(items) {
   if (!items.length) return empty("등록된 수강 정보가 없습니다.");
-  return `<div class="table-wrap"><table><thead><tr><th>수강생</th><th>등록 기준</th><th>강사</th><th>기간</th><th>반복 일정</th><th>상태</th></tr></thead><tbody>${items.map((item) => `<tr><td>${entityLink("student", item.student_id, item.student_name || studentName(item.student_id))}</td><td>${escapeHtml(item.subject)}</td><td>${entityLink("account", item.teacher_id, item.teacher_name || accountName(item.teacher_id))}</td><td>${escapeHtml(formatDate(item.start_date))} ~ ${item.end_date ? escapeHtml(formatDate(item.end_date)) : "계속"}</td><td>${DAY_LABELS[Number(item.weekly_day)] || "-"} ${escapeHtml(item.start_time || "")}</td><td>${statusBadge(ENROLLMENT_STATUS_LABELS[item.status] || item.status, item.status === "active" ? "success" : "muted")}</td></tr>`).join("")}</tbody></table></div>`;
+  return `<div class="table-wrap enrollment-table-wrap"><table class="enrollment-table"><thead><tr><th>수강생</th><th>등록 기준</th><th>강사</th><th>기간</th><th>반복 일정</th><th>상태</th></tr></thead><tbody>${items.map((item) => `<tr><td data-label="수강생">${entityLink("student", item.student_id, item.student_name || studentName(item.student_id))}</td><td data-label="등록 기준">${escapeHtml(item.subject)}</td><td data-label="강사">${entityLink("account", item.teacher_id, item.teacher_name || accountName(item.teacher_id))}</td><td data-label="기간">${escapeHtml(formatDate(item.start_date))} ~ ${item.end_date ? escapeHtml(formatDate(item.end_date)) : "계속"}</td><td data-label="반복 일정">${DAY_LABELS[Number(item.weekly_day)] || "-"} ${escapeHtml(item.start_time || "")}</td><td data-label="상태">${statusBadge(ENROLLMENT_STATUS_LABELS[item.status] || item.status, item.status === "active" ? "success" : "muted")}</td></tr>`).join("")}</tbody></table></div>`;
 }
 
 function lessonsTable(items) {
   if (!items.length) return empty("예정된 개별 수업이 없습니다.");
-  return `<div class="table-wrap"><table><thead><tr><th>일시·회차</th><th>수강생</th><th>강사</th><th>과목</th><th>강의실</th><th>상태·보강</th></tr></thead><tbody>${items.map((item) => `<tr onclick="openEntity('lesson','${item.lesson_id}')" class="clickable-row"><td>${escapeHtml(formatDate(item.lesson_date))} ${escapeHtml(item.start_time || "")}<br /><small>${item.lesson_number ? `${item.lesson_number}회차` : "-"}</small></td><td>${entityLink("student", item.student_id, item.student_name || studentName(item.student_id))}</td><td>${entityLink("account", item.teacher_id, item.teacher_name || accountName(item.teacher_id))}</td><td>${escapeHtml(item.subject)}</td><td>${escapeHtml(item.room || "-")}</td><td>${statusBadge(item.status || "예정", ["결석","취소"].includes(item.status) ? "danger" : item.status === "완료" ? "success" : "info")}${item.makeup_date ? `<br /><small>보강 ${escapeHtml(formatDate(item.makeup_date))}</small>` : ""}</td></tr>`).join("")}</tbody></table></div>`;
+  return `<div class="table-wrap lesson-table-wrap"><table class="lesson-table"><thead><tr><th>일시·회차</th><th>수강생</th><th>강사</th><th>과목</th><th>강의실</th><th>상태·보강</th></tr></thead><tbody>${items.map((item) => `<tr onclick="openEntity('lesson','${item.lesson_id}')" class="clickable-row"><td data-label="일시·회차">${escapeHtml(formatDate(item.lesson_date))} ${escapeHtml(item.start_time || "")}<br /><small>${item.lesson_number ? `${item.lesson_number}회차` : "-"}</small></td><td data-label="수강생">${entityLink("student", item.student_id, item.student_name || studentName(item.student_id))}</td><td data-label="강사">${entityLink("account", item.teacher_id, item.teacher_name || accountName(item.teacher_id))}</td><td data-label="과목">${escapeHtml(item.subject)}</td><td data-label="강의실">${escapeHtml(item.room || "-")}</td><td data-label="상태·보강">${statusBadge(item.status || "예정", ["결석","취소"].includes(item.status) ? "danger" : item.status === "완료" ? "success" : "info")}${item.makeup_date ? `<br /><small>보강 ${escapeHtml(formatDate(item.makeup_date))}</small>` : ""}</td></tr>`).join("")}</tbody></table></div>`;
 }
 
 function registrationsTable(items) {
