@@ -1126,6 +1126,76 @@ button.floor-room:hover { transform: translateY(-1px); border-color: var(--brand
     min-height: 42px;
     border-radius: 14px;
   }
+  .account-table-wrap tbody,
+  .account-request-history-wrap tbody {
+    gap: 10px;
+    padding: 0 12px 12px;
+  }
+  .account-table tr,
+  .account-request-history-table tr {
+    border-radius: 20px;
+    box-shadow: 0 12px 28px rgba(60, 6, 8, 0.07);
+  }
+  .account-table td:first-child,
+  .account-request-history-table td:first-child {
+    padding: 14px 13px;
+  }
+  .account-table td:first-child .entity-link,
+  .account-request-history-table td:first-child {
+    color: var(--brand);
+    font-size: 15px;
+    font-weight: 850;
+  }
+  .account-table td:nth-child(5),
+  .account-request-history-table td:nth-child(4) {
+    align-items: center;
+  }
+  .account-table td:nth-child(6) {
+    display: block;
+    padding: 12px 13px;
+  }
+  .account-table td:nth-child(6)::before { display: none; }
+  .account-table td:nth-child(6) .row-actions {
+    grid-template-columns: 1fr;
+  }
+  .account-table td:nth-child(6) .btn {
+    min-height: 42px;
+    border-radius: 14px;
+  }
+  .account-table .permission-editor {
+    margin-top: 10px;
+  }
+  .account-table .permission-editor summary {
+    min-height: 42px;
+    border-radius: 14px;
+  }
+  .account-request-card {
+    border-radius: 20px;
+    box-shadow: 0 12px 28px rgba(60, 6, 8, 0.07);
+  }
+  .account-request-card > header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+    padding: 14px;
+  }
+  .account-request-card > header strong {
+    color: var(--brand);
+    font-size: 16px;
+  }
+  .account-request-list {
+    padding: 12px;
+  }
+  .request-review-form {
+    padding: 14px;
+  }
+  .request-review-form .form-actions {
+    grid-template-columns: 1fr;
+  }
+  .request-review-form .form-actions .btn {
+    min-height: 44px;
+    border-radius: 14px;
+  }
 }
 
 @media (max-width: 620px) {
