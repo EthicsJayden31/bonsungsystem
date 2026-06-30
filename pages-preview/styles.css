@@ -1080,6 +1080,52 @@ button.floor-room:hover { transform: translateY(-1px); border-color: var(--brand
   .registration-table td:nth-child(7) {
     align-items: center;
   }
+  .reservation-table-wrap tbody {
+    gap: 10px;
+    padding: 0 12px 12px;
+  }
+  .reservation-table tr {
+    border-radius: 20px;
+    box-shadow: 0 12px 28px rgba(60, 6, 8, 0.07);
+  }
+  .reservation-table td:first-child {
+    padding: 14px 13px;
+  }
+  .reservation-table td:first-child {
+    color: var(--brand);
+    font-size: 15px;
+    font-weight: 850;
+  }
+  .reservation-table td:first-child small {
+    border-radius: 999px;
+    background: rgba(107, 15, 18, 0.08);
+    color: var(--brand-dark);
+    display: inline-flex;
+    margin-top: 6px;
+    padding: 3px 8px;
+    font-size: 11px;
+    font-weight: 850;
+  }
+  .reservation-table td:nth-child(2) .entity-link {
+    color: var(--ink);
+    font-size: 14px;
+    font-weight: 850;
+  }
+  .reservation-table td:nth-child(5) {
+    align-items: center;
+  }
+  .reservation-table td:nth-child(6) {
+    display: block;
+    padding: 12px 13px;
+  }
+  .reservation-table td:nth-child(6)::before { display: none; }
+  .reservation-table td:nth-child(6) .row-actions {
+    grid-template-columns: 1fr 1fr;
+  }
+  .reservation-table td:nth-child(6) .btn {
+    min-height: 42px;
+    border-radius: 14px;
+  }
 }
 
 @media (max-width: 620px) {
@@ -1122,6 +1168,12 @@ button.floor-room:hover { transform: translateY(-1px); border-color: var(--brand
   .filter-bar { grid-template-columns: 1fr; }
   td, td.wrap { grid-template-columns: 1fr; gap: 4px; }
   .schedule-slots { grid-template-columns: 1fr; }
+}
+
+@media (min-width: 361px) and (max-width: 620px) {
+  .reservation-board .schedule-slots {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
