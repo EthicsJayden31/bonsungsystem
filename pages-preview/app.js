@@ -1905,7 +1905,6 @@ function renderConnectionError() {
         </div>
       </section>
       <section class="auth-context">
-        <div class="brand-hero-card"><img src="./assets/bonsung-design-template.png" alt="Bonsung Music Academy 본성뮤직 브랜드 이미지" /></div>
         <div class="context-copy"><h2>수업과 운영 기록을<br />한 흐름으로 관리합니다.</h2><p>별도의 Google Sheet 연결 과정 없이 로그인하면 역할에 맞는 업무 화면이 바로 열립니다.</p></div>
       </section>
     </main>`;
@@ -1931,7 +1930,6 @@ function renderAuth() {
         <p class="status-line error">${escapeHtml(state.message)}</p>
       </section>
       <section class="auth-context">
-        <div class="brand-hero-card"><img src="./assets/bonsung-design-template.png" alt="Bonsung Music Academy 본성뮤직 브랜드 이미지" /></div>
         <div class="context-copy"><h2>${multiline(config.login_context_title)}</h2><p>${multiline(config.login_context_body)}</p></div>
         ${config.login_popup_enabled ? `<button class="login-notice-card" onclick="openAuthDialog('notice')"><span>운영 공지</span><strong>${escapeHtml(config.login_popup_title)}</strong><p>${escapeHtml(config.login_popup_body)}</p><small>자세히 보기 ${icon("chevron")}</small></button>` : ""}
         <div class="context-preview">
