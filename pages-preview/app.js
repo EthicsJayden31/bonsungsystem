@@ -3079,11 +3079,11 @@ function renderProfile() {
   return `
     ${pageHeading("환경 설정", "개인 프로필, 화면 모드와 로그인 비밀번호를 관리합니다.")}
     <div class="profile-grid">
-      <section class="profile-summary">
+      <section class="profile-summary profile-mobile-card">
         <span class="avatar large">${escapeHtml(state.user.name.slice(0, 1))}</span>
         <div><h2>${escapeHtml(state.user.name)}</h2><p>${escapeHtml(accountLabel(state.user))} · ${escapeHtml(state.user.login_id)}</p></div>
       </section>
-      <section class="panel profile-panel">
+      <section class="panel profile-panel profile-settings-panel">
         <div class="panel-head"><div><h2>프로필과 화면 설정</h2><p>강사 프로필과 개인 환경에 반영됩니다.</p></div></div>
         <form class="panel-body form-grid" onsubmit="updateProfile(event)">
           ${state.accountType === "admin" ? `<label class="field"><span>관리자 표시 이름</span><input name="name" value="${escapeAttr(state.user.name || "admin")}" maxlength="60" required /></label>` : ""}
@@ -3097,7 +3097,7 @@ function renderProfile() {
           <div class="form-actions"><button class="btn">${icon("save")}설정 저장</button></div>
         </form>
       </section>
-      <section class="panel profile-panel">
+      <section class="panel profile-panel profile-password-panel">
         <div class="panel-head"><div><h2>비밀번호 변경</h2><p>8자 이상 사용해 주세요.</p></div></div>
         ${state.user.must_change_password ? `<div class="inline-alert">초기 비밀번호를 사용 중입니다. 계속하려면 새 비밀번호로 변경해 주세요.</div>` : ""}
         <form class="panel-body form-grid" onsubmit="changePassword(event)">
@@ -3107,7 +3107,7 @@ function renderProfile() {
           <div class="form-actions"><button class="btn">${icon("save")}비밀번호 변경</button></div>
         </form>
       </section>
-      <section class="panel account-actions">
+      <section class="panel account-actions profile-session-panel">
         <div class="panel-head"><div><h2>로그인 세션</h2><p>공용 기기에서는 사용 후 로그아웃하세요.</p></div></div>
         <div class="panel-body"><button class="btn secondary" onclick="logout()">${icon("logout")}로그아웃</button></div>
       </section>

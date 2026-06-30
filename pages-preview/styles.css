@@ -919,6 +919,77 @@ button.floor-room:hover { transform: translateY(-1px); border-color: var(--brand
 }
 
 @media (max-width: 760px) {
+  .profile-grid {
+    gap: 12px;
+  }
+
+  .profile-mobile-card,
+  .profile-settings-panel,
+  .profile-password-panel,
+  .profile-session-panel {
+    border-radius: 20px;
+    box-shadow: 0 12px 28px rgba(60, 6, 8, 0.07);
+  }
+
+  .profile-mobile-card {
+    align-items: center;
+    border: 1px solid rgba(107, 15, 18, 0.12);
+    background: linear-gradient(135deg, rgba(107, 15, 18, 0.08), #ffffff);
+  }
+
+  .profile-settings-panel .panel-body,
+  .profile-password-panel .panel-body,
+  .profile-session-panel .panel-body {
+    padding: 14px;
+    gap: 14px;
+  }
+
+  .profile-settings-panel .field,
+  .profile-password-panel .field,
+  .profile-settings-panel .preference-field {
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: var(--surface);
+    padding: 12px;
+  }
+
+  .profile-settings-panel .theme-options {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-settings-panel .theme-options span,
+  .profile-settings-panel .preference-field label,
+  .profile-settings-panel input,
+  .profile-settings-panel select,
+  .profile-settings-panel textarea,
+  .profile-password-panel input {
+    min-height: 44px;
+    border-radius: 14px;
+  }
+
+  .profile-settings-panel .preference-field {
+    background: rgba(107, 15, 18, 0.03);
+  }
+
+  .profile-settings-panel .preference-field > div {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-settings-panel .form-actions,
+  .profile-password-panel .form-actions {
+    display: grid;
+    grid-column: 1 / -1;
+    justify-content: stretch;
+  }
+
+  .profile-settings-panel .form-actions .btn,
+  .profile-password-panel .form-actions .btn,
+  .profile-session-panel .btn {
+    width: 100%;
+    min-height: 46px;
+    border-radius: 14px;
+  }
+
   .table-wrap { overflow: visible; background: transparent; }
   .table-wrap table { background: transparent; }
   table, thead, tbody, tr, th, td { display: block; width: 100%; }
