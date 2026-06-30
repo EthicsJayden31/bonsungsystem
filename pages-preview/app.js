@@ -1983,41 +1983,47 @@ function renderMobileMenu(menus) {
 }
 
 function mobileMenuHelp(user) {
-  if (user.role === "teacher") return "오늘 수업과 담당 수강생 업무를 먼저 모았습니다.";
-  if (user.role === "student") return "내 수업, 피드백, 연습실 예약을 빠르게 확인합니다.";
-  if (user.role === "staff") return "접수와 운영 업무를 하나씩 선택해 들어갑니다.";
-  return "관리자가 자주 보는 운영·권한 업무를 먼저 모았습니다.";
+  if (user.role === "teacher") return "수업 확인, 기록 작성, 담당 학생 확인을 빠르게 이어갑니다.";
+  if (user.role === "student") return "다음 수업, 피드백, 연습실 예약을 하나씩 확인합니다.";
+  if (user.role === "staff") return "접수, 등록, 수납, 예약을 업무 흐름대로 선택합니다.";
+  return "오늘 운영 점검부터 수강, 수납, 권한 업무까지 확인합니다.";
 }
 
 function mobileMenuSections(user) {
   if (user.role === "teacher") {
     return [
       { title: "오늘 수업", keys: ["my-overview", "calendar"] },
-      { title: "담당 수강생", keys: ["students", "lesson-logs"] },
+      { title: "수업 기록", keys: ["lesson-logs"] },
+      { title: "담당 수강생", keys: ["students"] },
       { title: "예약·협업", keys: ["reservations", "meetings"] },
       { title: "내 설정", keys: ["team", "profile"] }
     ];
   }
   if (user.role === "student") {
     return [
-      { title: "내 수업", keys: ["my-overview", "lesson-logs"] },
-      { title: "이용하기", keys: ["reservations", "calendar"] },
-      { title: "결제·설정", keys: ["registrations", "profile"] }
+      { title: "다음 수업", keys: ["my-overview", "calendar"] },
+      { title: "피드백", keys: ["lesson-logs"] },
+      { title: "연습실 예약", keys: ["reservations"] },
+      { title: "등록·내 설정", keys: ["registrations", "profile"] }
     ];
   }
   if (user.role === "staff") {
     return [
-      { title: "접수·상담", keys: ["students", "enrollments", "registrations"] },
-      { title: "오늘 운영", keys: ["dashboard", "calendar", "reservations"] },
-      { title: "팀 업무", keys: ["team", "meetings"] },
-      { title: "계정·설정", keys: ["accounts", "system-settings", "profile"] }
+      { title: "수강생 접수", keys: ["students"] },
+      { title: "수강 등록", keys: ["enrollments"] },
+      { title: "오늘 운영", keys: ["dashboard", "calendar"] },
+      { title: "수납·예약", keys: ["registrations", "reservations"] },
+      { title: "팀·설정", keys: ["team", "meetings", "accounts", "system-settings", "profile"] }
     ];
   }
   return [
-    { title: "운영 현황", keys: ["dashboard", "usage", "calendar"] },
-    { title: "수강·등록", keys: ["students", "enrollments", "registrations", "lesson-logs"] },
-    { title: "공간·팀", keys: ["reservations", "team", "meetings"] },
-    { title: "권한·설정", keys: ["accounts", "system-settings", "profile"] }
+    { title: "운영 점검", keys: ["dashboard", "calendar", "usage"] },
+    { title: "수강생 관리", keys: ["students"] },
+    { title: "수강·수납", keys: ["enrollments", "registrations"] },
+    { title: "수업 기록", keys: ["lesson-logs"] },
+    { title: "공간·회의", keys: ["reservations", "meetings"] },
+    { title: "팀·권한", keys: ["team", "accounts"] },
+    { title: "시스템·내 설정", keys: ["system-settings", "profile"] }
   ];
 }
 
