@@ -1112,8 +1112,13 @@ function defaultSubview(page) {
 
 function shouldOpenLessonLogComposer() {
   if (state.user?.role !== "teacher" || !state.capabilities.writeLessonLogs) return false;
+  return teacherPendingLessonLogsToday().length > 0;
+}
+
+function teacherPendingLessonLogsToday() {
+  if (state.user?.role !== "teacher" || !state.capabilities.writeLessonLogs) return [];
   const todayString = today();
-  return state.lessons.some((lesson) => {
+  return state.lessons.filter((lesson) => {
     if (lesson.teacher_id !== state.user.account_id || lesson.lesson_date !== todayString || lesson.status === "취소") return false;
     return !state.lessonLogs.some((log) =>
       log.teacher_id === lesson.teacher_id
@@ -2099,7 +2104,10 @@ function renderPage() {
 function subviewTabs(items) {
   if (items.length <= 1) return "";
   const options = items.map(([key, label]) => `<option value="${key}" ${state.subview === key ? "selected" : ""}>${escapeHtml(label)}</option>`).join("");
-  return `<div class="mobile-subview-picker"><label><span>세부 작업</span><small>선택한 화면에서 할 일을 고르세요.</small><select onchange="setSubview(this.value)">${options}</select></label></div><nav class="subview-tabs" aria-label="세부 메뉴">${items.map(([key, label, iconName]) => `<button class="${state.subview === key ? "active" : ""}" onclick="setSubview('${key}')">${icon(iconName || "list")}<span>${label}</span></button>`).join("")}</nav>`;
+  const helper = state.page === "lesson-logs" && state.user?.role === "teacher"
+    ? "오늘 담당 수업 중 미작성 일지가 있으면 작성 화면이 먼저 열립니다."
+    : "선택한 화면에서 할 일을 고르세요.";
+  return `<div class="mobile-subview-picker"><label><span>세부 작업</span><small>${escapeHtml(helper)}</small><select onchange="setSubview(this.value)">${options}</select></label></div><nav class="subview-tabs" aria-label="세부 메뉴">${items.map(([key, label, iconName]) => `<button class="${state.subview === key ? "active" : ""}" onclick="setSubview('${key}')">${icon(iconName || "list")}<span>${label}</span></button>`).join("")}</nav>`;
 }
 
 function renderTestToolbar() {
@@ -2149,6 +2157,7 @@ function dashboardWidgetOptions() {
 
 function quickActionsFor(user = state.user) {
   const c = state.capabilities || {};
+  const hasPendingLessonLog = shouldOpenLessonLogComposer();
   const action = (label, hint, iconName, page, subview = "") => ({ label, hint, iconName, page, subview });
   const subviewAction = (page, subview, label, hint, iconName) => {
     const target = subviewActionsFor(page).find((item) => item.subview === subview);
@@ -2156,7 +2165,7 @@ function quickActionsFor(user = state.user) {
   };
   const byRole = user.role === "teacher"
     ? [
-        subviewAction("lesson-logs", "create", "수업일지 작성", "오늘 수업 기록 남기기", "plus"),
+        subviewAction("lesson-logs", hasPendingLessonLog ? "create" : "browse", hasPendingLessonLog ? "수업일지 작성" : "최근 일지 보기", hasPendingLessonLog ? "오늘 수업 기록 남기기" : "최근 기록 확인 · 필요 시 직접 작성", hasPendingLessonLog ? "plus" : "book"),
         action("오늘 수업", "내 일정 바로 확인", "calendar", "my-overview"),
         subviewAction("students", "list", "담당 수강생", "학생별 기록 확인", "users"),
         subviewAction("reservations", "create", "공간 예약", "레슨실·연습실 예약", "building")
@@ -2244,8 +2253,12 @@ function renderMyOverview() {
   const stats = overview.stats || {};
   const title = teacher ? `${state.user.name}님의 수업` : `${state.user.name}님의 수강`;
   const description = teacher ? "담당 수업과 수강생, 최근 기록을 한눈에 확인합니다." : "수강 과목과 다음 수업, 학습 기록을 확인합니다.";
+  const hasPendingLessonLog = shouldOpenLessonLogComposer();
+  const teacherLessonLogAction = hasPendingLessonLog
+    ? `<button class="btn" onclick="navigateSubview('lesson-logs','create')">${icon("plus")}수업일지 작성</button>`
+    : `<button class="btn secondary" onclick="navigateSubview('lesson-logs','browse')">${icon("book")}최근 일지 보기</button>`;
   return `
-    ${pageHeading(title, description, teacher ? `<button class="btn" onclick="navigate('lesson-logs')">${icon("plus")}수업일지 작성</button>` : "")}
+    ${pageHeading(title, description, teacher ? teacherLessonLogAction : "")}
     ${renderQuickActions()}
     ${dashboardWidgetEnabled("stats") ? `<section class="stats">
       ${teacher ? statItem("담당 수강생", stats.activeStudents || 0, "명") : statItem("수강 과목", stats.activeCourses || 0, "개")}
