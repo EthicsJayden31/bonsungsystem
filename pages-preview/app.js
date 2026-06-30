@@ -1102,9 +1102,9 @@ function navigateSubview(page, subview) {
 }
 
 function defaultSubview(page) {
-  if (page === "lesson-logs") return "browse";
+  if (page === "lesson-logs") return state.user?.role === "teacher" && state.capabilities.writeLessonLogs ? "create" : "browse";
   if (page === "reservations") return "schedule";
-  if (page === "enrollments") return "history";
+  if (page === "enrollments") return "schedule";
   if (page === "accounts") return "list";
   if (page === "students") return "list";
   return "";
@@ -2083,6 +2083,7 @@ function renderPage() {
 }
 
 function subviewTabs(items) {
+  if (items.length <= 1) return "";
   const options = items.map(([key, label]) => `<option value="${key}" ${state.subview === key ? "selected" : ""}>${escapeHtml(label)}</option>`).join("");
   return `<div class="mobile-subview-picker"><label><span>세부 작업</span><small>선택한 화면에서 할 일을 고르세요.</small><select onchange="setSubview(this.value)">${options}</select></label></div><nav class="subview-tabs" aria-label="세부 메뉴">${items.map(([key, label, iconName]) => `<button class="${state.subview === key ? "active" : ""}" onclick="setSubview('${key}')">${icon(iconName || "list")}<span>${label}</span></button>`).join("")}</nav>`;
 }
