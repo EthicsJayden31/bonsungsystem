@@ -95,8 +95,21 @@ const requiredSourceSignals = [
   },
   {
     file: "pages-preview/app.js",
-    includes: ["bonsung-logo-seal.png", "bonsung-design-template.png"],
-    label: "legacy preview uses uploaded template-derived brand assets"
+    includes: ["bonsung-logo-seal.png"],
+    label: "legacy preview uses the uploaded template-derived logo"
+  }
+];
+
+const forbiddenSourceSignals = [
+  {
+    file: "pages-preview/app.js",
+    includes: ["bonsung-design-template.png", "brand-hero-card"],
+    label: "legacy preview login should not render the large brand template image"
+  },
+  {
+    file: "pages-preview/styles.css",
+    includes: ["brand-hero-card"],
+    label: "legacy preview styles should not keep unused brand template card CSS"
   }
 ];
 
@@ -128,6 +141,17 @@ for (const signal of requiredSourceSignals) {
   for (const expected of signal.includes) {
     if (!contents.includes(expected)) {
       errors.push(`${signal.label}: expected ${signal.file} to include ${expected}`);
+    }
+  }
+}
+
+for (const signal of forbiddenSourceSignals) {
+  const contents = readIfExists(signal.file);
+  if (!contents) continue;
+
+  for (const forbidden of signal.includes) {
+    if (contents.includes(forbidden)) {
+      errors.push(`${signal.label}: expected ${signal.file} not to include ${forbidden}`);
     }
   }
 }
