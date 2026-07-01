@@ -58,6 +58,12 @@ pnpm run verify:version3-server
 ghcr.io/ethicsjayden31/bonsung-version3-server:codex-v1-intranet
 ```
 
+2026-07-01 기준으로 익명 pull manifest 조회가 통과했습니다.
+
+```bash
+ghcr.io/ethicsjayden31/bonsung-version3-server@sha256:ee21d65a6464a40219c103d69e03b658e669b09ca20e07b39932e454dd75570e
+```
+
 외부 호스트가 Docker 이미지를 직접 실행할 수 있다면 이 이미지를 사용하고, 환경값은 `.env.production.example` 기준으로 넣습니다. 반드시 `/data` 같은 영구 디스크를 붙여 `VERSION3_LOCAL_DATA_FILE=/data/version3-data.json`이 실제로 보존되게 해야 합니다.
 
 ## 5. 외부 서버 검증 워크플로
