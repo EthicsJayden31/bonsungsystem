@@ -5,12 +5,17 @@ import { AppShell } from "@/components/layout/app-shell";
 import { ResourcePage, type MobileListCard } from "@/components/layout/resource-page";
 import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/ui/table";
-import { courseName, studentName, useOperationsData } from "@/lib/operations-data";
+import { hasVersion3Permission } from "@/lib/access-policy";
+import { courseName, studentName, useOperationAction, useOperationsData } from "@/lib/operations-data";
+import { useCurrentUser } from "@/lib/use-current-user";
 import { usePreviewRole } from "@/lib/use-preview-role";
 
 export default function TeachersPage() {
   const role = usePreviewRole();
+  const user = useCurrentUser();
   const { data, source, error } = useOperationsData(role);
+  const saveAction = useOperationAction();
+  const canManageOperations = hasVersion3Permission(user ?? role, "manageOperations");
   const [selectedTeacherId, setSelectedTeacherId] = useState("");
 
   useEffect(() => {
@@ -135,12 +140,16 @@ export default function TeachersPage() {
           ])}
           emptyTitle="강사 기록이 없습니다"
           emptyDescription="실사용 데이터 또는 preview 데이터에 강사 기록이 없으면 이 상태가 표시됩니다."
+          onSubmit={canManageOperations ? (values) => saveAction.run("createTeacher", { teacher: values }) : undefined}
+          submitDisabled={saveAction.pending}
+          submitLabel={saveAction.pending ? "저장 중" : "강사 저장"}
+          submitHelp="Version.3 서버 세션에서는 강사 기록이 별도 서버에 저장됩니다. 강사 계정 생성과 권한 부여는 계정 관리에서 이어서 처리합니다."
+          showForm={canManageOperations}
           fields={[
             { label: "강사명", name: "name" },
             { label: "전공/담당 분야", name: "major" },
             { label: "메모", name: "memo", type: "textarea" }
           ]}
-          submitHelp="현재 강사 등록은 v1 입력안입니다. 실사용 계정 생성과 권한 부여는 legacy 또는 Apps Script 계정 관리에서 처리합니다."
         />
       </div>
     </AppShell>
@@ -152,10 +161,10 @@ function SourceNote({ source, error }: { source: string; error?: string }) {
     <div className="rounded-2xl border border-line bg-white p-4 shadow-card">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm font-semibold text-ink">
-          {source === "live" ? "Apps Script bootstrap의 실사용 강사 데이터를 표시합니다." : "실사용 세션이 없거나 연결이 실패하면 preview 강사 데이터를 표시합니다."}
+          {source === "server" ? "Version.3 서버의 강사 데이터를 표시합니다." : source === "live" ? "전환 세션의 강사 데이터를 표시합니다." : source === "fallback" ? "강사 데이터를 불러오지 못했습니다. 서버 연결과 권한을 확인해야 합니다." : "Preview 점검 모드의 강사 데이터를 표시합니다."}
         </p>
-        <Badge tone={source === "live" ? "good" : source === "fallback" ? "warn" : "default"}>
-          {source === "live" ? "실사용 데이터" : "Preview"}
+        <Badge tone={source === "server" || source === "live" ? "good" : source === "fallback" ? "warn" : "default"}>
+          {source === "server" ? "서버 데이터" : source === "live" ? "전환 데이터" : source === "fallback" ? "연결 실패" : "Preview"}
         </Badge>
       </div>
       {error ? <p className="mt-2 text-xs text-muted">연결 오류: {error}</p> : null}

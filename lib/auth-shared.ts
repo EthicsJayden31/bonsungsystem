@@ -1,23 +1,64 @@
-export type Role = "admin" | "staff" | "teacher";
+export type Role = "owner" | "manager" | "teacher" | "student";
 
 export type CurrentUser = {
   id: string;
   name: string;
   email: string;
   role: Role;
+  linkedStudentId?: string;
+  mustChangePassword?: boolean;
+  sessionExpiresAt?: string;
+  permissions?: Record<string, boolean>;
 };
 
 export const users: Record<Role, CurrentUser> = {
-  admin: { id: "admin-1", name: "원장 관리자", email: "admin@bonsung.test", role: "admin" },
-  staff: { id: "staff-1", name: "운영 스태프", email: "staff@bonsung.test", role: "staff" },
-  teacher: { id: "teacher-1", name: "강사 계정", email: "teacher@bonsung.test", role: "teacher" }
+  owner: { id: "owner-1", name: "대표 계정", email: "owner@bonsung.test", role: "owner" },
+  manager: { id: "manager-1", name: "매니저 계정", email: "manager@bonsung.test", role: "manager" },
+  teacher: { id: "teacher-1", name: "강사 계정", email: "teacher@bonsung.test", role: "teacher" },
+  student: { id: "student-1", name: "수강생 계정", email: "student@bonsung.test", role: "student" }
 };
 
+const roleAliases: Record<string, Role> = {
+  owner: "owner",
+  admin: "owner",
+  manager: "manager",
+  staff: "manager",
+  teacher: "teacher",
+  student: "student"
+};
+
+export function normalizeRole(role: string | undefined | null): Role | null {
+  if (!role) return null;
+  return roleAliases[role] ?? null;
+}
+
+export function isRole(role: string | undefined | null): role is Role {
+  return normalizeRole(role) === role;
+}
+
 export function canAccess(role: Role, area: string) {
-  if (role === "admin") return true;
-  if (role === "teacher" && ["payments", "data-quality"].includes(area)) return false;
-  if (role === "teacher") {
-    return ["dashboard", "students", "teachers", "lessons", "attendance", "lesson-notes", "practice-rooms", "notices", "profile-settings"].includes(area);
+  if (role === "owner") return true;
+  if (role === "manager") {
+    return [
+      "dashboard",
+      "accounts",
+      "students",
+      "teachers",
+      "guardians",
+      "consultations",
+      "enrollments",
+      "lessons",
+      "attendance",
+      "lesson-notes",
+      "practice-rooms",
+      "payments",
+      "tasks",
+      "notices",
+      "profile-settings"
+    ].includes(area);
   }
-  return area !== "settings";
+  if (role === "teacher") {
+    return ["dashboard", "students", "lessons", "attendance", "lesson-notes", "practice-rooms", "notices", "consultations", "profile-settings"].includes(area);
+  }
+  return ["dashboard", "lessons", "lesson-notes", "practice-rooms", "notices", "consultations", "payments", "profile-settings"].includes(area);
 }

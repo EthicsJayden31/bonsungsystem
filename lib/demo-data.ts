@@ -1,3 +1,5 @@
+import type { Role } from "@/lib/auth-shared";
+
 export type Teacher = {
   id: string;
   name: string;
@@ -31,6 +33,7 @@ export type Guardian = {
 
 export type Consultation = {
   id: string;
+  studentId?: string;
   studentName: string;
   guardianName: string;
   phone: string;
@@ -42,6 +45,22 @@ export type Consultation = {
   status: string;
   priority: string;
   memo: string;
+  assignedTo?: string;
+  assignedToName?: string;
+  statusUpdatedAt?: string;
+  unreadForAccountIds?: string[];
+};
+
+export type ConsultationHistory = {
+  id: string;
+  consultationId: string;
+  actorId: string;
+  actorName: string;
+  action: string;
+  status: string;
+  assignedTo: string;
+  assignedToName: string;
+  occurredAt: string;
 };
 
 export type Course = {
@@ -152,6 +171,8 @@ export type Notice = {
   author: string;
   updatedAt: string;
   body: string;
+  targetRoles: Role[];
+  pinned: boolean;
 };
 
 export const teachers: Teacher[] = [
@@ -206,8 +227,15 @@ export const guardians: Guardian[] = [
 ];
 
 export const consultations: Consultation[] = [
-  { id: "consult-1", studentName: "문하준", guardianName: "문하준 모", phone: "010-7777-3333", channel: "네이버", major: "드럼", goal: "입시", date: "2026-06-07", followUpDate: "2026-06-09", status: "상담예정", priority: "높음", memo: "정시반 커리큘럼 안내 필요" },
-  { id: "consult-2", studentName: "최서연", guardianName: "최서연 부", phone: "010-7777-2222", channel: "지인추천", major: "피아노", goal: "취미/전공 탐색", date: "2026-06-05", followUpDate: "2026-06-08", status: "상담완료", priority: "보통", memo: "첫 레슨 19시 후보" }
+  { id: "consult-0", studentId: "student-1", studentName: "이도윤", guardianName: "", phone: "", channel: "시스템", major: "보컬", goal: "상담요청", date: "2026-06-07", followUpDate: "", status: "접수됨", priority: "보통", memo: "다음 달 레슨 시간 변경 가능 여부를 확인하고 싶습니다.", assignedTo: "manager-1", assignedToName: "매니저 계정", statusUpdatedAt: "2026-06-07" },
+  { id: "consult-1", studentId: "student-3", studentName: "문하준", guardianName: "문하준 모", phone: "010-7777-3333", channel: "네이버", major: "드럼", goal: "입시", date: "2026-06-07", followUpDate: "2026-06-09", status: "전달 필요", priority: "높음", memo: "정시반 커리큘럼 안내 필요", assignedTo: "teacher-3", assignedToName: "박드럼", statusUpdatedAt: "2026-06-07" },
+  { id: "consult-2", studentId: "student-2", studentName: "최서연", guardianName: "최서연 부", phone: "010-7777-2222", channel: "지인추천", major: "피아노", goal: "취미/전공 탐색", date: "2026-06-05", followUpDate: "2026-06-08", status: "종결", priority: "보통", memo: "첫 레슨 19시 후보", assignedTo: "manager-1", assignedToName: "매니저 계정", statusUpdatedAt: "2026-06-08" }
+];
+
+export const consultationHistory: ConsultationHistory[] = [
+  { id: "consult-history-1", consultationId: "consult-0", actorId: "manager-1", actorName: "매니저 계정", action: "create_consultation", status: "접수됨", assignedTo: "manager-1", assignedToName: "매니저 계정", occurredAt: "2026-06-07T09:30:00+09:00" },
+  { id: "consult-history-2", consultationId: "consult-1", actorId: "manager-1", actorName: "매니저 계정", action: "update_consultation_status", status: "전달 필요", assignedTo: "teacher-3", assignedToName: "박드럼", occurredAt: "2026-06-07T11:10:00+09:00" },
+  { id: "consult-history-3", consultationId: "consult-2", actorId: "owner-1", actorName: "대표 계정", action: "update_consultation_status", status: "종결", assignedTo: "manager-1", assignedToName: "매니저 계정", occurredAt: "2026-06-08T18:20:00+09:00" }
 ];
 
 export const courses: Course[] = [
@@ -243,7 +271,7 @@ export const rooms: Room[] = [
 ];
 
 export const reservations: Reservation[] = [
-  { id: "reserve-1", roomId: "room-1", studentId: "student-1", requester: "운영 스태프", startsAt: "2026-06-07T18:00:00+09:00", endsAt: "2026-06-07T19:00:00+09:00", status: "예약", memo: "수업 후 연습" },
+  { id: "reserve-1", roomId: "room-1", studentId: "student-1", requester: "매니저 계정", startsAt: "2026-06-07T18:00:00+09:00", endsAt: "2026-06-07T19:00:00+09:00", status: "예약", memo: "수업 후 연습" },
   { id: "reserve-2", roomId: "room-2", studentId: "student-2", requester: "최서연 부", startsAt: "2026-06-08T16:00:00+09:00", endsAt: "2026-06-08T17:00:00+09:00", status: "예약", memo: "" }
 ];
 
@@ -253,13 +281,13 @@ export const payments: Payment[] = [
 ];
 
 export const tasks: Task[] = [
-  { id: "task-1", title: "개원 상담 명단 정리", assignee: "운영 스태프", dueDate: "2026-06-08", status: "진행중", priority: "높음", memo: "문의 경로별 분류" },
-  { id: "task-2", title: "강사 매뉴얼 초안 검토", assignee: "원장 관리자", dueDate: "2026-06-12", status: "할일", priority: "보통", memo: "출석/보강 기준 포함" }
+  { id: "task-1", title: "개원 상담 명단 정리", assignee: "매니저 계정", dueDate: "2026-06-08", status: "진행중", priority: "높음", memo: "문의 경로별 분류" },
+  { id: "task-2", title: "강사 매뉴얼 초안 검토", assignee: "대표 계정", dueDate: "2026-06-12", status: "할일", priority: "보통", memo: "출석/보강 기준 포함" }
 ];
 
 export const notices: Notice[] = [
-  { id: "notice-1", title: "개원 초기 상담 응대 기준", category: "운영규정", author: "원장 관리자", updatedAt: "2026-06-06", body: "상담 후 2영업일 이내 후속 연락을 남깁니다." },
-  { id: "notice-2", title: "강사 레슨노트 작성 기준", category: "강사매뉴얼", author: "운영 스태프", updatedAt: "2026-06-05", body: "수업 당일 수업 내용, 과제, 다음 목표를 기록합니다." }
+  { id: "notice-1", title: "개원 초기 상담 응대 기준", category: "운영규정", author: "대표 계정", updatedAt: "2026-06-06", body: "상담요청은 매니저가 먼저 확인한 뒤 필요한 담당자에게 공유합니다.", targetRoles: ["owner", "manager", "teacher", "student"], pinned: true },
+  { id: "notice-2", title: "강사 레슨노트 작성 기준", category: "강사매뉴얼", author: "매니저 계정", updatedAt: "2026-06-05", body: "수업 당일 수업 내용, 과제, 다음 목표를 기록합니다.", targetRoles: ["owner", "manager", "teacher"], pinned: false }
 ];
 
 export function byId<T extends { id: string }>(items: T[], id: string) {

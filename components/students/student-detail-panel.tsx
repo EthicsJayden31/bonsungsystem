@@ -6,16 +6,19 @@ import { DataTable } from "@/components/ui/table";
 import { courseName, teacherName, type OperationsData } from "@/lib/operations-data";
 import type { Guardian, LessonNote } from "@/lib/demo-data";
 import type { Role } from "@/lib/auth-shared";
+import type { Version3Account } from "@/lib/version3-server-contract";
 import type { ReactNode } from "react";
 
 type StudentDetailPanelProps = {
   data: OperationsData;
   studentId: string;
   role: Role | null;
+  account?: Version3Account;
+  canManageStudents?: boolean;
   onClose: () => void;
 };
 
-export function StudentDetailPanel({ data, studentId, role, onClose }: StudentDetailPanelProps) {
+export function StudentDetailPanel({ data, studentId, role, account, canManageStudents = false, onClose }: StudentDetailPanelProps) {
   const student = data.students.find((item) => item.id === studentId);
 
   if (!student) {
@@ -70,6 +73,11 @@ export function StudentDetailPanel({ data, studentId, role, onClose }: StudentDe
             <DetailRow label="생년월일" value={student.birthDate || "-"} />
             <DetailRow label="메모" value={role === "teacher" ? maskTeacherMemo(student.memo) : student.memo || "-"} />
           </InfoBlock>
+          {canManageStudents ? (
+            <InfoBlock title="수강생 계정">
+              <StudentAccountSummary account={account} studentId={student.id} />
+            </InfoBlock>
+          ) : null}
           <InfoBlock title="보호자">
             {guardians.length ? guardians.map((guardian) => <GuardianRow guardian={guardian} key={guardian.id} role={role} />) : <p className="text-sm text-muted">등록된 보호자 정보가 없습니다.</p>}
           </InfoBlock>
@@ -153,6 +161,36 @@ function DetailRow({ label, value }: { label: string; value: string }) {
     <div>
       <p className="text-xs font-bold text-muted">{label}</p>
       <p className="mt-1 text-sm leading-6 text-ink">{value}</p>
+    </div>
+  );
+}
+
+function StudentAccountSummary({ account, studentId }: { account?: Version3Account; studentId: string }) {
+  if (!account) {
+    return (
+      <div className="rounded-xl border border-accent/20 bg-accent/10 p-3">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm font-bold text-accent">계정 필요</p>
+          <Badge tone="warn">미연결</Badge>
+        </div>
+        <p className="mt-2 text-xs leading-5 text-muted">학생 기록은 있지만 로그인할 수강생 계정이 없습니다.</p>
+        <a className="mt-3 inline-flex rounded-xl bg-brand px-3 py-2 text-xs font-bold text-white transition hover:bg-brand-dark" href={`/accounts?student=${studentId}#create-account`}>
+          계정 관리로 이동
+        </a>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-xl border border-line bg-white p-3">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm font-bold text-ink">{account.loginId}</p>
+        <Badge tone={account.status === "paused" ? "danger" : account.status === "invited" || account.mustChangePassword ? "warn" : "good"}>{studentAccountText(account)}</Badge>
+      </div>
+      <div className="mt-3 space-y-2 text-xs leading-5 text-muted">
+        <p>이름: {account.name}</p>
+        <p>최근 로그인: {account.lastLoginAt || "-"}</p>
+      </div>
     </div>
   );
 }
@@ -245,4 +283,11 @@ function formatDateTime(value: string) {
 
 function maskTeacherMemo(memo: string) {
   return memo ? "해당 수업 운영에 필요한 범위만 표시" : "-";
+}
+
+function studentAccountText(account: Version3Account) {
+  if (account.status === "paused") return "계정 중지";
+  if (account.status === "invited") return "초안";
+  if (account.mustChangePassword) return "비밀번호 변경 필요";
+  return "연결됨";
 }

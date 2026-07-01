@@ -3,19 +3,23 @@
 import { AppShell } from "@/components/layout/app-shell";
 import { ResourcePage } from "@/components/layout/resource-page";
 import { Badge } from "@/components/ui/badge";
+import { hasVersion3Permission } from "@/lib/access-policy";
 import { courseName, studentName, teacherName, useOperationAction, useOperationsData } from "@/lib/operations-data";
+import { useCurrentUser } from "@/lib/use-current-user";
 import { usePreviewRole } from "@/lib/use-preview-role";
 
 export default function EnrollmentsPage() {
   const role = usePreviewRole();
+  const user = useCurrentUser();
   const { data, source } = useOperationsData(role);
   const saveAction = useOperationAction();
+  const canManageOperations = hasVersion3Permission(user ?? role, "manageOperations");
 
   return (
     <AppShell area="enrollments">
       <ResourcePage
         title="수강 관리"
-        description={source === "live" ? "Apps Script bootstrap의 수강 데이터를 표시합니다." : "Preview 데이터로 수강 화면과 권한 흐름을 점검합니다."}
+        description={source === "server" ? "Version.3 서버의 수강 데이터를 표시합니다." : source === "live" ? "전환 세션의 수강 데이터를 표시합니다." : source === "fallback" ? "수강 데이터를 불러오지 못했습니다. 서버 연결과 권한을 확인해야 합니다." : "Preview 데이터로 수강 화면과 권한 흐름을 점검합니다."}
         headers={["학생", "과목", "강사", "시작일", "상태", "메모"]}
         rows={data.enrollments.map((item) => [
           item.studentName || studentName(data, item.studentId),
@@ -26,11 +30,12 @@ export default function EnrollmentsPage() {
           item.memo || "-"
         ])}
         emptyTitle="표시할 수강 정보가 없습니다"
-        emptyDescription="실사용 세션이 없거나 Apps Script 응답에 수강 데이터가 없으면 이곳이 비어 있을 수 있습니다."
-        onSubmit={(values) => saveAction.run("createEnrollment", { enrollment: mapEnrollmentInput(values, data) })}
+        emptyDescription="실사용 세션이 없거나 서버 응답에 수강 데이터가 없으면 이곳이 비어 있을 수 있습니다."
+        onSubmit={canManageOperations ? (values) => saveAction.run("createEnrollment", { enrollment: mapEnrollmentInput(values, data) }) : undefined}
         submitDisabled={saveAction.pending}
         submitLabel={saveAction.pending ? "저장 중" : "수강 저장"}
-        submitHelp="학생은 이름 또는 ID, 강사는 Apps Script 계정 ID를 입력합니다. Apps Script 로그인 세션이 있을 때 수강등록 시트에 저장됩니다."
+        submitHelp="학생과 강사는 이름 또는 ID로 입력할 수 있습니다. Version.3 서버 세션에서는 수강 기록이 별도 서버에 저장됩니다."
+        showForm={canManageOperations}
         fields={[
           { label: "학생명 또는 ID", name: "student" },
           { label: "과목/전공", name: "course" },

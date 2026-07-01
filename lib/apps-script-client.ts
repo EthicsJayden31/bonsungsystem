@@ -17,6 +17,8 @@ export type AppsScriptUser = {
   name?: string;
   email?: string;
   role?: string;
+  linked_student_id?: string;
+  permissions?: Record<string, boolean>;
 };
 
 export type AppsScriptLoginResult = {

@@ -16,7 +16,7 @@ body:
     attributes:
       label: 대상 범위
       description: 관련 화면, 파일, 기능을 적어주세요.
-      placeholder: 예) pages-preview/app.js, 수강생 목록, 필터 함수
+      placeholder: 예) app/students/page.tsx, 수강생 목록, 필터 함수
   - type: textarea
     id: expected
     attributes:

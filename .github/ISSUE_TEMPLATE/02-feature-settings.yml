@@ -8,7 +8,7 @@ body:
     attributes:
       label: 요청 내용
       description: 조정하거나 개선할 기능 설정을 적어주세요.
-      placeholder: 예) teacher 계정의 수강생 상세 노출 항목을 더 제한해주세요.
+      placeholder: 예) 강사 계정의 수강생 상세 노출 항목을 더 제한해주세요.
     validations:
       required: true
   - type: dropdown
@@ -16,16 +16,16 @@ body:
     attributes:
       label: 주요 영향 권한
       options:
-        - admin
-        - staff
-        - teacher
-        - student
+        - 대표
+        - 매니저
+        - 강사
+        - 수강생
         - 전체
   - type: textarea
     id: data
     attributes:
       label: 관련 데이터
-      description: Google Sheets, Apps Script, 데모 데이터, 계정 설정 등 관련 데이터를 적어주세요.
+      description: Version.3 서버 엔티티, 계정/권한 설정, 전환 보조 Apps Script 데이터 등 관련 데이터를 적어주세요.
   - type: textarea
     id: expected
     attributes:
@@ -36,6 +36,6 @@ body:
     attributes:
       label: 검증 요청
       options:
-        - label: 운영 API 또는 Apps Script 영향을 확인해주세요.
-        - label: 데모 테스트 페이지에서도 동작하게 해주세요.
+        - label: Version.3 서버 계약과 운영 API 영향을 확인해주세요.
+        - label: Preview 점검 모드가 필요한 경우 전환 플래그 기준도 확인해주세요.
         - label: 권한별 접근 제한을 확인해주세요.

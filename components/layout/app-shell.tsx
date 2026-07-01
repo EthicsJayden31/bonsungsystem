@@ -5,7 +5,8 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { assetPath } from "@/lib/assets";
-import { canAccess, type CurrentUser, type Role } from "@/lib/auth-shared";
+import { canAccessVersion3Area } from "@/lib/access-policy";
+import { normalizeRole, type CurrentUser, type Role } from "@/lib/auth-shared";
 import {
   APPS_SCRIPT_ENDPOINT,
   APPS_SCRIPT_SESSION_TOKEN_KEY,
@@ -15,12 +16,14 @@ import {
 import { clearClientSession, PREVIEW_ROLE_KEY } from "@/lib/client-session";
 import { usePreferences } from "@/lib/preferences";
 import { usePreviewRole } from "@/lib/use-preview-role";
+import { logoutVersion3Server, VERSION3_SERVER_SESSION_TOKEN_KEY, VERSION3_SERVER_USER_KEY, type Version3ServerUser } from "@/lib/version3-server-client";
+import { ENABLE_APPS_SCRIPT_TRANSITION, ENABLE_LEGACY_PREVIEW, ENABLE_PREVIEW_LOGIN } from "@/lib/version3-runtime-flags";
 
 type NavItem = {
   href: string;
   label: string;
   area: string;
-  tab?: "home" | "people" | "classes" | "rooms" | "more";
+  tab?: "home" | "people" | "classes" | "rooms" | "notices" | "support" | "more";
 };
 
 type NavGroup = {
@@ -37,7 +40,7 @@ const navGroups: NavGroup[] = [
       { href: "/dashboard", label: "홈", area: "dashboard", tab: "home" },
       { href: "/data-quality", label: "데이터 점검", area: "data-quality", tab: "more" },
       { href: "/tasks", label: "업무", area: "tasks", tab: "more" },
-      { href: "/notices", label: "공지/문서", area: "notices", tab: "more" }
+      { href: "/notices", label: "공지", area: "notices", tab: "notices" }
     ]
   },
   {
@@ -47,7 +50,7 @@ const navGroups: NavGroup[] = [
       { href: "/students", label: "학생", area: "students", tab: "people" },
       { href: "/teachers", label: "강사", area: "teachers", tab: "more" },
       { href: "/guardians", label: "보호자", area: "guardians", tab: "more" },
-      { href: "/consultations", label: "상담", area: "consultations", tab: "more" }
+      { href: "/consultations", label: "상담요청", area: "consultations", tab: "support" }
     ]
   },
   {
@@ -63,8 +66,9 @@ const navGroups: NavGroup[] = [
   },
   {
     title: "관리",
-    helper: "수납과 개인 설정",
+    helper: "계정, 수납과 개인 설정",
     items: [
+      { href: "/accounts", label: "계정", area: "accounts", tab: "more" },
       { href: "/payments", label: "수납", area: "payments", tab: "more" },
       { href: "/profile-settings", label: "개인화 설정", area: "profile-settings", tab: "more" }
     ]
@@ -76,32 +80,37 @@ const pageCopy: Record<string, { title: string; description: string; action: str
   students: { title: "학생", description: "학생 상태와 보호자, 담당 강사 정보를 한눈에 정리합니다.", action: "학생 등록" },
   teachers: { title: "강사", description: "강사별 학생, 수업, 레슨노트 흐름을 확인합니다.", action: "강사 등록" },
   guardians: { title: "보호자", description: "결제자와 비상연락 정보를 명확하게 관리합니다.", action: "보호자 등록" },
-  consultations: { title: "상담", description: "신규 문의부터 등록 전환까지 상담 흐름을 추적합니다.", action: "상담 등록" },
+  consultations: { title: "상담요청", description: "수강생의 일방향 요청과 운영 확인 상태를 관리합니다.", action: "요청 작성" },
   enrollments: { title: "수강", description: "수강 과목, 담당 강사, 시작일과 상태를 관리합니다.", action: "수강 등록" },
   lessons: { title: "수업", description: "오늘의 수업 일정과 완료 상태를 확인합니다.", action: "수업 추가" },
   attendance: { title: "출결", description: "출석, 지각, 결석, 보강 필요 여부를 기록합니다.", action: "출결 입력" },
   "lesson-notes": { title: "레슨노트", description: "수업 내용, 과제, 다음 목표를 일관되게 남깁니다.", action: "노트 추가" },
   "practice-rooms": { title: "공간 예약", description: "강의실과 연습실의 예약 상태를 시각적으로 확인합니다.", action: "예약 추가" },
+  accounts: { title: "계정 관리", description: "대표, 매니저, 강사, 수강생 계정과 학생 연결을 관리합니다.", action: "계정 입력" },
   payments: { title: "수납", description: "청구, 입금, 미납, 환불 상태를 분리해 확인합니다.", action: "결제 등록" },
-  "data-quality": { title: "데이터 점검", description: "Google Sheets 운영 데이터의 누락, 중복, 참조 오류를 확인합니다.", action: "점검 새로고침" },
+  "data-quality": { title: "데이터 점검", description: "Version.3 서버 운영 데이터의 누락, 중복, 참조 오류를 확인합니다.", action: "점검 새로고침" },
   tasks: { title: "업무", description: "운영 업무의 담당자, 마감일, 우선순위를 관리합니다.", action: "업무 추가" },
   notices: { title: "공지/문서", description: "운영 기준과 강사 매뉴얼을 정리합니다.", action: "문서 작성" },
   "profile-settings": { title: "개인화 설정", description: "내 화면 방식, 시작 화면, 메뉴 표시 방식을 조정합니다.", action: "설정 저장" }
 };
 
 const roleLabel: Record<Role, string> = {
-  admin: "원장 관리자",
-  staff: "운영 스태프",
-  teacher: "강사"
+  owner: "대표",
+  manager: "매니저",
+  teacher: "강사",
+  student: "수강생"
 };
 
 const previewUsers: Record<Role, CurrentUser> = {
-  admin: { id: "admin-1", name: "원장 관리자", email: "admin@bonsung.test", role: "admin" },
-  staff: { id: "staff-1", name: "운영 스태프", email: "staff@bonsung.test", role: "staff" },
-  teacher: { id: "teacher-1", name: "강사 계정", email: "teacher@bonsung.test", role: "teacher" }
+  owner: { id: "owner-1", name: "대표 계정", email: "owner@bonsung.test", role: "owner" },
+  manager: { id: "manager-1", name: "매니저 계정", email: "manager@bonsung.test", role: "manager" },
+  teacher: { id: "teacher-1", name: "강사 계정", email: "teacher@bonsung.test", role: "teacher" },
+  student: { id: "student-1", name: "수강생 계정", email: "student@bonsung.test", role: "student" }
 };
 
-const bottomTabs: Array<{ id: NonNullable<NavItem["tab"]>; label: string; icon: string; fallbackHref: string; areas: string[] }> = [
+type BottomTab = { id: NonNullable<NavItem["tab"]>; label: string; icon: string; fallbackHref: string; areas: string[] };
+
+const defaultBottomTabs: BottomTab[] = [
   { id: "home", label: "홈", icon: "H", fallbackHref: "/dashboard", areas: ["dashboard"] },
   { id: "people", label: "학생", icon: "S", fallbackHref: "/students", areas: ["students", "teachers", "guardians", "consultations"] },
   { id: "classes", label: "수업", icon: "L", fallbackHref: "/lessons", areas: ["lessons", "attendance", "lesson-notes", "enrollments"] },
@@ -109,27 +118,61 @@ const bottomTabs: Array<{ id: NonNullable<NavItem["tab"]>; label: string; icon: 
   { id: "more", label: "메뉴", icon: "+", fallbackHref: "#app-menu", areas: [] }
 ];
 
+const studentBottomTabs: BottomTab[] = [
+  { id: "home", label: "홈", icon: "H", fallbackHref: "/dashboard", areas: ["dashboard"] },
+  { id: "notices", label: "공지", icon: "N", fallbackHref: "/notices", areas: ["notices"] },
+  { id: "support", label: "상담", icon: "Q", fallbackHref: "/consultations", areas: ["consultations"] },
+  { id: "classes", label: "수업", icon: "L", fallbackHref: "/lessons", areas: ["lessons", "lesson-notes"] },
+  { id: "more", label: "메뉴", icon: "+", fallbackHref: "#app-menu", areas: [] }
+];
+
+const teacherBottomTabs: BottomTab[] = [
+  { id: "home", label: "홈", icon: "H", fallbackHref: "/dashboard", areas: ["dashboard"] },
+  { id: "people", label: "학생", icon: "S", fallbackHref: "/students", areas: ["students"] },
+  { id: "classes", label: "수업", icon: "L", fallbackHref: "/lessons", areas: ["lessons", "attendance", "lesson-notes"] },
+  { id: "rooms", label: "예약", icon: "R", fallbackHref: "/practice-rooms", areas: ["practice-rooms"] },
+  { id: "more", label: "메뉴", icon: "+", fallbackHref: "#app-menu", areas: [] }
+];
+
+function bottomTabsFor(role: Role): BottomTab[] {
+  if (role === "student") return studentBottomTabs;
+  if (role === "teacher") return teacherBottomTabs;
+  return defaultBottomTabs;
+}
+
 export function AppShell({ children, area = "dashboard" }: { children: ReactNode; area?: string }) {
   const router = useRouter();
   const pathname = usePathname();
   const role = usePreviewRole();
   const preferences = usePreferences();
-  const user = useMemo(() => (role ? getSessionUser(role) ?? previewUsers[role] : null), [role]);
+  const user = useMemo(() => (role ? getSessionUser(role) ?? (ENABLE_PREVIEW_LOGIN ? previewUsers[role] : null) : null), [role]);
   const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
-    const stored = window.localStorage.getItem(PREVIEW_ROLE_KEY) as Role | null;
+    const stored = normalizeRole(window.localStorage.getItem(PREVIEW_ROLE_KEY));
     if (!stored) {
       router.replace("/login");
       return;
     }
-    if (stored === "teacher" && pathname.startsWith("/payments")) {
+    const currentUser = getSessionUser(stored) ?? (ENABLE_PREVIEW_LOGIN ? previewUsers[stored] : null);
+    if (!currentUser) {
+      router.replace("/login");
+      return;
+    }
+    if (currentUser.mustChangePassword && area !== "profile-settings") {
+      router.replace("/profile-settings?forcePasswordChange=1");
+      return;
+    }
+    if (!canAccessVersion3Area(currentUser, area)) {
       router.replace("/dashboard");
     }
-  }, [pathname, router]);
+  }, [area, pathname, router]);
 
-  function logout() {
-    const token = window.localStorage.getItem(APPS_SCRIPT_SESSION_TOKEN_KEY);
+  async function logout() {
+    if (window.localStorage.getItem(VERSION3_SERVER_SESSION_TOKEN_KEY)) {
+      await logoutVersion3Server().catch(() => {});
+    }
+    const token = ENABLE_APPS_SCRIPT_TRANSITION ? window.localStorage.getItem(APPS_SCRIPT_SESSION_TOKEN_KEY) : "";
     if (token) {
       fetch(APPS_SCRIPT_ENDPOINT, {
         method: "POST",
@@ -141,7 +184,7 @@ export function AppShell({ children, area = "dashboard" }: { children: ReactNode
     router.push("/login");
   }
 
-  if (!user || !canAccess(user.role, area)) {
+  if (!user || !canAccessVersion3Area(user, area)) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-canvas px-4 text-sm text-muted">
         화면을 준비하고 있습니다.
@@ -150,7 +193,7 @@ export function AppShell({ children, area = "dashboard" }: { children: ReactNode
   }
 
   const visibleGroups = navGroups
-    .map((group) => ({ ...group, items: group.items.filter((item) => canAccess(user.role, item.area)) }))
+    .map((group) => ({ ...group, items: group.items.filter((item) => canAccessVersion3Area(user, item.area)) }))
     .filter((group) => group.items.length > 0);
   const current = pageCopy[area] ?? pageCopy.dashboard;
   const compact = preferences.density === "compact";
@@ -170,11 +213,13 @@ export function AppShell({ children, area = "dashboard" }: { children: ReactNode
           ))}
         </nav>
         <div className="absolute bottom-5 left-5 right-5 space-y-3">
-          <Link className="block rounded-2xl border border-brand/10 bg-brand/5 p-4 text-sm font-bold text-brand hover:bg-brand/10" href="/legacy-preview/">
-            실사용 legacy 화면
-          </Link>
+          {ENABLE_LEGACY_PREVIEW ? (
+            <Link className="block rounded-2xl border border-brand/10 bg-brand/5 p-4 text-sm font-bold text-brand hover:bg-brand/10" href="/legacy-preview/">
+              실사용 legacy 화면
+            </Link>
+          ) : null}
           <p className="rounded-2xl border border-line bg-surface-muted p-4 text-xs leading-5 text-muted">
-            Next 공식 UI는 실사용 세션 토큰이 있으면 Apps Script 데이터를 읽고, 없으면 preview 데이터로 화면을 보여줍니다.
+            Version.3 UI는 별도 서버 세션을 기준으로 실사용 데이터를 읽습니다.
           </p>
         </div>
       </aside>
@@ -189,9 +234,11 @@ export function AppShell({ children, area = "dashboard" }: { children: ReactNode
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <Link className="hidden rounded-xl border border-line bg-white px-3 py-2.5 text-sm font-semibold text-brand hover:border-brand/40 md:inline-flex" href="/legacy-preview/">
-                legacy
-              </Link>
+              {ENABLE_LEGACY_PREVIEW ? (
+                <Link className="hidden rounded-xl border border-line bg-white px-3 py-2.5 text-sm font-semibold text-brand hover:border-brand/40 md:inline-flex" href="/legacy-preview/">
+                  legacy
+                </Link>
+              ) : null}
               <div className="hidden text-right sm:block">
                 <p className="text-sm font-semibold text-ink">{user.name}</p>
                 <p className="text-xs text-muted">권한: {roleLabel[user.role]}</p>
@@ -211,7 +258,7 @@ export function AppShell({ children, area = "dashboard" }: { children: ReactNode
         <main className={`mx-auto max-w-7xl px-4 pb-[calc(7.5rem+env(safe-area-inset-bottom))] pt-4 lg:pb-8 ${compact ? "sm:py-5" : "sm:py-8"}`}>{children}</main>
       </div>
 
-      <MobileBottomTabs groups={visibleGroups} pathname={pathname} area={area} onMore={() => setMenuOpen(true)} />
+      <MobileBottomTabs groups={visibleGroups} pathname={pathname} area={area} role={user.role} onMore={() => setMenuOpen(true)} />
       <MobileMenuSheet groups={visibleGroups} open={menuOpen} pathname={pathname} role={user.role} mode={preferences.mobileMenu} onClose={() => setMenuOpen(false)} />
     </div>
   );
@@ -268,14 +315,17 @@ function MobileBottomTabs({
   groups,
   pathname,
   area,
+  role,
   onMore
 }: {
   groups: NavGroup[];
   pathname: string;
   area: string;
+  role: Role;
   onMore: () => void;
 }) {
   const allItems = groups.flatMap((group) => group.items);
+  const tabs = bottomTabsFor(role);
 
   return (
     <nav
@@ -283,10 +333,10 @@ function MobileBottomTabs({
       aria-label="앱 하단 메뉴"
     >
       <div className="mx-auto grid max-w-md grid-cols-5 gap-1.5">
-        {bottomTabs.map((tab) => {
+        {tabs.map((tab) => {
           const target = allItems.find((item) => item.tab === tab.id) ?? allItems.find((item) => item.href === tab.fallbackHref);
           const href = target?.href ?? tab.fallbackHref;
-          const active = tab.id === "more" ? !bottomTabs.slice(0, 4).some((item) => item.areas.includes(area)) : pathname === href || tab.areas.includes(area);
+          const active = tab.id === "more" ? !tabs.slice(0, 4).some((item) => item.areas.includes(area)) : pathname === href || tab.areas.includes(area);
           const itemClass = `min-h-[60px] rounded-[18px] px-1.5 py-2 text-center text-[11px] font-extrabold transition ${
             active ? "bg-brand text-white shadow-sm" : "text-muted hover:bg-brand/5 hover:text-brand"
           }`;
@@ -375,9 +425,11 @@ function MobileMenuSheet({
           ))}
         </div>
         <div className="mt-3 grid gap-2">
-          <Link className="rounded-2xl border border-brand/15 bg-brand/5 px-4 py-3 text-sm font-extrabold text-brand" href="/legacy-preview/" onClick={onClose}>
-            실사용 legacy 화면
-          </Link>
+          {ENABLE_LEGACY_PREVIEW ? (
+            <Link className="rounded-2xl border border-brand/15 bg-brand/5 px-4 py-3 text-sm font-extrabold text-brand" href="/legacy-preview/" onClick={onClose}>
+              실사용 legacy 화면
+            </Link>
+          ) : null}
           <p className="rounded-2xl bg-surface-muted px-4 py-3 text-xs leading-5 text-muted">
             현재 권한은 {roleLabel[role]}입니다. 권한에 맞지 않는 수납, 데이터 점검 메뉴는 자동으로 숨겨집니다.
           </p>
@@ -426,16 +478,34 @@ function MobileAppHeader({
 }
 
 function getSessionUser(role: Role): CurrentUser | null {
-  if (typeof window === "undefined" || !window.localStorage.getItem(APPS_SCRIPT_SESSION_TOKEN_KEY)) return null;
+  if (typeof window === "undefined") return null;
 
+  const serverToken = window.localStorage.getItem(VERSION3_SERVER_SESSION_TOKEN_KEY);
+  if (serverToken) {
+    const serverUser = sessionUserFromJson(role, window.localStorage.getItem(VERSION3_SERVER_USER_KEY), "server");
+    if (serverUser) return serverUser;
+  }
+
+  if (!ENABLE_APPS_SCRIPT_TRANSITION || !window.localStorage.getItem(APPS_SCRIPT_SESSION_TOKEN_KEY)) return null;
+
+  return sessionUserFromJson(role, window.localStorage.getItem(APPS_SCRIPT_USER_KEY), "apps-script");
+}
+
+function sessionUserFromJson(role: Role, value: string | null, source: "server" | "apps-script"): CurrentUser | null {
   try {
-    const user = JSON.parse(window.localStorage.getItem(APPS_SCRIPT_USER_KEY) || "null") as AppsScriptUser | null;
-    if (!user || user.role !== role || !(user.account_id || user.id) || !user.name) return null;
+    const user = JSON.parse(value || "null") as (AppsScriptUser & Version3ServerUser) | null;
+    if (!user) return null;
+    const normalizedRole = normalizeRole(user.role);
+    if (!user || normalizedRole !== role || !(user.accountId || user.account_id || user.id) || !user.name) return null;
     return {
-      id: String(user.account_id || user.id),
+      id: String(user.accountId || user.account_id || user.id),
       name: user.name,
       email: user.email || "",
-      role
+      role: normalizedRole,
+      linkedStudentId: user.linkedStudentId || user.linked_student_id || "",
+      mustChangePassword: source === "server" ? Boolean(user.mustChangePassword || user.must_change_password) : false,
+      sessionExpiresAt: user.sessionExpiresAt || user.session_expires_at || "",
+      permissions: user.permissions || {}
     };
   } catch {
     return null;

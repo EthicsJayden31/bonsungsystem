@@ -6,7 +6,7 @@ import { Section } from "@/components/ui/section";
 import { DataTable } from "@/components/ui/table";
 import { useMemo, useState, type FormEvent, type ReactNode } from "react";
 
-type Field = { label: string; name: string; type?: "text" | "date" | "number" | "textarea" | "select"; options?: string[] };
+type Field = { label: string; name: string; type?: "text" | "date" | "number" | "textarea" | "select" | "checkbox"; options?: string[] };
 type SubmitStatus = { tone: "info" | "success" | "error"; message: string };
 
 export type MobileListCard = {
@@ -33,7 +33,8 @@ export function ResourcePage({
   submitLabel,
   submitHelp,
   submitDisabled = false,
-  formId
+  formId,
+  showForm = true
 }: {
   title: string;
   description: string;
@@ -50,6 +51,7 @@ export function ResourcePage({
   submitHelp?: string;
   submitDisabled?: boolean;
   formId?: string;
+  showForm?: boolean;
 }) {
   const [status, setStatus] = useState<SubmitStatus | null>(null);
   const formKey = useMemo(() => JSON.stringify(initialValues ?? {}), [initialValues]);
@@ -68,11 +70,11 @@ export function ResourcePage({
     const values = Object.fromEntries(new FormData(form).entries()) as Record<string, string>;
 
     if (!onSubmit) {
-      setStatus({ tone: "info", message: "이 화면은 기능 점검용 preview 입력입니다. 실사용 저장은 Apps Script 연결 화면에서 처리합니다." });
+      setStatus({ tone: "info", message: "현재 권한 또는 세션에서는 이 화면의 저장 기능을 사용할 수 없습니다." });
       return;
     }
 
-    setStatus({ tone: "info", message: "Apps Script에 저장을 요청하고 있습니다." });
+    setStatus({ tone: "info", message: "Version.3 운영 서버에 저장을 요청하고 있습니다." });
     try {
       await onSubmit(values);
       form.reset();
@@ -90,7 +92,7 @@ export function ResourcePage({
 
   return (
     <Section title={title} description={description}>
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+      <div className={`grid gap-5 ${showForm ? "xl:grid-cols-[minmax(0,1fr)_360px]" : ""}`}>
         <div className="min-w-0 space-y-3">
           {sourceNote}
           <div className="flex flex-col gap-3 rounded-2xl border border-line bg-white p-4 shadow-card sm:flex-row sm:items-center sm:justify-between">
@@ -103,9 +105,11 @@ export function ResourcePage({
                 <span className="sr-only">목록 검색</span>
                 <input className="h-11 w-full rounded-xl border border-line bg-surface-muted px-3 text-sm outline-none transition focus:border-brand focus:bg-white focus:ring-2 focus:ring-brand/15" placeholder="이름, 상태, 메모 검색" type="search" />
               </label>
-              <a className="inline-flex h-11 shrink-0 items-center justify-center rounded-xl bg-brand px-4 text-sm font-extrabold text-white shadow-sm xl:hidden" href={`#${quickFormId}`}>
-                등록
-              </a>
+              {showForm ? (
+                <a className="inline-flex h-11 shrink-0 items-center justify-center rounded-xl bg-brand px-4 text-sm font-extrabold text-white shadow-sm xl:hidden" href={`#${quickFormId}`}>
+                  등록
+                </a>
+              ) : null}
             </div>
           </div>
 
@@ -121,7 +125,7 @@ export function ResourcePage({
           )}
         </div>
 
-        <form className="scroll-mt-28 rounded-[24px] border border-line bg-white p-5 shadow-card" aria-label={`${title} 빠른 등록`} id={quickFormId} onSubmit={handleSubmit} key={formKey}>
+        {showForm ? <form className="scroll-mt-28 rounded-[24px] border border-line bg-white p-5 shadow-card" aria-label={`${title} 빠른 등록`} id={quickFormId} onSubmit={handleSubmit} key={formKey}>
           <div className="mb-4 flex items-start justify-between gap-2">
             <div>
               <h2 className="text-lg font-extrabold tracking-tight text-ink">빠른 등록</h2>
@@ -133,7 +137,12 @@ export function ResourcePage({
             {fields.map((field) => (
               <label className="block" key={field.name}>
                 <span className="text-xs font-bold text-ink">{field.label}</span>
-                {field.type === "textarea" ? (
+                {field.type === "checkbox" ? (
+                  <span className="mt-1 flex items-center gap-2 rounded-xl border border-line bg-surface-muted px-3 py-2.5 text-sm text-ink">
+                    <input className="h-4 w-4 rounded border-line text-brand focus:ring-brand/20" name={field.name} type="checkbox" defaultChecked={initialValues?.[field.name] === "true"} />
+                    {field.label}
+                  </span>
+                ) : field.type === "textarea" ? (
                   <textarea className="mt-1 min-h-24 w-full rounded-xl border border-line px-3 py-2.5 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/15" name={field.name} placeholder={`${field.label} 입력`} defaultValue={initialValues?.[field.name] ?? ""} />
                 ) : field.type === "select" ? (
                   <select className="mt-1 h-11 w-full rounded-xl border border-line bg-white px-3 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/15" name={field.name} defaultValue={initialValues?.[field.name] ?? field.options?.[0] ?? ""}>
@@ -149,10 +158,10 @@ export function ResourcePage({
             {submitLabel ?? (onSubmit ? "실사용 저장" : "임시 저장")}
           </button>
           <p className="mt-3 rounded-xl bg-brand/5 px-3 py-2 text-xs leading-5 text-muted">
-            {submitHelp ?? (onSubmit ? "Apps Script 로그인 세션이 있을 때 실제 Google Sheets 데이터로 저장됩니다." : "현재 Next 화면의 저장 버튼은 기능 점검용입니다. 실사용 저장은 `/legacy-preview`의 Apps Script 화면에서 먼저 처리합니다.")}
+            {submitHelp ?? (onSubmit ? "Version.3 서버 세션이 있으면 별도 서버에 저장되고, 전환 세션에서는 기존 연결층으로 저장됩니다." : "저장 권한이 있는 Version.3 계정으로 로그인하면 이 화면에서 직접 등록할 수 있습니다.")}
           </p>
           {status ? <p className={`mt-3 rounded-xl border px-3 py-2 text-xs leading-5 ${statusClass}`}>{status.message}</p> : null}
-        </form>
+        </form> : null}
       </div>
     </Section>
   );

@@ -1,5 +1,42 @@
 # Bonsung Music Academy Intranet
 
+## Version.3 Separate Server Mode
+
+Version.3 is moving toward real academy operation on a separate server instead of Apps Script. To run the official Next UI with the local Version.3 server contract, use:
+
+```text
+pnpm run dev:version3
+```
+
+Default local access:
+
+```text
+UI: http://127.0.0.1:3000/login/
+Server: http://127.0.0.1:4303
+Seed login IDs: owner, manager, teacher, student
+Seed password: version3
+Local data file: .version3-local-data.json
+```
+
+To verify the Version.3 server contract:
+
+```text
+pnpm run verify:version3-server
+```
+
+If no external URL is provided, the verifier starts the local Version.3 server automatically. To verify a real server candidate, set either:
+
+```text
+VERSION3_SERVER_VERIFY_BASE_URL=https://your-version3-server.example
+NEXT_PUBLIC_VERSION3_API_BASE_URL=https://your-version3-server.example
+```
+
+The local server persists account, notice, consultation, and audit-log changes to `VERSION3_LOCAL_DATA_FILE` by default. Before overwriting the local data file, it writes a timestamped `.bak` copy unless `VERSION3_DISABLE_LOCAL_BACKUPS=true` is set. Set `VERSION3_LOCAL_DATA_FILE=memory` only when you want a disposable run that resets on restart. Operators with the operations permission can also call `/data-export` to receive a password-redacted JSON export of the current Version.3 data.
+
+Local server sessions expire after `VERSION3_SESSION_TTL_HOURS` hours, defaulting to 12. When an account password is reset, the next login is redirected to `/profile-settings?forcePasswordChange=1` and must complete `/auth/change-password` before using the rest of Version.3.
+
+For GitHub Pages deployment, set the repository variable `VERSION3_API_BASE_URL` to the public Version.3 server URL. The Pages workflow injects it as `NEXT_PUBLIC_VERSION3_API_BASE_URL` during the static build, verifies the release configuration with `pnpm verify:version3-release`, checks generated/private file boundaries with `pnpm verify:version3-cleanup`, and runs `pnpm verify:version3-server` against the same server URL. Public deployment branches now fail if this URL is empty, points to localhost, does not use HTTPS, if transition-only Apps Script/legacy/Preview flags are enabled without an explicit transition override, or if build output/local Version.3 data files are visible to Git.
+
 본성뮤직 인트라넷은 GitHub Pages에 배포되는 Next.js 기반 운영 화면입니다.
 현재 공식 운영 기준 브랜치는 `codex/v1-intranet`이며, 공개 주소는 다음과 같습니다.
 
@@ -10,34 +47,35 @@ https://ethicsjayden31.github.io/bonsungsystem/
 ## 현재 운영 기준
 
 - 공식 화면: Next.js App Router (`app/`)
-- 데이터 연동: Apps Script + Google Sheets (`google-apps-script/Code.gs`)
-- 기존 실사용 화면: `/legacy-preview/`로 보존 (`pages-preview/`)
-- preview 데이터: 실사용 세션이 없거나 Apps Script 연결이 실패할 때만 사용
+- 데이터 연동: 별도 Version.3 서버 우선 (`NEXT_PUBLIC_VERSION3_API_BASE_URL`)
+- 기존 Apps Script 화면: 전환 검증이 필요할 때만 `/legacy-preview/`로 보존 (`NEXT_PUBLIC_ENABLE_LEGACY_PREVIEW=true`)
+- preview 데이터: `NEXT_PUBLIC_ENABLE_PREVIEW_LOGIN=true` 점검 모드에서만 사용
 
-`pages-preview/`는 아직 삭제하지 않습니다. Next UI의 저장 기능이 충분히 검증될 때까지 기존 Apps Script 운영 화면을 안전망으로 유지합니다.
+`pages-preview/`와 `google-apps-script/`는 아직 삭제하지 않지만, 기본 공개 운영 경로로 되돌리지 않습니다. Version.3 최후반 정리 단계에서 실제 서버 운영 검증이 끝나면 삭제/보존 기준을 다시 결정합니다.
 
 ## 주요 경로
 
 | 경로 | 용도 |
 | --- | --- |
 | `/` | 공식 홈 |
-| `/login/` | Apps Script 실사용 로그인 및 preview 로그인 |
+| `/login/` | Version.3 서버 로그인 |
 | `/dashboard/` | 운영 대시보드 |
 | `/students/` | 학생 목록과 상세 관리 |
 | `/teachers/` | 강사별 데이터 조회 |
 | `/practice-rooms/` | 강의실/연습실 예약 |
 | `/data-quality/` | 데이터 점검 |
 | `/profile-settings/` | 개인화 설정 |
-| `/legacy-preview/` | 기존 Apps Script 운영 화면 |
+| `/legacy-preview/` | 전환 검증용 기존 Apps Script 운영 화면 |
 
 ## 유지할 핵심 파일
 
 ```text
 app/                       Next.js 공식 운영 화면
 components/                공통 레이아웃, 목록, 상세, 예약 컴포넌트
-lib/                       세션, 권한, Apps Script 클라이언트, 데이터 변환
-google-apps-script/Code.gs Apps Script API 원본
-pages-preview/             legacy 운영 화면 원본
+lib/                       세션, 권한, Version.3 서버 클라이언트, 데이터 변환
+server/                    Version.3 로컬 서버 계약과 테스트 더블
+google-apps-script/Code.gs 전환 보조 Apps Script API 원본
+pages-preview/             전환 검증용 legacy 운영 화면 원본
 public/brand/              브랜드 디자인 자산
 tools/                     Pages 빌드와 운영 표면 검증 도구
 docs/                      현재 운영과 배포에 필요한 문서만 유지
@@ -52,6 +90,14 @@ pnpm typecheck
 pnpm lint
 pnpm build:pages
 pnpm verify:surfaces
+pnpm verify:version3-server
+pnpm verify:version3-cleanup
+```
+
+공개 운영 배포 전에는 다음도 통과해야 합니다.
+
+```text
+VERSION3_API_BASE_URL=https://your-version3-server.example pnpm verify:version3-release
 ```
 
 배포 후에는 다음 공개 경로를 확인합니다.
@@ -60,7 +106,6 @@ pnpm verify:surfaces
 https://ethicsjayden31.github.io/bonsungsystem/
 https://ethicsjayden31.github.io/bonsungsystem/login/
 https://ethicsjayden31.github.io/bonsungsystem/dashboard/
-https://ethicsjayden31.github.io/bonsungsystem/legacy-preview/
 ```
 
 ## 보안 원칙
@@ -68,8 +113,8 @@ https://ethicsjayden31.github.io/bonsungsystem/legacy-preview/
 - `.env`, 비밀번호, API 키, Apps Script `SETUP_KEY`는 커밋하지 않습니다.
 - Google Sheets는 공개 공유하지 않습니다.
 - teacher 권한에는 수납 정보, 보호자 연락처, 내부 메모 같은 민감 정보를 노출하지 않습니다.
-- student 계정은 Next 공식 UI가 아니라 `/legacy-preview/`로 이동합니다.
-- preview 데이터는 운영 원본이 아닙니다.
+- 수강생 계정은 Version.3 서버 세션과 연결 학생 기준으로 본인 데이터만 봅니다.
+- preview 데이터와 legacy 화면은 운영 원본이 아닙니다.
 
 ## 다음 개발 방향
 

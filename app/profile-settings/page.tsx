@@ -1,15 +1,22 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { FormEvent, useState, type ReactNode } from "react";
 import { AppShell } from "@/components/layout/app-shell";
 import { Badge } from "@/components/ui/badge";
+import { updateServerSessionUser } from "@/lib/client-session";
 import { readPreferences, savePreferences, startPages, type Preferences } from "@/lib/preferences";
+import { useCurrentUser } from "@/lib/use-current-user";
 import { usePreviewRole } from "@/lib/use-preview-role";
+import { changeVersion3ServerPassword, hasVersion3ServerSession } from "@/lib/version3-server-client";
 
 export default function ProfileSettingsPage() {
   const role = usePreviewRole();
+  const user = useCurrentUser();
   const [preferences, setPreferences] = useState<Preferences>(() => readPreferences());
   const [saved, setSaved] = useState(false);
+  const [passwordMessage, setPasswordMessage] = useState("");
+  const [passwordPending, setPasswordPending] = useState(false);
+  const forcePasswordChange = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("forcePasswordChange") === "1";
 
   function update<K extends keyof Preferences>(key: K, value: Preferences[K]) {
     setSaved(false);
@@ -19,6 +26,41 @@ export default function ProfileSettingsPage() {
   function save() {
     savePreferences(preferences);
     setSaved(true);
+  }
+
+  async function submitPasswordChange(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const values = Object.fromEntries(new FormData(form).entries()) as Record<string, string>;
+    const currentPassword = values.currentPassword || "";
+    const newPassword = values.newPassword || "";
+    const confirmPassword = values.confirmPassword || "";
+
+    if (!hasVersion3ServerSession()) {
+      setPasswordMessage("Version.3 서버 로그인 세션에서만 비밀번호를 변경할 수 있습니다.");
+      return;
+    }
+    if (newPassword.length < 8) {
+      setPasswordMessage("새 비밀번호는 8자 이상이어야 합니다.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordMessage("새 비밀번호 확인이 일치하지 않습니다.");
+      return;
+    }
+
+    setPasswordPending(true);
+    setPasswordMessage("");
+    try {
+      const result = await changeVersion3ServerPassword(currentPassword, newPassword);
+      updateServerSessionUser(result.user);
+      form.reset();
+      setPasswordMessage("비밀번호가 변경되었습니다. 이제 모든 Version.3 화면을 사용할 수 있습니다.");
+    } catch (caught) {
+      setPasswordMessage(caught instanceof Error ? caught.message : "비밀번호를 변경하지 못했습니다.");
+    } finally {
+      setPasswordPending(false);
+    }
   }
 
   return (
@@ -33,6 +75,31 @@ export default function ProfileSettingsPage() {
 
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
           <div className="space-y-5">
+            {hasVersion3ServerSession() ? (
+              <SettingCard
+                title={user?.mustChangePassword || forcePasswordChange ? "비밀번호 변경 필요" : "Version.3 계정 보안"}
+                description={user?.mustChangePassword || forcePasswordChange ? "임시 비밀번호로 로그인한 계정입니다. 새 비밀번호를 설정해야 다른 운영 화면을 계속 사용할 수 있습니다." : "서버 계정의 비밀번호를 변경합니다."}
+              >
+                <form className="grid gap-3 sm:grid-cols-3" onSubmit={submitPasswordChange}>
+                  <label className="block">
+                    <span className="text-xs font-bold text-ink">현재 비밀번호</span>
+                    <input className="mt-1 h-11 w-full rounded-xl border border-line px-3 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/15" name="currentPassword" type="password" autoComplete="current-password" disabled={passwordPending} />
+                  </label>
+                  <label className="block">
+                    <span className="text-xs font-bold text-ink">새 비밀번호</span>
+                    <input className="mt-1 h-11 w-full rounded-xl border border-line px-3 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/15" name="newPassword" type="password" autoComplete="new-password" disabled={passwordPending} />
+                  </label>
+                  <label className="block">
+                    <span className="text-xs font-bold text-ink">새 비밀번호 확인</span>
+                    <input className="mt-1 h-11 w-full rounded-xl border border-line px-3 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/15" name="confirmPassword" type="password" autoComplete="new-password" disabled={passwordPending} />
+                  </label>
+                  <button className="rounded-xl bg-brand px-4 py-3 text-sm font-bold text-white transition hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-60 sm:col-span-3" disabled={passwordPending} type="submit">
+                    {passwordPending ? "변경 중" : "비밀번호 변경"}
+                  </button>
+                </form>
+                {passwordMessage ? <p className="mt-3 rounded-xl bg-brand/5 px-3 py-2 text-xs font-bold leading-5 text-muted">{passwordMessage}</p> : null}
+              </SettingCard>
+            ) : null}
             <SettingCard title="시작 화면" description="로그인 후 가장 먼저 확인하고 싶은 화면을 고릅니다.">
               <div className="grid gap-2 sm:grid-cols-2">
                 {startPages.map((item) => (
@@ -72,7 +139,7 @@ export default function ProfileSettingsPage() {
           <aside className="h-fit rounded-2xl border border-line bg-white p-5 shadow-card">
             <div className="flex items-center justify-between gap-3">
               <h2 className="text-lg font-extrabold tracking-tight text-ink">설정 요약</h2>
-              <Badge>{role === "teacher" ? "강사" : role === "staff" ? "스태프" : "관리자"}</Badge>
+              <Badge>{role === "owner" ? "대표" : role === "manager" ? "매니저" : role === "teacher" ? "강사" : "수강생"}</Badge>
             </div>
             <dl className="mt-5 space-y-4 text-sm">
               <Summary label="시작 화면" value={startPages.find((item) => item.value === preferences.startPage)?.label || preferences.startPage} />

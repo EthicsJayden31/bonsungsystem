@@ -1,7 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import type { Role } from "@/lib/auth-shared";
+import { normalizeRole } from "@/lib/auth-shared";
 import { PREVIEW_ROLE_KEY, SESSION_CHANGE_EVENT } from "@/lib/client-session";
 
 function subscribe(callback: () => void) {
@@ -14,7 +14,7 @@ function subscribe(callback: () => void) {
 }
 
 function getSnapshot() {
-  return window.localStorage.getItem(PREVIEW_ROLE_KEY) as Role | null;
+  return normalizeRole(window.localStorage.getItem(PREVIEW_ROLE_KEY));
 }
 
 function getServerSnapshot() {

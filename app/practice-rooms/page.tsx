@@ -5,16 +5,25 @@ import { AppShell } from "@/components/layout/app-shell";
 import { ResourcePage, type MobileListCard } from "@/components/layout/resource-page";
 import { RoomReservationBoard, type RoomReservationSelection } from "@/components/rooms/room-reservation-board";
 import { Badge } from "@/components/ui/badge";
+import { hasVersion3Permission } from "@/lib/access-policy";
 import { roomName, useOperationAction, useOperationsData } from "@/lib/operations-data";
+import { useCurrentUser } from "@/lib/use-current-user";
 import { usePreviewRole } from "@/lib/use-preview-role";
 
 export default function PracticeRoomsPage() {
   const role = usePreviewRole();
+  const user = useCurrentUser();
   const { data, source } = useOperationsData(role);
   const saveAction = useOperationAction();
+  const accessUser = user ?? role;
+  const canReserveRoom = hasVersion3Permission(accessUser, "reserveLessonRoom") || hasVersion3Permission(accessUser, "reservePracticeRoom");
   const [selection, setSelection] = useState<RoomReservationSelection | null>(null);
   const [selectionResetKey, setSelectionResetKey] = useState(0);
-  const reservationPurposeOptions = role === "teacher" ? ["레슨", "이론수업", "연습"] : ["레슨", "이론수업", "회의", "연습"];
+  const reservationPurposeOptions = role === "student"
+    ? ["연습"]
+    : role === "teacher"
+      ? ["레슨", "이론수업", "연습"]
+      : ["레슨", "이론수업", "회의", "연습"];
 
   const reservationInitialValues = useMemo(() => {
     if (!selection || selection.status === "reserved") return undefined;
@@ -58,7 +67,7 @@ export default function PracticeRoomsPage() {
               <p>
                 선택됨: {selection.roomName} · {selection.date} {selection.startTime} ~ {selection.endTime} · {selection.status === "reserved" ? "예약됨" : "예약 가능"}
               </p>
-              {selection.status === "available" ? (
+              {selection.status === "available" && canReserveRoom ? (
                 <a className="mt-3 inline-flex rounded-xl bg-brand px-4 py-2 text-sm font-bold text-white" href="#reservation-form">
                   예약 정보 입력하기
                 </a>
@@ -71,7 +80,7 @@ export default function PracticeRoomsPage() {
 
         <ResourcePage
           title="예약 목록과 등록"
-          description={source === "live" ? "Apps Script bootstrap의 공간/예약 데이터를 표시합니다." : "Preview 데이터로 공간 예약 화면을 점검합니다."}
+          description={source === "server" ? "Version.3 서버의 공간/예약 데이터를 표시합니다." : source === "live" ? "전환 세션의 공간/예약 데이터를 표시합니다." : source === "fallback" ? "공간/예약 데이터를 불러오지 못했습니다. 서버 연결과 권한을 확인해야 합니다." : "Preview 데이터로 공간 예약 화면을 점검합니다."}
           headers={["공간", "예약자", "사용 시간", "상태", "메모"]}
           mobileCards={mobileCards}
           initialValues={reservationInitialValues}
@@ -83,12 +92,13 @@ export default function PracticeRoomsPage() {
             item.memo || "-"
           ])}
           emptyTitle="표시할 예약 정보가 없습니다"
-          emptyDescription="실사용 세션이 없거나 Apps Script 응답에 예약 데이터가 없으면 이곳은 비어 있을 수 있습니다."
-          onSubmit={saveReservation}
+          emptyDescription="실사용 세션이 없거나 서버 응답에 예약 데이터가 없으면 이곳은 비어 있을 수 있습니다."
+          onSubmit={canReserveRoom ? saveReservation : undefined}
           submitDisabled={saveAction.pending}
           submitLabel={saveAction.pending ? "저장 중" : "예약 저장"}
-          submitHelp="공간은 이름 또는 ID로 입력할 수 있습니다. Apps Script 정책에 따라 1시간 단위 예약만 저장됩니다."
+          submitHelp="공간은 이름 또는 ID로 입력할 수 있습니다. Version.3 서버는 같은 시간대 중복 예약을 거부합니다."
           formId="reservation-form"
+          showForm={canReserveRoom}
           fields={[
             { label: "공간명 또는 ID", name: "room" },
             { label: "사용일", name: "date", type: "date" },
