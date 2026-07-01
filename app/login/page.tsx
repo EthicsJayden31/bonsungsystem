@@ -115,7 +115,7 @@ export default function LoginPage() {
                 </p>
               </div>
               {ENABLE_LEGACY_PREVIEW ? (
-                <Link className="text-sm font-bold text-brand hover:text-brand-dark" href="/legacy-preview/">
+                <Link className="text-sm font-bold text-brand hover:text-brand-dark" href={assetPath("/legacy-preview/")}>
                   legacy 화면
                 </Link>
               ) : null}

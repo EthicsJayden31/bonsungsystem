@@ -214,7 +214,7 @@ export function AppShell({ children, area = "dashboard" }: { children: ReactNode
         </nav>
         <div className="absolute bottom-5 left-5 right-5 space-y-3">
           {ENABLE_LEGACY_PREVIEW ? (
-            <Link className="block rounded-2xl border border-brand/10 bg-brand/5 p-4 text-sm font-bold text-brand hover:bg-brand/10" href="/legacy-preview/">
+            <Link className="block rounded-2xl border border-brand/10 bg-brand/5 p-4 text-sm font-bold text-brand hover:bg-brand/10" href={assetPath("/legacy-preview/")}>
               실사용 legacy 화면
             </Link>
           ) : null}
@@ -235,7 +235,7 @@ export function AppShell({ children, area = "dashboard" }: { children: ReactNode
             </div>
             <div className="flex items-center gap-2">
               {ENABLE_LEGACY_PREVIEW ? (
-                <Link className="hidden rounded-xl border border-line bg-white px-3 py-2.5 text-sm font-semibold text-brand hover:border-brand/40 md:inline-flex" href="/legacy-preview/">
+                <Link className="hidden rounded-xl border border-line bg-white px-3 py-2.5 text-sm font-semibold text-brand hover:border-brand/40 md:inline-flex" href={assetPath("/legacy-preview/")}>
                   legacy
                 </Link>
               ) : null}
@@ -426,7 +426,7 @@ function MobileMenuSheet({
         </div>
         <div className="mt-3 grid gap-2">
           {ENABLE_LEGACY_PREVIEW ? (
-            <Link className="rounded-2xl border border-brand/15 bg-brand/5 px-4 py-3 text-sm font-extrabold text-brand" href="/legacy-preview/" onClick={onClose}>
+            <Link className="rounded-2xl border border-brand/15 bg-brand/5 px-4 py-3 text-sm font-extrabold text-brand" href={assetPath("/legacy-preview/")} onClick={onClose}>
               실사용 legacy 화면
             </Link>
           ) : null}
