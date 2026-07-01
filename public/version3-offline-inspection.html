@@ -107,8 +107,8 @@
       .login-grid {
         width: min(1120px, 100%);
         display: grid;
-        grid-template-columns: 0.95fr 1.05fr;
-        gap: 24px;
+        grid-template-columns: 1fr;
+        gap: 22px;
         align-items: center;
       }
 
@@ -208,11 +208,18 @@
       }
 
       .login-help {
-        margin-top: 18px;
+        margin-top: 16px;
         display: grid;
         gap: 8px;
         color: var(--muted);
         font-size: 13px;
+      }
+
+      .login-footer {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 700;
+        text-align: center;
       }
 
       .app-shell {
@@ -540,7 +547,7 @@
   <body>
     <main id="loginShell" class="login-shell">
       <section class="login-grid">
-        <div class="brand-card">
+        <div class="brand-card" data-login-section="top">
           <img class="brand-seal" src="brand/bonsung-logo-seal.png" alt="본성뮤직 아카데미 로고" />
           <div class="brand-copy">
             <p>BONSUNG MUSIC ACADEMY</p>
@@ -549,7 +556,7 @@
             <p>BONSUNG MUSIC A NEW BEGINNING</p>
           </div>
         </div>
-        <div>
+        <div data-login-section="middle">
           <section class="login-panel">
             <form id="loginForm" class="login-form">
               <label>
@@ -569,6 +576,7 @@
             <p>비밀번호: bonsung1</p>
           </div>
         </div>
+        <p class="login-footer" data-login-section="bottom">@Bonsungmusicacademy Alrights Reserved</p>
       </section>
     </main>
 

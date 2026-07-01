@@ -213,7 +213,7 @@ const requiredSourceSignals = [
   },
   {
     file: "app/login/page.tsx",
-    includes: ["ENABLE_APPS_SCRIPT_TRANSITION", "ENABLE_LEGACY_PREVIEW", "isVersion3ServerConfigured", "loginWithVersion3Server", "setServerSession", "loginWithAppsScript", "readPreferences().startPage", "placeholder=\"ID\"", "placeholder=\"PW\"", "LOGIN", "※계정 요청 및 패스워드 초기화는 매니저에게 문의 바랍니다.", "bonsung-logo-seal.png"],
+    includes: ["ENABLE_APPS_SCRIPT_TRANSITION", "ENABLE_LEGACY_PREVIEW", "isVersion3ServerConfigured", "loginWithVersion3Server", "setServerSession", "loginWithAppsScript", "readPreferences().startPage", "flex", "flex-col", "placeholder=\"ID\"", "placeholder=\"PW\"", "LOGIN", "※계정 요청 및 패스워드 초기화는 매니저에게 문의 바랍니다.", "@Bonsungmusicacademy Alrights Reserved", "bonsung-logo-seal.png"],
     label: "login page keeps the real login surface minimal while retaining Version.3 server login and transition gates"
   },
   {
@@ -278,7 +278,7 @@ const requiredSourceSignals = [
   },
   {
     file: "public/version3-offline-inspection.html",
-    includes: ["본성 스테이지 오프라인 점검", "서버 설정 없이 사용하는 점검판", "localStorage", "OFFLINE APP", "수업/시간표", "공간 예약", "운영 점검", "강은미", "조영진", "장윤호", "본성 프리컬리지", "상담요청 저장", "공지 저장", "JSON 내보내기"],
+    includes: ["본성 스테이지 오프라인 점검", "서버 설정 없이 사용하는 점검판", "localStorage", "OFFLINE APP", "data-login-section=\"top\"", "data-login-section=\"middle\"", "data-login-section=\"bottom\"", "@Bonsungmusicacademy Alrights Reserved", "수업/시간표", "공간 예약", "운영 점검", "강은미", "조영진", "장윤호", "본성 프리컬리지", "상담요청 저장", "공지 저장", "JSON 내보내기"],
     label: "standalone offline inspection page can exercise Version.3 operating flows without server configuration"
   },
   {

@@ -70,7 +70,7 @@ export default function LoginPage() {
 
   return (
     <main className="min-h-screen bg-canvas px-4 py-6 sm:py-10">
-      <section className="mx-auto grid min-h-[calc(100vh-3rem)] w-full max-w-6xl items-center gap-6 lg:grid-cols-[0.92fr_1.08fr]">
+      <section className="mx-auto flex min-h-[calc(100vh-3rem)] w-full max-w-5xl flex-col justify-center gap-6">
         <div className="relative overflow-hidden rounded-[28px] bg-gradient-to-br from-brand-dark via-brand to-brand-soft p-7 text-white shadow-card sm:p-8">
           <div className="absolute -right-16 -top-16 h-56 w-56 rounded-full border border-white/15" />
           <div className="absolute -bottom-24 right-8 h-64 w-64 rounded-full bg-white/5" />
@@ -83,25 +83,25 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <div>
-          <div className="mb-5 rounded-2xl border border-brand/15 bg-white p-5 shadow-card">
-            <form className="mt-4 grid gap-3 sm:grid-cols-[1fr_1fr_auto]" onSubmit={liveLogin}>
-              <label className="block">
-                <span className="sr-only">ID</span>
-                <input className="h-11 w-full rounded-xl border border-line px-3 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/15" name="loginId" placeholder="ID" autoComplete="username" disabled={liveLoginPending} />
-              </label>
-              <label className="block">
-                <span className="sr-only">PW</span>
-                <input className="h-11 w-full rounded-xl border border-line px-3 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/15" name="password" placeholder="PW" type="password" autoComplete="current-password" disabled={liveLoginPending} />
-              </label>
-              <button className="h-11 rounded-xl bg-brand px-4 text-sm font-bold text-white transition hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-60" disabled={liveLoginPending} type="submit">
-                {liveLoginPending ? "LOGIN..." : "LOGIN"}
-              </button>
-            </form>
-            <p className="mt-3 text-sm font-medium text-muted">※계정 요청 및 패스워드 초기화는 매니저에게 문의 바랍니다.</p>
-            {liveLoginError ? <p className="mt-3 text-sm font-medium text-danger" role="alert">{liveLoginError}</p> : null}
-          </div>
+        <div className="rounded-2xl border border-brand/15 bg-white p-5 shadow-card">
+          <form className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]" onSubmit={liveLogin}>
+            <label className="block">
+              <span className="sr-only">ID</span>
+              <input className="h-11 w-full rounded-xl border border-line px-3 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/15" name="loginId" placeholder="ID" autoComplete="username" disabled={liveLoginPending} />
+            </label>
+            <label className="block">
+              <span className="sr-only">PW</span>
+              <input className="h-11 w-full rounded-xl border border-line px-3 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/15" name="password" placeholder="PW" type="password" autoComplete="current-password" disabled={liveLoginPending} />
+            </label>
+            <button className="h-11 rounded-xl bg-brand px-4 text-sm font-bold text-white transition hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-60" disabled={liveLoginPending} type="submit">
+              {liveLoginPending ? "LOGIN..." : "LOGIN"}
+            </button>
+          </form>
+          <p className="mt-3 text-sm font-medium text-muted">※계정 요청 및 패스워드 초기화는 매니저에게 문의 바랍니다.</p>
+          {liveLoginError ? <p className="mt-3 text-sm font-medium text-danger" role="alert">{liveLoginError}</p> : null}
         </div>
+
+        <p className="text-center text-xs font-semibold text-muted">@Bonsungmusicacademy Alrights Reserved</p>
       </section>
     </main>
   );
