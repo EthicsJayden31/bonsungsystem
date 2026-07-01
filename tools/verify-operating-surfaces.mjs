@@ -332,7 +332,7 @@ const requiredSourceSignals = [
   },
   {
     file: "app/data-quality/page.tsx",
-    includes: ["useAuditLogs", "callVersion3Server", "/data-export", "/data-import", "downloadJson", "운영 데이터 내보내기", "백업 가져오기", "가져오기 임시 비밀번호", "export_data", "import_data", "Version.3 감사 로그", "auditActionLabel", "auditTargetLabel", "formatAuditTime", "끊어진 참조", "qualityCheckBadge", "reference-integrity", "참조 무결성"],
+    includes: ["useAuditLogs", "callVersion3Server", "/data-export", "/data-import", "downloadJson", "운영 시작 체크리스트", "buildOperationsReadinessItems", "별도 서버 연결", "수강생 계정 연결", "백업 가능 상태", "운영 데이터 내보내기", "백업 가져오기", "가져오기 임시 비밀번호", "export_data", "import_data", "Version.3 감사 로그", "auditActionLabel", "auditTargetLabel", "formatAuditTime", "끊어진 참조", "qualityCheckBadge", "reference-integrity", "참조 무결성"],
     label: "data quality page exposes Version.3 server audit logs, export, and reference integrity checks for operators"
   },
   {

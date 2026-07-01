@@ -72,10 +72,13 @@ export type DataQualityReport = {
     info: number;
     checkedSheets: string[];
     checkedRecords: number;
+    accounts?: number;
+    students?: number;
     auditLogs?: number;
     brokenReferences?: number;
     openConsultations?: number;
     studentsWithoutAccounts?: number;
+    backupEnabled?: boolean;
   };
   checks: DataQualityCheck[];
   issues: DataQualityIssue[];
@@ -457,10 +460,13 @@ function normalizeDataQualityReport(report: DataQualityReport): DataQualityRepor
       info,
       checkedSheets: Array.isArray(report.summary?.checkedSheets) ? report.summary.checkedSheets : checks.map((check) => qualityCheckLabel(check.id, check.label)),
       checkedRecords: typeof report.summary?.checkedRecords === "number" ? report.summary.checkedRecords : checkedRecordCount(report.summary),
+      accounts: report.summary?.accounts,
+      students: report.summary?.students,
       auditLogs: report.summary?.auditLogs,
       brokenReferences: report.summary?.brokenReferences,
       openConsultations: report.summary?.openConsultations,
-      studentsWithoutAccounts: report.summary?.studentsWithoutAccounts
+      studentsWithoutAccounts: report.summary?.studentsWithoutAccounts,
+      backupEnabled: report.summary?.backupEnabled
     },
     checks,
     issues

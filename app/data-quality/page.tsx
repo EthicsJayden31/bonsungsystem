@@ -1,11 +1,11 @@
 "use client";
 
-import { type ChangeEvent, useState } from "react";
+import { type ChangeEvent, useMemo, useState } from "react";
 import { AppShell } from "@/components/layout/app-shell";
 import { Badge } from "@/components/ui/badge";
 import { Section } from "@/components/ui/section";
 import { DataTable } from "@/components/ui/table";
-import { useAuditLogs, useDataQualityReport, type DataQualityCheck, type DataQualityIssue } from "@/lib/operations-data";
+import { useAuditLogs, useDataQualityReport, type DataQualityCheck, type DataQualityIssue, type DataQualityReport } from "@/lib/operations-data";
 import { callVersion3Server } from "@/lib/version3-server-client";
 import type { Version3AuditLog } from "@/lib/version3-server-contract";
 
@@ -27,6 +27,10 @@ export default function DataQualityPage() {
   const [importPassword, setImportPassword] = useState("");
   const report = state.report;
   const recentAuditLogs = auditState.logs.slice(0, 10);
+  const readinessItems = useMemo(
+    () => buildOperationsReadinessItems(report, state.source, auditState.source),
+    [auditState.source, report, state.source]
+  );
 
   async function exportData() {
     setExportState("pending");
@@ -78,6 +82,29 @@ export default function DataQualityPage() {
           <SummaryCard label="확인 필요" value={report ? report.summary.warning ?? 0 : "-"} helper="참조 불일치 등" tone="warn" />
           <SummaryCard label="끊어진 참조" value={report ? report.summary.brokenReferences ?? 0 : "-"} helper="학생·강사·수업 연결" tone={(report?.summary.brokenReferences ?? 0) ? "warn" : "default"} />
           <SummaryCard label="감사 로그" value={auditState.source === "server" ? auditState.logs.length : "-"} helper={auditState.source === "server" ? "서버 변경 이력" : "Version.3 서버 필요"} />
+        </div>
+
+        <div className="rounded-2xl border border-line bg-white p-5 shadow-card">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h2 className="text-lg font-extrabold tracking-tight text-ink">운영 시작 체크리스트</h2>
+              <p className="mt-1 text-sm leading-6 text-muted">실제 학원 운영 전에 별도 서버, 계정, 학생 연결, 감사 로그, 백업 상태를 한 번에 확인합니다.</p>
+            </div>
+            <Badge tone={readinessItems.every((item) => item.status === "good") ? "good" : "warn"}>
+              {readinessItems.filter((item) => item.status === "good").length}/{readinessItems.length}
+            </Badge>
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {readinessItems.map((item) => (
+              <div className="rounded-2xl border border-line bg-surface-muted p-4" key={item.id}>
+                <div className="flex items-start justify-between gap-3">
+                  <p className="text-sm font-extrabold text-ink">{item.label}</p>
+                  <Badge tone={item.status === "good" ? "good" : item.status === "danger" ? "danger" : "warn"}>{item.badge}</Badge>
+                </div>
+                <p className="mt-2 text-xs leading-5 text-muted">{item.detail}</p>
+              </div>
+            ))}
+          </div>
         </div>
 
         <div className="rounded-2xl border border-line bg-white p-5 shadow-card">
@@ -178,6 +205,72 @@ export default function DataQualityPage() {
       </Section>
     </AppShell>
   );
+}
+
+type ReadinessItem = {
+  id: string;
+  label: string;
+  badge: string;
+  detail: string;
+  status: "good" | "warn" | "danger";
+};
+
+function buildOperationsReadinessItems(
+  report: DataQualityReport | null,
+  dataSource: keyof typeof sourceLabel,
+  auditSource: keyof typeof sourceLabel
+): ReadinessItem[] {
+  const summary = report?.summary;
+  const studentsWithoutAccounts = summary?.studentsWithoutAccounts ?? 0;
+  const brokenReferences = summary?.brokenReferences ?? 0;
+  const auditLogs = summary?.auditLogs ?? 0;
+  const accounts = summary?.accounts ?? 0;
+  const students = summary?.students ?? 0;
+
+  return [
+    {
+      id: "server",
+      label: "별도 서버 연결",
+      badge: dataSource === "server" ? "연결됨" : "확인 필요",
+      detail: dataSource === "server" ? "Version.3 서버에서 운영 데이터 품질 결과를 받았습니다." : "공개 운영 전에는 Apps Script나 Preview가 아니라 Version.3 서버 세션으로 확인해야 합니다.",
+      status: dataSource === "server" ? "good" : "danger"
+    },
+    {
+      id: "accounts",
+      label: "운영 계정",
+      badge: accounts ? `${accounts}개` : "미확인",
+      detail: accounts ? "대표, 매니저, 강사, 수강생 계정 현황이 서버 요약에 포함되어 있습니다." : "서버 연결 후 실제 운영 계정을 등록해야 합니다.",
+      status: accounts ? "good" : "warn"
+    },
+    {
+      id: "student-links",
+      label: "수강생 계정 연결",
+      badge: studentsWithoutAccounts ? `${studentsWithoutAccounts}명 미연결` : students ? "연결 완료" : "학생 없음",
+      detail: studentsWithoutAccounts ? "학생 기록은 있지만 수강생 로그인 계정이 없는 항목이 남아 있습니다." : "학생 기록과 수강생 계정 연결 상태가 운영 기준을 만족합니다.",
+      status: studentsWithoutAccounts ? "warn" : "good"
+    },
+    {
+      id: "references",
+      label: "참조 무결성",
+      badge: brokenReferences ? `${brokenReferences}건` : "정상",
+      detail: brokenReferences ? "학생, 강사, 수업, 예약, 수납 데이터 사이에 끊어진 연결이 있습니다." : "학생, 강사, 수업, 예약, 수납 연결에서 끊어진 참조가 없습니다.",
+      status: brokenReferences ? "danger" : "good"
+    },
+    {
+      id: "audit",
+      label: "감사 로그",
+      badge: auditSource === "server" ? `${auditLogs}건` : "서버 필요",
+      detail: auditSource === "server" ? "계정, 상담요청, 공지, 데이터 변경 이력을 서버 감사 로그로 확인할 수 있습니다." : "감사 로그는 Version.3 서버 세션에서만 운영 증거로 봅니다.",
+      status: auditSource === "server" && auditLogs ? "good" : "warn"
+    },
+    {
+      id: "backup",
+      label: "백업 가능 상태",
+      badge: summary?.backupEnabled ? "사용" : "확인 필요",
+      detail: summary?.backupEnabled ? "서버가 데이터 변경 전 백업 파일을 만들 수 있는 상태입니다." : "외부 서버는 /data 같은 영구 디스크와 백업 가능 경로를 사용해야 합니다.",
+      status: summary?.backupEnabled ? "good" : "warn"
+    }
+  ];
 }
 
 function SummaryCard({ label, value, helper, tone = "default" }: { label: string; value: string | number; helper: string; tone?: "default" | "danger" | "warn" }) {
