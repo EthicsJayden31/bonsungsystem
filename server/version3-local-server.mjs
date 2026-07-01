@@ -70,6 +70,10 @@ const server = createServer(async (request, response) => {
       return sendJson(response, 200, { ok: true, data: healthReport() });
     }
 
+    if (request.method === "POST" && url.pathname === "/account-requests") {
+      return createAccountRequest(response, body);
+    }
+
     if (request.method === "POST" && url.pathname === "/auth/login") {
       return login(response, body);
     }
@@ -81,6 +85,7 @@ const server = createServer(async (request, response) => {
     if (request.method === "POST" && url.pathname === "/auth/change-password") return changePassword(response, request, account, body);
     if (request.method === "GET" && url.pathname === "/bootstrap") return sendJson(response, 200, { ok: true, data: bootstrapFor(account) });
     if (request.method === "GET" && url.pathname === "/accounts") return requirePermission(response, account, "viewAccounts", () => sendJson(response, 200, { ok: true, data: publicAccounts() }));
+    if (request.method === "GET" && url.pathname === "/account-requests") return requirePermission(response, account, "reviewAccountRequests", () => sendJson(response, 200, { ok: true, data: publicAccountRequests() }));
     if (request.method === "GET" && url.pathname === "/account-history") return requirePermission(response, account, "viewAccounts", () => sendJson(response, 200, { ok: true, data: db.accountHistory }));
     if (request.method === "GET" && url.pathname === "/audit-logs") return requirePermission(response, account, "manageOperations", () => sendJson(response, 200, { ok: true, data: db.auditLogs || [] }));
     if (request.method === "GET" && url.pathname === "/data-quality") return requirePermission(response, account, "manageOperations", () => sendJson(response, 200, { ok: true, data: dataQualityReport() }));
@@ -92,6 +97,7 @@ const server = createServer(async (request, response) => {
     if (request.method === "PATCH" && /^\/accounts\/[^/]+\/status$/.test(url.pathname)) return requirePermission(response, account, "manageAccounts", () => updateAccountStatus(response, account, url.pathname.split("/")[2], body));
     if (request.method === "PATCH" && /^\/accounts\/[^/]+\/password$/.test(url.pathname)) return requirePermission(response, account, "manageAccounts", () => resetAccountPassword(response, account, url.pathname.split("/")[2], body));
     if (request.method === "PATCH" && /^\/accounts\/[^/]+\/permissions$/.test(url.pathname)) return requirePermission(response, account, "managePermissions", () => updateAccountPermissions(response, account, url.pathname.split("/")[2], body));
+    if (request.method === "PATCH" && /^\/account-requests\/[^/]+\/review$/.test(url.pathname)) return requirePermission(response, account, "reviewAccountRequests", () => reviewAccountRequest(response, account, url.pathname.split("/")[2], body));
 
     return sendJson(response, 404, { ok: false, error: `Unknown Version.3 endpoint: ${url.pathname}` });
   } catch (error) {
@@ -205,9 +211,32 @@ function bootstrapFor(account) {
     reservations: account.permissions.viewReservations ? db.reservations.filter((item) => account.role !== "student" || item.studentId === studentId) : [],
     payments: account.permissions.viewPayments ? db.payments.filter((item) => account.role !== "student" || item.studentId === studentId) : [],
     tasks: account.permissions.manageOperations ? db.tasks : [],
+    workLogs: account.permissions.viewTeam ? visibleWorkLogs(account) : [],
+    meetings: account.permissions.viewMeetings ? visibleMeetings(account) : [],
+    calendarEvents: account.permissions.viewCalendar ? visibleCalendarEvents(account) : [],
+    accountRequests: account.permissions.reviewAccountRequests ? publicAccountRequests() : [],
+    publicSettings: db.publicSettings || {},
     notices: db.notices.filter((notice) => notice.active && notice.targetRoles.includes(account.role)),
     dashboardWorkQueue: dashboardWorkQueueFor(account, consultations)
   };
+}
+
+function visibleWorkLogs(account) {
+  return account.permissions.manageOperations ? db.workLogs : db.workLogs.filter((item) => item.accountId === account.id);
+}
+
+function visibleMeetings(account) {
+  const meetings = account.permissions.manageOperations ? db.meetings : db.meetings.filter((item) => Array.isArray(item.participantIds) && item.participantIds.includes(account.id));
+  return meetings.map((item) => ({
+    ...item,
+    participantNames: (item.participantIds || []).map((id) => db.accounts.find((accountItem) => accountItem.id === id)?.name || id),
+    participant_names: (item.participantIds || []).map((id) => db.accounts.find((accountItem) => accountItem.id === id)?.name || id).join(",")
+  }));
+}
+
+function visibleCalendarEvents(account) {
+  if (account.permissions.manageOperations) return db.calendarEvents;
+  return db.calendarEvents.filter((item) => !Array.isArray(item.targetRoles) || item.targetRoles.includes(account.role));
 }
 
 function dashboardWorkQueueFor(account, consultations) {
@@ -254,6 +283,108 @@ function dashboardWorkQueueFor(account, consultations) {
 
 function publicAccounts() {
   return db.accounts.map(({ password, ...account }) => account);
+}
+
+function publicAccountRequests() {
+  return (db.accountRequests || []).map(({ requestedPassword, ...request }) => request);
+}
+
+function createAccountRequest(response, body) {
+  const input = body.request || body.accountRequest || body;
+  const loginId = stringValue(input.loginId).toLowerCase();
+  const name = stringValue(input.name);
+  const requestedRole = stringValue(input.requestedRole || input.role || "student");
+  if (!["manager", "teacher", "student"].includes(requestedRole)) return sendJson(response, 400, { ok: false, error: "Unsupported requested role." });
+  if (!loginId || !name) return sendJson(response, 400, { ok: false, error: "Account request requires name and loginId." });
+  if (db.accounts.some((account) => account.loginId.toLowerCase() === loginId)) return sendJson(response, 409, { ok: false, error: "Account loginId already exists." });
+  if ((db.accountRequests || []).some((request) => request.loginId.toLowerCase() === loginId && request.status === "대기")) return sendJson(response, 409, { ok: false, error: "Account request already exists." });
+  const now = new Date().toISOString();
+  const request = {
+    id: `account-request-${randomUUID()}`,
+    loginId,
+    name,
+    requestedRole,
+    email: stringValue(input.email),
+    phone: stringValue(input.phone),
+    linkedStudentId: stringValue(input.linkedStudentId || input.linked_student_id),
+    message: stringValue(input.message),
+    status: "대기",
+    reviewedBy: "",
+    reviewedByName: "",
+    reviewedAt: "",
+    reviewMemo: "",
+    createdAccountId: "",
+    createdAt: now,
+    updatedAt: now
+  };
+  db.accountRequests = Array.isArray(db.accountRequests) ? db.accountRequests : [];
+  db.accountRequests.unshift(request);
+  addAuditLog(systemActor(), "request_account", "accountRequest", request.id, request.name, {
+    requestedRole: request.requestedRole,
+    loginId: request.loginId
+  });
+  saveDatabase();
+  return sendJson(response, 200, { ok: true, data: request });
+}
+
+function reviewAccountRequest(response, actor, requestId, body) {
+  const request = (db.accountRequests || []).find((item) => item.id === decodeURIComponent(requestId));
+  if (!request) return sendJson(response, 404, { ok: false, error: "Account request not found." });
+  if (request.status !== "대기") return sendJson(response, 400, { ok: false, error: "Account request was already reviewed." });
+  const review = body.review || body;
+  const decision = stringValue(review.decision || review.status || "approve");
+  const now = new Date().toISOString();
+  if (decision === "reject" || decision === "반려") {
+    request.status = "반려";
+    request.reviewMemo = stringValue(review.memo);
+    request.reviewedBy = actor.id;
+    request.reviewedByName = actor.name;
+    request.reviewedAt = now;
+    request.updatedAt = now;
+    addAccountHistory(actor, { id: request.id, name: request.name, role: request.requestedRole }, "reject_account_request", null, null, { loginId: request.loginId, memo: request.reviewMemo });
+    saveDatabase();
+    return sendJson(response, 200, { ok: true, data: request });
+  }
+
+  const role = stringValue(review.role || request.requestedRole);
+  const linkedStudentId = stringValue(review.linkedStudentId || request.linkedStudentId);
+  const initialPassword = stringValue(review.initialPassword || body.initialPassword);
+  if (!isValidPassword(initialPassword)) return sendJson(response, 400, { ok: false, error: `Initial password must be at least ${passwordMinLength} characters.` });
+  if (role === "student" && !linkedStudentId) return sendJson(response, 400, { ok: false, error: "Student account request requires linkedStudentId before approval." });
+  if (role === "student" && !db.students.some((student) => student.id === linkedStudentId)) return sendJson(response, 400, { ok: false, error: "Linked student was not found." });
+  if (db.accounts.some((account) => account.loginId.toLowerCase() === request.loginId.toLowerCase())) return sendJson(response, 409, { ok: false, error: "Account loginId already exists." });
+  if (role === "student" && db.accounts.some((account) => account.role === "student" && account.linkedStudentId === linkedStudentId && account.status !== "paused")) {
+    return sendJson(response, 409, { ok: false, error: "Student already has an active account." });
+  }
+  const student = db.students.find((item) => item.id === linkedStudentId);
+  const account = {
+    id: `account-${randomUUID()}`,
+    loginId: request.loginId,
+    name: request.name,
+    role,
+    email: request.email,
+    phone: request.phone,
+    linkedStudentId: role === "student" ? linkedStudentId : "",
+    linkedStudentName: role === "student" ? student?.name || "" : "",
+    status: "invited",
+    mustChangePassword: true,
+    permissions: permissionsFor(role),
+    lastLoginAt: "",
+    createdAt: now,
+    password: hashPassword(initialPassword)
+  };
+  db.accounts.unshift(account);
+  request.status = "승인";
+  request.reviewedBy = actor.id;
+  request.reviewedByName = actor.name;
+  request.reviewedAt = now;
+  request.reviewMemo = stringValue(review.memo);
+  request.createdAccountId = account.id;
+  request.updatedAt = now;
+  addAccountHistory(actor, account, "approve_account_request", null, null, { requestId: request.id, loginId: request.loginId });
+  saveDatabase();
+  const { password, ...publicAccount } = account;
+  return sendJson(response, 200, { ok: true, data: { request, account: publicAccount } });
 }
 
 function createAccount(response, actor, body) {
@@ -708,6 +839,112 @@ function handleAction(response, account, action, body) {
     return sendJson(response, 200, { ok: true, data: task });
   }
 
+  if (action === "clockWork") {
+    if (!account.permissions.clockWork) return sendJson(response, 403, { ok: false, error: "Work clock permission is required." });
+    const input = body.workLog || body;
+    const workDate = stringValue(input.workDate || input.work_date || new Date().toISOString().slice(0, 10));
+    const openLog = db.workLogs.find((item) => item.accountId === account.id && item.workDate === workDate && !item.clockOutAt);
+    if (openLog) {
+      openLog.clockOutAt = new Date().toISOString();
+      openLog.clock_out_at = openLog.clockOutAt;
+      openLog.memo = stringValue(input.memo || openLog.memo);
+      addAuditLog(account, "clock_out", "workLog", openLog.id, account.name, { workDate });
+      saveDatabase();
+      return sendJson(response, 200, { ok: true, data: openLog });
+    }
+    const workLog = {
+      id: `work-log-${randomUUID()}`,
+      work_log_id: "",
+      accountId: account.id,
+      account_id: account.id,
+      accountName: account.name,
+      account_name: account.name,
+      workDate,
+      work_date: workDate,
+      clockInAt: new Date().toISOString(),
+      clock_in_at: "",
+      clockOutAt: "",
+      clock_out_at: "",
+      memo: stringValue(input.memo)
+    };
+    workLog.work_log_id = workLog.id;
+    workLog.clock_in_at = workLog.clockInAt;
+    db.workLogs.unshift(workLog);
+    addAuditLog(account, "clock_in", "workLog", workLog.id, account.name, { workDate });
+    saveDatabase();
+    return sendJson(response, 200, { ok: true, data: workLog });
+  }
+
+  if (action === "createMeeting") {
+    if (!account.permissions.manageMeetings) return sendJson(response, 403, { ok: false, error: "Meeting management permission is required." });
+    const input = body.meeting || body;
+    const title = stringValue(input.title);
+    if (!title) return sendJson(response, 400, { ok: false, error: "Meeting title is required." });
+    const participantIds = stringList(input.participantIds || input.participant_ids).filter((id) => db.accounts.some((item) => item.id === id && item.role !== "student"));
+    if (!participantIds.includes(account.id)) participantIds.push(account.id);
+    const meeting = {
+      id: `meeting-${randomUUID()}`,
+      meeting_id: "",
+      title,
+      startsAt: stringValue(input.startsAt || input.starts_at || toKoreaDateTime(stringValue(input.date || new Date().toISOString().slice(0, 10)), stringValue(input.startTime || input.start_time || "10:00"))),
+      starts_at: "",
+      participantIds,
+      participant_ids: participantIds.join(","),
+      createdBy: account.id,
+      created_by: account.id,
+      status: stringValue(input.status || "예정"),
+      memo: stringValue(input.memo)
+    };
+    meeting.meeting_id = meeting.id;
+    meeting.starts_at = meeting.startsAt;
+    db.meetings.unshift(meeting);
+    addAuditLog(account, "create_meeting", "meeting", meeting.id, meeting.title, { participantIds });
+    saveDatabase();
+    return sendJson(response, 200, { ok: true, data: meeting });
+  }
+
+  if (action === "createCalendarEvent") {
+    if (!account.permissions.manageCalendar) return sendJson(response, 403, { ok: false, error: "Calendar management permission is required." });
+    const input = body.calendarEvent || body.event || body;
+    const title = stringValue(input.title);
+    if (!title) return sendJson(response, 400, { ok: false, error: "Calendar event title is required." });
+    const targetRoles = stringList(input.targetRoles || input.target_roles || "owner,manager,teacher,student").filter((role) => ["owner", "manager", "teacher", "student"].includes(role));
+    const event = {
+      id: `calendar-${randomUUID()}`,
+      calendar_event_id: "",
+      title,
+      date: stringValue(input.date || new Date().toISOString().slice(0, 10)),
+      startTime: stringValue(input.startTime || input.start_time),
+      start_time: stringValue(input.startTime || input.start_time),
+      targetRoles: targetRoles.length ? targetRoles : ["owner", "manager", "teacher", "student"],
+      target_roles: (targetRoles.length ? targetRoles : ["owner", "manager", "teacher", "student"]).join(","),
+      createdBy: account.id,
+      created_by: account.id,
+      memo: stringValue(input.memo)
+    };
+    event.calendar_event_id = event.id;
+    db.calendarEvents.unshift(event);
+    addAuditLog(account, "create_calendar_event", "calendarEvent", event.id, event.title, { targetRoles: event.targetRoles });
+    saveDatabase();
+    return sendJson(response, 200, { ok: true, data: event });
+  }
+
+  if (action === "updatePublicSettings") {
+    if (!account.permissions.managePublicSettings) return sendJson(response, 403, { ok: false, error: "Public settings permission is required." });
+    const input = body.publicSettings || body.settings || body;
+    db.publicSettings = {
+      ...(db.publicSettings || {}),
+      loginNotice: stringValue(input.loginNotice ?? db.publicSettings?.loginNotice),
+      academyPhone: stringValue(input.academyPhone ?? db.publicSettings?.academyPhone),
+      reservationGuide: stringValue(input.reservationGuide ?? db.publicSettings?.reservationGuide),
+      updatedAt: new Date().toISOString(),
+      updatedBy: account.id
+    };
+    addAuditLog(account, "update_public_settings", "publicSettings", "public-settings", "운영 환경 설정", db.publicSettings);
+    saveDatabase();
+    return sendJson(response, 200, { ok: true, data: db.publicSettings });
+  }
+
   if (action === "createConsultation") {
     const input = body.consultation || body;
     const consultation = {
@@ -858,6 +1095,10 @@ function dataQualityReport() {
     summary: {
       accounts: db.accounts.length,
       students: db.students.length,
+      accountRequests: (db.accountRequests || []).filter((item) => item.status === "대기").length,
+      workLogs: (db.workLogs || []).length,
+      meetings: (db.meetings || []).length,
+      calendarEvents: (db.calendarEvents || []).length,
       studentsWithoutAccounts: db.students.filter((student) => !linkedStudentIds.has(student.id)).length,
       auditLogs: (db.auditLogs || []).length,
       openConsultations: db.consultations.filter((item) => item.status !== "종결").length,
@@ -869,7 +1110,8 @@ function dataQualityReport() {
       { id: "reference-integrity", label: "Reference integrity", status: brokenReferenceCount ? "warn" : "good", count: brokenReferenceCount },
       { id: "notice-targets", label: "Notice targets", status: "good", count: db.notices.filter((notice) => notice.active && notice.targetRoles.length).length },
       { id: "audit-logs", label: "Audit logs", status: (db.auditLogs || []).length ? "good" : "warn", count: (db.auditLogs || []).length },
-      { id: "open-consultations", label: "Open consultations", status: "good", count: db.consultations.filter((item) => item.status !== "종결").length }
+      { id: "open-consultations", label: "Open consultations", status: "good", count: db.consultations.filter((item) => item.status !== "종결").length },
+      { id: "account-requests", label: "Account requests", status: (db.accountRequests || []).some((item) => item.status === "대기") ? "warn" : "good", count: (db.accountRequests || []).filter((item) => item.status === "대기").length }
     ]
   };
 }
@@ -1367,6 +1609,9 @@ function createSeedData() {
     accountHistory: [
       { id: "account-history-1", accountId: "manager-1", accountName: "조영진", actorId: "owner-1", actorName: "강은미", action: "create_account", role: "manager", occurredAt: "2026-07-01T09:10:00+09:00" }
     ],
+    accountRequests: [
+      { id: "account-request-1", loginId: "vocal.hana", name: "최하나", requestedRole: "student", email: "hana@example.com", phone: "010-2222-3300", linkedStudentId: "", message: "보컬 수강 등록 후 사용할 계정을 요청합니다.", status: "대기", reviewedBy: "", reviewedByName: "", reviewedAt: "", reviewMemo: "", createdAccountId: "", createdAt: "2026-07-01T10:10:00+09:00", updatedAt: "2026-07-01T10:10:00+09:00" }
+    ],
     auditLogs: [
       { id: "audit-1", actorId: "owner-1", actorName: "강은미", action: "create_account", targetType: "account", targetId: "manager-1", targetName: "조영진", metadata: { role: "manager" }, createdAt: "2026-07-01T09:10:00+09:00" }
     ],
@@ -1412,6 +1657,22 @@ function createSeedData() {
     tasks: [
       { id: "task-1", title: "초기 수강생 프로그램 배정", assignee: "조영진", dueDate: "2026-07-03", status: "진행중", priority: "높음", memo: "Notion 수강생 DB 등록 확정자부터 프로그램과 담당 강사를 배정" }
     ],
+    workLogs: [
+      { id: "work-log-1", work_log_id: "work-log-1", accountId: "manager-1", account_id: "manager-1", accountName: "조영진", account_name: "조영진", workDate: "2026-07-01", work_date: "2026-07-01", clockInAt: "2026-07-01T09:05:00+09:00", clock_in_at: "2026-07-01T09:05:00+09:00", clockOutAt: "", clock_out_at: "", memo: "초기 운영 준비" }
+    ],
+    meetings: [
+      { id: "meeting-1", meeting_id: "meeting-1", title: "주간 운영 회의", startsAt: "2026-07-03T10:00:00+09:00", starts_at: "2026-07-03T10:00:00+09:00", participantIds: ["owner-1", "manager-1", "teacher-1"], participant_ids: "owner-1,manager-1,teacher-1", createdBy: "manager-1", created_by: "manager-1", status: "예정", memo: "초기 수강생 배정과 상담 흐름 점검" }
+    ],
+    calendarEvents: [
+      { id: "calendar-1", calendar_event_id: "calendar-1", title: "개원 준비 점검", date: "2026-07-04", startTime: "14:00", start_time: "14:00", targetRoles: ["owner", "manager", "teacher"], target_roles: "owner,manager,teacher", createdBy: "manager-1", created_by: "manager-1", memo: "시설, 시간표, 공지 확인" }
+    ],
+    publicSettings: {
+      loginNotice: "계정 요청 및 패스워드 초기화는 매니저에게 문의 바랍니다.",
+      academyPhone: "",
+      reservationGuide: "공간 예약은 정각부터 1시간 단위로 신청합니다.",
+      updatedAt: "2026-07-01T00:00:00+09:00",
+      updatedBy: "owner-1"
+    },
     notices: [
       { id: "notice-1", title: "본성 스테이지 초기 운영 데이터 반영", category: "운영규정", author: "강은미", updatedAt: "2026-07-01", body: "직원, 수강생, 프로그램 초기 데이터는 Notion 본성뮤직 초기 운영 자료 DB를 기준으로 반영합니다.", targetRoles: ["owner", "manager", "teacher", "student"], pinned: true, active: true },
       { id: "notice-2", title: "수업 기록 작성 기준", category: "강사매뉴얼", author: "조영진", updatedAt: "2026-07-01", body: "수업 내용, 과제, 다음 목표, 특이사항을 수업 후 바로 기록합니다.", targetRoles: ["owner", "manager", "teacher"], pinned: false, active: true }
@@ -1463,6 +1724,11 @@ function readJson(request) {
 
 function stringValue(value) {
   return value == null ? "" : String(value).trim();
+}
+
+function stringList(value) {
+  if (Array.isArray(value)) return value.map((item) => stringValue(item)).filter(Boolean);
+  return stringValue(value).split(/[,|]/).map((item) => item.trim()).filter(Boolean);
 }
 
 function numberValue(value, fallback) {

@@ -3,7 +3,9 @@
 import { FormEvent, useState, type ReactNode } from "react";
 import { AppShell } from "@/components/layout/app-shell";
 import { Badge } from "@/components/ui/badge";
+import { hasVersion3Permission } from "@/lib/access-policy";
 import { updateServerSessionUser } from "@/lib/client-session";
+import { useOperationAction, useOperationsData } from "@/lib/operations-data";
 import { readPreferences, savePreferences, startPages, type Preferences } from "@/lib/preferences";
 import { useCurrentUser } from "@/lib/use-current-user";
 import { usePreviewRole } from "@/lib/use-preview-role";
@@ -12,11 +14,15 @@ import { changeVersion3ServerPassword, hasVersion3ServerSession } from "@/lib/ve
 export default function ProfileSettingsPage() {
   const role = usePreviewRole();
   const user = useCurrentUser();
+  const operations = useOperationsData(role);
+  const saveAction = useOperationAction();
   const [preferences, setPreferences] = useState<Preferences>(() => readPreferences());
   const [saved, setSaved] = useState(false);
   const [passwordMessage, setPasswordMessage] = useState("");
   const [passwordPending, setPasswordPending] = useState(false);
+  const [settingsMessage, setSettingsMessage] = useState("");
   const forcePasswordChange = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("forcePasswordChange") === "1";
+  const canManagePublicSettings = hasVersion3Permission(user ?? role, "managePublicSettings");
 
   function update<K extends keyof Preferences>(key: K, value: Preferences[K]) {
     setSaved(false);
@@ -60,6 +66,28 @@ export default function ProfileSettingsPage() {
       setPasswordMessage(caught instanceof Error ? caught.message : "비밀번호를 변경하지 못했습니다.");
     } finally {
       setPasswordPending(false);
+    }
+  }
+
+  async function submitPublicSettings(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const values = Object.fromEntries(new FormData(form).entries()) as Record<string, string>;
+    if (!canManagePublicSettings) {
+      setSettingsMessage("운영 환경 설정은 대표 권한에서만 저장할 수 있습니다.");
+      return;
+    }
+    try {
+      await saveAction.run("updatePublicSettings", {
+        publicSettings: {
+          loginNotice: values.loginNotice,
+          academyPhone: values.academyPhone,
+          reservationGuide: values.reservationGuide
+        }
+      });
+      setSettingsMessage("운영 환경 설정을 저장했습니다. 서버 데이터는 새로고침 후 화면에 반영됩니다.");
+    } catch (caught) {
+      setSettingsMessage(caught instanceof Error ? caught.message : "운영 환경 설정을 저장하지 못했습니다.");
     }
   }
 
@@ -133,6 +161,27 @@ export default function ProfileSettingsPage() {
                 <ChoiceButton active={preferences.dashboardFocus === "lessons"} label="오늘 수업" onClick={() => update("dashboardFocus", "lessons")} />
                 <ChoiceButton active={preferences.dashboardFocus === "students"} label="학생 변화" onClick={() => update("dashboardFocus", "students")} />
               </div>
+            </SettingCard>
+
+            <SettingCard title="운영 환경 설정" description="로그인 안내, 학원 연락처, 공간 예약 안내처럼 시스템 전체에서 함께 쓰는 문구를 관리합니다.">
+              <form className="grid gap-3" onSubmit={submitPublicSettings}>
+                <label className="block">
+                  <span className="text-xs font-bold text-ink">로그인 안내 문구</span>
+                  <textarea className="mt-1 min-h-20 w-full rounded-xl border border-line px-3 py-2 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/15" defaultValue={operations.data.publicSettings.loginNotice} disabled={!canManagePublicSettings || saveAction.pending} name="loginNotice" />
+                </label>
+                <label className="block">
+                  <span className="text-xs font-bold text-ink">학원 연락처</span>
+                  <input className="mt-1 h-11 w-full rounded-xl border border-line px-3 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/15" defaultValue={operations.data.publicSettings.academyPhone} disabled={!canManagePublicSettings || saveAction.pending} name="academyPhone" />
+                </label>
+                <label className="block">
+                  <span className="text-xs font-bold text-ink">공간 예약 안내</span>
+                  <textarea className="mt-1 min-h-20 w-full rounded-xl border border-line px-3 py-2 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/15" defaultValue={operations.data.publicSettings.reservationGuide} disabled={!canManagePublicSettings || saveAction.pending} name="reservationGuide" />
+                </label>
+                <button className="rounded-xl bg-brand px-4 py-3 text-sm font-bold text-white transition hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-60" disabled={!canManagePublicSettings || saveAction.pending} type="submit">
+                  운영 환경 저장
+                </button>
+              </form>
+              {settingsMessage ? <p className="mt-3 rounded-xl bg-brand/5 px-3 py-2 text-xs font-bold leading-5 text-muted">{settingsMessage}</p> : null}
             </SettingCard>
           </div>
 

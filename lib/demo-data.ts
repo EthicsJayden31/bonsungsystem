@@ -164,6 +164,59 @@ export type Task = {
   memo: string;
 };
 
+export type WorkLog = {
+  id: string;
+  accountId: string;
+  accountName: string;
+  workDate: string;
+  clockInAt: string;
+  clockOutAt: string;
+  memo: string;
+};
+
+export type Meeting = {
+  id: string;
+  title: string;
+  startsAt: string;
+  participantNames: string[];
+  status: string;
+  memo: string;
+};
+
+export type CalendarEvent = {
+  id: string;
+  title: string;
+  date: string;
+  startTime: string;
+  targetRoles: Role[];
+  memo: string;
+};
+
+export type AccountRequest = {
+  id: string;
+  loginId: string;
+  name: string;
+  requestedRole: Role;
+  email: string;
+  phone: string;
+  linkedStudentId: string;
+  message: string;
+  status: string;
+  reviewedByName: string;
+  reviewedAt: string;
+  reviewMemo: string;
+  createdAccountId: string;
+  createdAt: string;
+};
+
+export type PublicSettings = {
+  loginNotice: string;
+  academyPhone: string;
+  reservationGuide: string;
+  updatedAt: string;
+  updatedBy: string;
+};
+
 export type Notice = {
   id: string;
   title: string;
@@ -284,6 +337,30 @@ export const tasks: Task[] = [
   { id: "task-1", title: "개원 상담 명단 정리", assignee: "매니저 계정", dueDate: "2026-06-08", status: "진행중", priority: "높음", memo: "문의 경로별 분류" },
   { id: "task-2", title: "강사 매뉴얼 초안 검토", assignee: "대표 계정", dueDate: "2026-06-12", status: "할일", priority: "보통", memo: "출석/보강 기준 포함" }
 ];
+
+export const workLogs: WorkLog[] = [
+  { id: "work-log-1", accountId: "manager-1", accountName: "매니저 계정", workDate: "2026-06-07", clockInAt: "2026-06-07T09:05:00+09:00", clockOutAt: "", memo: "상담 명단 정리" }
+];
+
+export const meetings: Meeting[] = [
+  { id: "meeting-1", title: "주간 운영 회의", startsAt: "2026-06-10T10:00:00+09:00", participantNames: ["대표 계정", "매니저 계정", "강사 계정"], status: "예정", memo: "초기 등록과 레슨노트 기준 점검" }
+];
+
+export const calendarEvents: CalendarEvent[] = [
+  { id: "calendar-1", title: "개원 준비 점검", date: "2026-06-12", startTime: "14:00", targetRoles: ["owner", "manager", "teacher"], memo: "시설, 수업, 상담 준비 확인" }
+];
+
+export const accountRequests: AccountRequest[] = [
+  { id: "account-request-1", loginId: "vocal.hana", name: "최하나", requestedRole: "student", email: "hana@example.com", phone: "010-2222-3300", linkedStudentId: "", message: "보컬 수강 등록 후 사용할 계정을 요청합니다.", status: "대기", reviewedByName: "", reviewedAt: "", reviewMemo: "", createdAccountId: "", createdAt: "2026-06-07T10:10:00+09:00" }
+];
+
+export const publicSettings: PublicSettings = {
+  loginNotice: "계정 요청 및 패스워드 초기화는 매니저에게 문의 바랍니다.",
+  academyPhone: "",
+  reservationGuide: "공간 예약은 정각부터 1시간 단위로 신청합니다.",
+  updatedAt: "2026-06-07T00:00:00+09:00",
+  updatedBy: "owner-1"
+};
 
 export const notices: Notice[] = [
   { id: "notice-1", title: "개원 초기 상담 응대 기준", category: "운영규정", author: "대표 계정", updatedAt: "2026-06-06", body: "상담요청은 매니저가 먼저 확인한 뒤 필요한 담당자에게 공유합니다.", targetRoles: ["owner", "manager", "teacher", "student"], pinned: true },

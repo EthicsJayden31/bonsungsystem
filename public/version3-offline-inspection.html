@@ -617,8 +617,8 @@
     <div id="toast" class="toast hidden"></div>
 
     <script>
-      const STORAGE_KEY = "bonsung_stage_offline_app_v2";
-      const SESSION_KEY = "bonsung_stage_offline_session_v2";
+      const STORAGE_KEY = "bonsung_stage_offline_app_v3";
+      const SESSION_KEY = "bonsung_stage_offline_session_v3";
 
       const roleLabels = {
         owner: "대표",
@@ -674,6 +674,12 @@
           { id: "lesson-1", date: "2026-07-02", time: "18:00", studentId: "student-jang-yunho", teacherId: "teacher-1", courseId: "course-precollege", status: "예정", note: "" },
           { id: "lesson-2", date: "2026-07-03", time: "19:00", studentId: "student-2", teacherId: "teacher-choi-hyeryeong", courseId: "course-vocal-redesign", status: "예정", note: "" }
         ],
+        attendance: [
+          { id: "attendance-1", lessonId: "lesson-1", studentId: "student-jang-yunho", status: "미처리", makeupNeeded: false, memo: "" }
+        ],
+        lessonNotes: [
+          { id: "note-1", lessonId: "lesson-1", studentId: "student-jang-yunho", teacherId: "teacher-1", content: "호흡과 발성 기초 점검", homework: "스케일 녹음", nextGoal: "고음 연결 안정화", createdAt: nowText() }
+        ],
         reservations: [
           { id: "reservation-1", date: "2026-07-02", time: "16:00", room: "A룸", user: "장윤호", purpose: "연습", status: "예약됨" }
         ],
@@ -685,18 +691,46 @@
         ],
         tasks: [
           { id: "task-1", title: "신규 수강생 등록 상태 확인", owner: "조영진", due: "2026-07-03", status: "진행중" }
-        ]
+        ],
+        payments: [
+          { id: "payment-1", studentId: "student-jang-yunho", title: "7월 본성 프리컬리지", amount: 320000, dueDate: "2026-07-10", status: "확인 필요", paidAt: "", memo: "첫 등록 확인" }
+        ],
+        accountRequests: [
+          { id: "request-1", loginId: "new.student", name: "신규 수강생", role: "student", studentId: "", status: "대기", memo: "계정 요청 예시", createdAt: nowText(), reviewedAt: "" }
+        ],
+        workLogs: [
+          { id: "work-1", accountId: "acc-manager", name: "조영진", date: "2026-07-02", clockIn: "09:10", clockOut: "", memo: "상담 확인" }
+        ],
+        meetings: [
+          { id: "meeting-1", title: "초기 운영 회의", startsAt: "2026-07-03T10:00", participants: "강은미, 조영진, 황휘현", status: "예정", memo: "등록/수납/수업 흐름 점검" }
+        ],
+        calendarEvents: [
+          { id: "calendar-1", title: "개원 준비 점검", date: "2026-07-04", time: "14:00", target: "직원/강사", memo: "공간과 상담 준비 확인" }
+        ],
+        publicSettings: {
+          loginNotice: "계정 요청 및 패스워드 초기화는 매니저에게 문의 바랍니다.",
+          academyPhone: "",
+          reservationGuide: "공간 예약은 1시간 단위로 신청합니다."
+        },
+        auditLogs: [
+          { id: "audit-1", action: "seed_loaded", actor: "시스템", target: "초기 점검 데이터", createdAt: nowText() }
+        ],
+        backups: []
       };
 
       const pages = [
         { id: "dashboard", label: "대시보드", roles: ["owner", "manager", "teacher", "student"], title: "운영 대시보드", description: "오늘 운영 흐름과 처리할 일을 확인합니다." },
         { id: "students", label: "수강생", roles: ["owner", "manager", "teacher"], title: "수강생 관리", description: "수강생 상태, 담당 강사, 프로그램, 결제 확인 상태를 관리합니다." },
         { id: "lessons", label: "수업/시간표", roles: ["owner", "manager", "teacher", "student"], title: "수업/시간표", description: "수업 일정과 진행 상태를 확인하고 기록합니다." },
+        { id: "attendance", label: "출결/레슨노트", roles: ["owner", "manager", "teacher", "student"], title: "출결/레슨노트", description: "출석, 지각, 결석, 보강 필요와 수업 기록을 점검합니다." },
         { id: "consultations", label: "상담요청", roles: ["owner", "manager", "teacher", "student"], title: "상담요청", description: "수강생이 보낸 일방향 요청을 접수하고 확인 처리합니다." },
         { id: "reservations", label: "공간 예약", roles: ["owner", "manager", "teacher", "student"], title: "공간 예약", description: "연습실과 강의실 예약 흐름을 점검합니다." },
+        { id: "payments", label: "수납/등록", roles: ["owner", "manager", "student"], title: "수납/등록", description: "등록, 재등록, 납부 상태와 확인 필요 항목을 점검합니다." },
+        { id: "operations", label: "내부 운영", roles: ["owner", "manager", "teacher"], title: "내부 운영", description: "업무, 근태, 회의, 일정을 한 화면에서 점검합니다." },
         { id: "notices", label: "공지", roles: ["owner", "manager", "teacher", "student"], title: "공지", description: "대표와 매니저는 공지를 작성하고, 구성원은 공지를 확인합니다." },
+        { id: "accounts", label: "계정/권한", roles: ["owner"], title: "계정/권한", description: "계정 요청 승인과 권한별 접근 범위를 점검합니다." },
         { id: "team", label: "직원·프로그램", roles: ["owner", "manager", "teacher"], title: "직원·프로그램", description: "직원, 강사, 프로그램 초기 데이터를 확인합니다." },
-        { id: "quality", label: "운영 점검", roles: ["owner", "manager"], title: "운영 점검", description: "데이터 연결 상태와 남은 운영 준비 항목을 확인합니다." }
+        { id: "quality", label: "데이터 관리", roles: ["owner", "manager"], title: "데이터 관리", description: "가져오기, 내보내기, 백업, 감사 기록을 확인합니다." }
       ];
 
       const state = {
@@ -763,9 +797,13 @@
           dashboard: renderDashboard,
           students: renderStudents,
           lessons: renderLessons,
+          attendance: renderAttendance,
           consultations: renderConsultations,
           reservations: renderReservations,
+          payments: renderPayments,
+          operations: renderOperations,
           notices: renderNotices,
+          accounts: renderAccounts,
           team: renderTeam,
           quality: renderQuality
         }[pageId];
@@ -852,6 +890,46 @@
         `;
       }
 
+      function renderAttendance() {
+        const lessons = lessonScope();
+        return `
+          <div class="grid">
+            <section class="panel span-7">
+              <div class="panel-head"><div><h3>출결</h3><p class="meta">수업별 출석, 지각, 결석, 보강 필요 상태를 바꿔봅니다.</p></div></div>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>수업</th><th>수강생</th><th>상태</th><th>보강</th><th>메모</th></tr></thead>
+                  <tbody>${lessons.map((lesson) => {
+                    const attendance = attendanceForLesson(lesson);
+                    return `<tr>
+                      <td>${escapeHtml(lesson.date)} ${escapeHtml(lesson.time)}</td>
+                      <td>${studentName(lesson.studentId)}</td>
+                      <td><select data-attendance-change data-id="${attendance.id}" data-field="status"><option ${attendance.status === "미처리" ? "selected" : ""}>미처리</option><option ${attendance.status === "출석" ? "selected" : ""}>출석</option><option ${attendance.status === "지각" ? "selected" : ""}>지각</option><option ${attendance.status === "결석" ? "selected" : ""}>결석</option></select></td>
+                      <td><select data-attendance-change data-id="${attendance.id}" data-field="makeupNeeded"><option value="false" ${!attendance.makeupNeeded ? "selected" : ""}>불필요</option><option value="true" ${attendance.makeupNeeded ? "selected" : ""}>필요</option></select></td>
+                      <td><input data-attendance-change data-id="${attendance.id}" data-field="memo" value="${escapeAttr(attendance.memo || "")}" /></td>
+                    </tr>`;
+                  }).join("")}</tbody>
+                </table>
+              </div>
+            </section>
+            <section class="panel span-5">
+              <div class="panel-head"><div><h3>레슨노트 작성</h3><p class="meta">강사와 운영진이 수업 기록을 남깁니다.</p></div></div>
+              <form id="lessonNoteForm" class="stack">
+                <label>수업<select name="lessonId">${lessons.map((lesson) => `<option value="${lesson.id}">${escapeHtml(lesson.date)} ${escapeHtml(lesson.time)} · ${studentName(lesson.studentId)}</option>`).join("")}</select></label>
+                <label>수업 내용<textarea name="content" required></textarea></label>
+                <label>과제<input name="homework" /></label>
+                <label>다음 목표<input name="nextGoal" /></label>
+                <button ${state.user.role === "student" ? "disabled" : ""}>레슨노트 저장</button>
+              </form>
+            </section>
+            <section class="panel span-12">
+              <div class="panel-head"><div><h3>레슨노트 목록</h3><p class="meta">수강생은 본인 기록만 확인합니다.</p></div></div>
+              <div class="cards">${lessonNotesForRole().map((note) => `<article><h3>${studentName(note.studentId)}</h3><p>${escapeHtml(note.content)}</p><p class="meta">과제: ${escapeHtml(note.homework || "-")} · 다음 목표: ${escapeHtml(note.nextGoal || "-")}</p></article>`).join("") || `<p class="meta">레슨노트가 없습니다.</p>`}</div>
+            </section>
+          </div>
+        `;
+      }
+
       function renderConsultations() {
         const canTriage = ["owner", "manager", "teacher"].includes(state.user.role);
         const selectableStudents = state.user.role === "student" ? studentScope() : state.data.students;
@@ -903,6 +981,83 @@
         `;
       }
 
+      function renderPayments() {
+        const visiblePayments = state.user.role === "student" ? state.data.payments.filter((item) => item.studentId === state.user.studentId) : state.data.payments;
+        const canWrite = ["owner", "manager"].includes(state.user.role);
+        return `
+          <div class="grid">
+            <section class="panel span-8">
+              <div class="panel-head"><div><h3>수납 목록</h3><p class="meta">납부 상태와 확인 필요 항목을 바꿔봅니다.</p></div></div>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>수강생</th><th>항목</th><th>금액</th><th>마감</th><th>상태</th><th>메모</th></tr></thead>
+                  <tbody>${visiblePayments.map((item) => `<tr>
+                    <td>${studentName(item.studentId)}</td>
+                    <td>${escapeHtml(item.title)}</td>
+                    <td>${Number(item.amount || 0).toLocaleString("ko-KR")}</td>
+                    <td>${escapeHtml(item.dueDate || "-")}</td>
+                    <td><select data-payment-change data-id="${item.id}" ${canWrite ? "" : "disabled"}><option ${item.status === "확인 필요" ? "selected" : ""}>확인 필요</option><option ${item.status === "미납" ? "selected" : ""}>미납</option><option ${item.status === "완납" ? "selected" : ""}>완납</option><option ${item.status === "환불" ? "selected" : ""}>환불</option></select></td>
+                    <td>${escapeHtml(item.memo || "-")}</td>
+                  </tr>`).join("")}</tbody>
+                </table>
+              </div>
+            </section>
+            <section class="panel span-4">
+              <div class="panel-head"><div><h3>등록/재등록 입력</h3><p class="meta">운영진만 저장 가능합니다.</p></div></div>
+              <form id="paymentForm" class="stack">
+                <label>수강생<select name="studentId" ${canWrite ? "" : "disabled"}>${studentOptions(state.data.students)}</select></label>
+                <label>항목<input name="title" required ${canWrite ? "" : "disabled"} /></label>
+                <label>금액<input name="amount" type="number" required ${canWrite ? "" : "disabled"} /></label>
+                <label>납부 마감<input name="dueDate" type="date" ${canWrite ? "" : "disabled"} /></label>
+                <button ${canWrite ? "" : "disabled"}>수납 저장</button>
+              </form>
+            </section>
+          </div>
+        `;
+      }
+
+      function renderOperations() {
+        return `
+          <div class="grid">
+            <section class="panel span-6">
+              <div class="panel-head"><div><h3>업무</h3><p class="meta">내부 업무 상태를 점검합니다.</p></div></div>
+              <div class="stack">${state.data.tasks.map((task) => `<article><strong>${escapeHtml(task.title)}</strong><p class="meta">${escapeHtml(task.owner)} · ${escapeHtml(task.due)} · ${escapeHtml(task.status)}</p></article>`).join("")}</div>
+              <form id="taskForm" class="stack" style="margin-top:12px">
+                <label>업무명<input name="title" required /></label>
+                <label>마감일<input name="due" type="date" /></label>
+                <button>업무 저장</button>
+              </form>
+            </section>
+            <section class="panel span-6">
+              <div class="panel-head"><div><h3>근태</h3><p class="meta">출근/퇴근 기록을 남깁니다.</p></div></div>
+              <div class="stack">${state.data.workLogs.map((item) => `<article><strong>${escapeHtml(item.name)}</strong><p class="meta">${escapeHtml(item.date)} · 출근 ${escapeHtml(item.clockIn || "-")} · 퇴근 ${escapeHtml(item.clockOut || "-")}</p><p>${escapeHtml(item.memo || "")}</p></article>`).join("")}</div>
+              <button id="clockButton" class="secondary">출퇴근 기록</button>
+            </section>
+            <section class="panel span-6">
+              <div class="panel-head"><div><h3>회의</h3><p class="meta">회의 일정을 등록합니다.</p></div></div>
+              <div class="stack">${state.data.meetings.map((item) => `<article><strong>${escapeHtml(item.title)}</strong><p class="meta">${escapeHtml(item.startsAt)} · ${escapeHtml(item.participants)} · ${escapeHtml(item.status)}</p><p>${escapeHtml(item.memo || "")}</p></article>`).join("")}</div>
+              <form id="meetingForm" class="stack" style="margin-top:12px">
+                <label>회의명<input name="title" required /></label>
+                <label>일시<input name="startsAt" type="datetime-local" required /></label>
+                <label>참석자<input name="participants" /></label>
+                <button>회의 저장</button>
+              </form>
+            </section>
+            <section class="panel span-6">
+              <div class="panel-head"><div><h3>일정</h3><p class="meta">권한별로 보일 일정을 등록합니다.</p></div></div>
+              <div class="stack">${state.data.calendarEvents.map((item) => `<article><strong>${escapeHtml(item.title)}</strong><p class="meta">${escapeHtml(item.date)} ${escapeHtml(item.time)} · ${escapeHtml(item.target)}</p><p>${escapeHtml(item.memo || "")}</p></article>`).join("")}</div>
+              <form id="calendarForm" class="stack" style="margin-top:12px">
+                <label>일정명<input name="title" required /></label>
+                <label>날짜<input name="date" type="date" required /></label>
+                <label>시간<input name="time" type="time" /></label>
+                <label>대상<select name="target"><option>전체</option><option>직원/강사</option><option>수강생</option></select></label>
+                <button>일정 저장</button>
+              </form>
+            </section>
+          </div>
+        `;
+      }
+
       function renderNotices() {
         const canWrite = ["owner", "manager"].includes(state.user.role);
         return `
@@ -919,6 +1074,24 @@
             <section class="panel span-7">
               <div class="panel-head"><div><h3>공지 목록</h3><p class="meta">대상별 공개 범위를 확인합니다.</p></div></div>
               <div class="stack">${visibleNotices().map(noticeCard).join("")}</div>
+            </section>
+          </div>
+        `;
+      }
+
+      function renderAccounts() {
+        return `
+          <div class="grid">
+            <section class="panel span-7">
+              <div class="panel-head"><div><h3>계정 요청</h3><p class="meta">대기 요청을 승인하거나 반려합니다.</p></div></div>
+              <div class="stack">${state.data.accountRequests.map((item) => `<article>
+                <div class="panel-head"><div><h3>${escapeHtml(item.name)} · ${escapeHtml(item.loginId)}</h3><p class="meta">${roleLabels[item.role] || item.role} · ${escapeHtml(item.status)} · ${escapeHtml(item.memo || "")}</p></div>${badge(item.status, item.status === "승인" ? "good" : item.status === "반려" ? "danger" : "warn")}</div>
+                ${item.status === "대기" ? `<div class="row"><select data-request-student data-id="${item.id}"><option value="">학생 연결</option>${studentOptions(state.data.students)}</select><button class="secondary" data-request-approve data-id="${item.id}">승인</button><button class="ghost" data-request-reject data-id="${item.id}">반려</button></div>` : `<p class="meta">검토: ${escapeHtml(item.reviewedAt || "-")}</p>`}
+              </article>`).join("")}</div>
+            </section>
+            <section class="panel span-5">
+              <div class="panel-head"><div><h3>권한별 메뉴</h3><p class="meta">현재 HTML에서 역할별 메뉴 제한을 확인합니다.</p></div></div>
+              <div class="stack">${pages.map((page) => `<article><strong>${escapeHtml(page.label)}</strong><p class="meta">${page.roles.map((role) => roleLabels[role]).join(", ")}</p></article>`).join("")}</div>
             </section>
           </div>
         `;
@@ -954,8 +1127,28 @@
               <button id="exportButton">JSON 내보내기</button>
             </section>
             <section class="panel span-6">
+              <div class="panel-head"><div><h3>백업</h3><p class="meta">현재 상태를 브라우저 안 백업 목록에 남깁니다.</p></div></div>
+              <button id="backupButton">백업 만들기</button>
+              <div class="stack" style="margin-top:12px">${state.data.backups.map((item) => `<article><strong>${escapeHtml(item.createdAt)}</strong><p class="meta">${item.records}개 기록 스냅샷</p></article>`).join("") || `<p class="meta">백업이 없습니다.</p>`}</div>
+            </section>
+            <section class="panel span-6">
+              <div class="panel-head"><div><h3>운영 환경 설정</h3><p class="meta">로그인 안내와 예약 안내 문구를 점검합니다.</p></div></div>
+              <form id="settingsForm" class="stack">
+                <label>로그인 안내<textarea name="loginNotice">${escapeHtml(state.data.publicSettings.loginNotice || "")}</textarea></label>
+                <label>학원 연락처<input name="academyPhone" value="${escapeAttr(state.data.publicSettings.academyPhone || "")}" /></label>
+                <label>예약 안내<textarea name="reservationGuide">${escapeHtml(state.data.publicSettings.reservationGuide || "")}</textarea></label>
+                <button>환경 설정 저장</button>
+              </form>
+            </section>
+            <section class="panel span-6">
               <div class="panel-head"><div><h3>초기화</h3><p class="meta">브라우저에 저장된 점검 데이터를 Notion 초기 데이터 상태로 되돌립니다.</p></div></div>
               <button id="resetButton" class="secondary">오프라인 데이터 초기화</button>
+            </section>
+            <section class="panel span-12">
+              <div class="panel-head"><div><h3>감사 기록</h3><p class="meta">오프라인 점검판에서 발생한 주요 변경 기록입니다.</p></div></div>
+              <div class="table-wrap">
+                <table><thead><tr><th>시간</th><th>작업</th><th>처리자</th><th>대상</th></tr></thead><tbody>${state.data.auditLogs.slice(0, 12).map((item) => `<tr><td>${escapeHtml(item.createdAt)}</td><td>${escapeHtml(item.action)}</td><td>${escapeHtml(item.actor)}</td><td>${escapeHtml(item.target)}</td></tr>`).join("")}</tbody></table>
+              </div>
             </section>
           </div>
         `;
@@ -1018,6 +1211,38 @@
             });
           });
         }
+        if (pageId === "attendance") {
+          document.querySelectorAll("[data-attendance-change]").forEach((control) => {
+            control.addEventListener("change", () => {
+              const item = state.data.attendance.find((attendance) => attendance.id === control.dataset.id);
+              item[control.dataset.field] = control.dataset.field === "makeupNeeded" ? control.value === "true" : control.value;
+              saveData();
+              audit("update_attendance", `${studentName(item.studentId)} 출결`);
+              toast("출결을 저장했습니다.");
+            });
+          });
+          document.querySelector("#lessonNoteForm")?.addEventListener("submit", (event) => {
+            event.preventDefault();
+            if (state.user.role === "student") return;
+            const form = new FormData(event.currentTarget);
+            const lesson = state.data.lessons.find((item) => item.id === String(form.get("lessonId")));
+            if (!lesson) return;
+            state.data.lessonNotes.unshift({
+              id: uid("note"),
+              lessonId: lesson.id,
+              studentId: lesson.studentId,
+              teacherId: lesson.teacherId,
+              content: String(form.get("content") || "").trim(),
+              homework: String(form.get("homework") || "").trim(),
+              nextGoal: String(form.get("nextGoal") || "").trim(),
+              createdAt: nowText()
+            });
+            saveData();
+            audit("create_lesson_note", studentName(lesson.studentId));
+            toast("레슨노트를 저장했습니다.");
+            renderPage("attendance");
+          });
+        }
         if (pageId === "consultations") {
           document.querySelector("#consultationForm")?.addEventListener("submit", (event) => {
             event.preventDefault();
@@ -1048,6 +1273,11 @@
           document.querySelector("#reservationForm")?.addEventListener("submit", (event) => {
             event.preventDefault();
             const form = new FormData(event.currentTarget);
+            const duplicate = state.data.reservations.some((item) => item.date === String(form.get("date")) && item.time === String(form.get("time")) && item.room === String(form.get("room")));
+            if (duplicate) {
+              toast("같은 시간에 이미 예약된 공간입니다.");
+              return;
+            }
             state.data.reservations.unshift({
               id: uid("reservation"),
               date: String(form.get("date")),
@@ -1058,8 +1288,82 @@
               status: "예약됨"
             });
             saveData();
+            audit("create_reservation", `${form.get("room")} ${form.get("date")} ${form.get("time")}`);
             toast("예약을 저장했습니다.");
             renderPage("reservations");
+          });
+        }
+        if (pageId === "payments") {
+          document.querySelector("#paymentForm")?.addEventListener("submit", (event) => {
+            event.preventDefault();
+            if (!["owner", "manager"].includes(state.user.role)) return;
+            const form = new FormData(event.currentTarget);
+            state.data.payments.unshift({
+              id: uid("payment"),
+              studentId: String(form.get("studentId")),
+              title: String(form.get("title") || "").trim(),
+              amount: Number(form.get("amount") || 0),
+              dueDate: String(form.get("dueDate") || ""),
+              status: "확인 필요",
+              paidAt: "",
+              memo: "오프라인 점검 입력"
+            });
+            saveData();
+            audit("create_payment", String(form.get("title") || ""));
+            toast("수납 항목을 저장했습니다.");
+            renderPage("payments");
+          });
+          document.querySelectorAll("[data-payment-change]").forEach((control) => {
+            control.addEventListener("change", () => {
+              const item = state.data.payments.find((payment) => payment.id === control.dataset.id);
+              item.status = control.value;
+              item.paidAt = control.value === "완납" ? nowText() : "";
+              saveData();
+              audit("update_payment", item.title);
+              toast("수납 상태를 저장했습니다.");
+            });
+          });
+        }
+        if (pageId === "operations") {
+          document.querySelector("#taskForm")?.addEventListener("submit", (event) => {
+            event.preventDefault();
+            const form = new FormData(event.currentTarget);
+            state.data.tasks.unshift({ id: uid("task"), title: String(form.get("title") || "").trim(), owner: state.user.name, due: String(form.get("due") || ""), status: "할일" });
+            saveData();
+            audit("create_task", String(form.get("title") || ""));
+            renderPage("operations");
+          });
+          document.querySelector("#clockButton")?.addEventListener("click", () => {
+            const today = new Date().toISOString().slice(0, 10);
+            const existing = state.data.workLogs.find((item) => item.accountId === state.user.id && item.date === today && !item.clockOut);
+            const time = new Date().toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", hour12: false });
+            if (existing) {
+              existing.clockOut = time;
+              audit("clock_out", state.user.name);
+              toast("퇴근을 기록했습니다.");
+            } else {
+              state.data.workLogs.unshift({ id: uid("work"), accountId: state.user.id, name: state.user.name, date: today, clockIn: time, clockOut: "", memo: "오프라인 점검 기록" });
+              audit("clock_in", state.user.name);
+              toast("출근을 기록했습니다.");
+            }
+            saveData();
+            renderPage("operations");
+          });
+          document.querySelector("#meetingForm")?.addEventListener("submit", (event) => {
+            event.preventDefault();
+            const form = new FormData(event.currentTarget);
+            state.data.meetings.unshift({ id: uid("meeting"), title: String(form.get("title") || "").trim(), startsAt: String(form.get("startsAt") || ""), participants: String(form.get("participants") || state.user.name), status: "예정", memo: "오프라인 점검 입력" });
+            saveData();
+            audit("create_meeting", String(form.get("title") || ""));
+            renderPage("operations");
+          });
+          document.querySelector("#calendarForm")?.addEventListener("submit", (event) => {
+            event.preventDefault();
+            const form = new FormData(event.currentTarget);
+            state.data.calendarEvents.unshift({ id: uid("calendar"), title: String(form.get("title") || "").trim(), date: String(form.get("date") || ""), time: String(form.get("time") || ""), target: String(form.get("target") || "전체"), memo: "오프라인 점검 입력" });
+            saveData();
+            audit("create_calendar_event", String(form.get("title") || ""));
+            renderPage("operations");
           });
         }
         if (pageId === "notices") {
@@ -1080,8 +1384,53 @@
             renderPage("notices");
           });
         }
+        if (pageId === "accounts") {
+          document.querySelectorAll("[data-request-approve]").forEach((button) => {
+            button.addEventListener("click", () => {
+              const item = state.data.accountRequests.find((request) => request.id === button.dataset.id);
+              const select = document.querySelector(`[data-request-student][data-id="${button.dataset.id}"]`);
+              if (!select.value) {
+                toast("연결할 학생을 먼저 선택해주세요.");
+                return;
+              }
+              item.studentId = select.value;
+              item.status = "승인";
+              item.reviewedAt = nowText();
+              accounts.push({ id: uid("acc"), loginId: item.loginId, password: "bonsung1", role: item.role, name: item.name, studentId: select.value });
+              saveData();
+              audit("approve_account_request", item.loginId);
+              renderPage("accounts");
+            });
+          });
+          document.querySelectorAll("[data-request-reject]").forEach((button) => {
+            button.addEventListener("click", () => {
+              const item = state.data.accountRequests.find((request) => request.id === button.dataset.id);
+              item.status = "반려";
+              item.reviewedAt = nowText();
+              saveData();
+              audit("reject_account_request", item.loginId);
+              renderPage("accounts");
+            });
+          });
+        }
         if (pageId === "quality") {
           document.querySelector("#exportButton")?.addEventListener("click", exportJson);
+          document.querySelector("#backupButton")?.addEventListener("click", () => {
+            state.data.backups.unshift({ id: uid("backup"), createdAt: nowText(), records: Object.values(state.data).flat().length });
+            saveData();
+            audit("create_backup", "오프라인 백업");
+            renderPage("quality");
+          });
+          document.querySelector("#settingsForm")?.addEventListener("submit", (event) => {
+            event.preventDefault();
+            const form = new FormData(event.currentTarget);
+            state.data.publicSettings.loginNotice = String(form.get("loginNotice") || "");
+            state.data.publicSettings.academyPhone = String(form.get("academyPhone") || "");
+            state.data.publicSettings.reservationGuide = String(form.get("reservationGuide") || "");
+            saveData();
+            audit("update_public_settings", "운영 환경 설정");
+            toast("운영 환경 설정을 저장했습니다.");
+          });
           document.querySelector("#resetButton")?.addEventListener("click", () => {
             localStorage.removeItem(STORAGE_KEY);
             state.data = loadData();
@@ -1153,6 +1502,22 @@
         return state.data.lessons;
       }
 
+      function attendanceForLesson(lesson) {
+        let attendance = state.data.attendance.find((item) => item.lessonId === lesson.id);
+        if (!attendance) {
+          attendance = { id: uid("attendance"), lessonId: lesson.id, studentId: lesson.studentId, status: "미처리", makeupNeeded: false, memo: "" };
+          state.data.attendance.push(attendance);
+          saveData();
+        }
+        return attendance;
+      }
+
+      function lessonNotesForRole() {
+        if (state.user.role === "student") return state.data.lessonNotes.filter((item) => item.studentId === state.user.studentId);
+        if (state.user.role === "teacher") return state.data.lessonNotes.filter((item) => item.teacherId === state.user.teacherId);
+        return state.data.lessonNotes;
+      }
+
       function consultationsForRole() {
         if (state.user.role === "student") return state.data.consultations.filter((item) => item.studentId === state.user.studentId);
         if (state.user.role === "teacher") return state.data.consultations.filter((item) => studentScope().some((student) => student.id === item.studentId));
@@ -1212,6 +1577,11 @@
 
       function saveData() {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(state.data));
+      }
+
+      function audit(action, target) {
+        state.data.auditLogs = state.data.auditLogs || [];
+        state.data.auditLogs.unshift({ id: uid("audit"), action, actor: state.user?.name || "시스템", target, createdAt: nowText() });
       }
 
       function exportJson() {

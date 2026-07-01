@@ -86,9 +86,10 @@ async function runVerification(baseUrl) {
   );
 
   const bootstrap = await authorizedRequest(baseUrl, "/bootstrap", owner.token);
-  for (const key of ["teachers", "students", "consultations", "notices", "dashboardWorkQueue"]) {
+  for (const key of ["teachers", "students", "consultations", "notices", "dashboardWorkQueue", "workLogs", "meetings", "calendarEvents", "accountRequests"]) {
     assert(Array.isArray(bootstrap[key]), `/bootstrap must return ${key} array.`);
   }
+  assert(bootstrap.publicSettings && typeof bootstrap.publicSettings === "object", "/bootstrap must return publicSettings.");
   assert(bootstrap.teachers.some((item) => item.name === "강은미" && item.role === "Director"), "Bootstrap must include Notion staff data.");
   assert(bootstrap.students.some((item) => item.name === "장윤호"), "Bootstrap must include Notion student data.");
   assert(bootstrap.courses.some((item) => item.name === "본성 프리컬리지"), "Bootstrap must include Notion program data.");
@@ -99,6 +100,11 @@ async function runVerification(baseUrl) {
 
   const history = await authorizedRequest(baseUrl, "/account-history", owner.token);
   assert(Array.isArray(history), "/account-history must return an array.");
+
+  const ownerAccountRequests = await authorizedRequest(baseUrl, "/account-requests", owner.token);
+  assert(Array.isArray(ownerAccountRequests), "Owner must be able to list account requests.");
+  const rejectedManagerAccountRequests = await authorizedRequest(baseUrl, "/account-requests", manager.token, { allowFailure: true });
+  assert(rejectedManagerAccountRequests?.ok === false, "Managers without reviewAccountRequests permission must not list account requests.");
 
   const initialAuditLogs = await authorizedRequest(baseUrl, "/audit-logs", owner.token);
   assert(Array.isArray(initialAuditLogs), "/audit-logs must return an array.");
@@ -163,6 +169,47 @@ async function runVerification(baseUrl) {
   });
   assert(createdStudent.id && createdStudent.student_id === createdStudent.id, "createStudent must return a server student id.");
   assert(createdStudent.name === "Verification New Student", "createStudent must return the created student record.");
+
+  const accountRequestStudent = await authorizedRequest(baseUrl, "/actions/createStudent", owner.token, {
+    method: "POST",
+    body: {
+      student: {
+        name: "Verification Account Request Student",
+        birth_date: "2012-05-06",
+        major: "Piano",
+        status: "등록대기"
+      }
+    }
+  });
+  const requestedLoginId = `request-${Date.now()}`;
+  const publicAccountRequest = await request(baseUrl, "/account-requests", {
+    method: "POST",
+    body: {
+      loginId: requestedLoginId,
+      name: "Verification Requested Student",
+      requestedRole: "student",
+      phone: "010-2222-3333",
+      message: "Please create a Version.3 student account."
+    }
+  });
+  assert(publicAccountRequest.id && publicAccountRequest.status === "대기", "Public account request endpoint must create a pending request.");
+  const rejectedShortRequestApproval = await authorizedRequest(baseUrl, `/account-requests/${encodeURIComponent(publicAccountRequest.id)}/review`, owner.token, {
+    method: "PATCH",
+    body: { decision: "approve", linkedStudentId: accountRequestStudent.id, initialPassword: "short" },
+    allowFailure: true
+  });
+  assert(rejectedShortRequestApproval?.ok === false, "Account request approval must reject short initial passwords.");
+  const approvedAccountRequest = await authorizedRequest(baseUrl, `/account-requests/${encodeURIComponent(publicAccountRequest.id)}/review`, owner.token, {
+    method: "PATCH",
+    body: { decision: "approve", linkedStudentId: accountRequestStudent.id, initialPassword: password, memo: "Server verification approval." }
+  });
+  assert(approvedAccountRequest.request?.status === "승인", "Account request approval must mark the request approved.");
+  assert(approvedAccountRequest.account?.loginId === requestedLoginId, "Account request approval must create the requested account.");
+  const approvedRequestLogin = await request(baseUrl, "/auth/login", {
+    method: "POST",
+    body: { loginId: requestedLoginId, password }
+  });
+  assert(approvedRequestLogin.user.role === "student", "Approved account requests must create login-capable accounts.");
 
   const rejectedTeacherStudentCreate = await authorizedRequest(baseUrl, "/actions/createStudent", teacher.token, {
     method: "POST",
@@ -328,6 +375,30 @@ async function runVerification(baseUrl) {
   });
   assert(createdTask.id && createdTask.assigneeId === "manager-1", "createTask must persist a server task record.");
 
+  const createdWorkLog = await authorizedRequest(baseUrl, "/actions/clockWork", teacher.token, {
+    method: "POST",
+    body: { workLog: { workDate: "2026-07-02", mode: "clockIn", memo: "Server verification clock-in." } }
+  });
+  assert(createdWorkLog.id && createdWorkLog.accountId === teacher.user.id, "clockWork must persist the acting account work log.");
+
+  const createdMeeting = await authorizedRequest(baseUrl, "/actions/createMeeting", owner.token, {
+    method: "POST",
+    body: { meeting: { title: "Server verification meeting", startsAt: "2026-07-02T11:00:00+09:00", participantIds: ["owner-1", "manager-1", "teacher-1"], memo: "Server verification meeting." } }
+  });
+  assert(createdMeeting.id && createdMeeting.participantIds.includes("owner-1"), "createMeeting must persist participant account IDs.");
+
+  const createdCalendarEvent = await authorizedRequest(baseUrl, "/actions/createCalendarEvent", owner.token, {
+    method: "POST",
+    body: { event: { title: "Server verification calendar", date: "2026-07-03", startTime: "12:00", targetRoles: ["owner", "manager"], memo: "Server verification calendar." } }
+  });
+  assert(createdCalendarEvent.id && createdCalendarEvent.targetRoles.includes("owner"), "createCalendarEvent must persist target roles.");
+
+  const updatedPublicSettings = await authorizedRequest(baseUrl, "/actions/updatePublicSettings", owner.token, {
+    method: "POST",
+    body: { publicSettings: { loginNotice: "Verified login notice", academyPhone: "010-9999-0000", reservationGuide: "Verified reservation guide." } }
+  });
+  assert(updatedPublicSettings.loginNotice === "Verified login notice", "updatePublicSettings must persist shared system settings.");
+
   const createdNotice = await authorizedRequest(baseUrl, "/actions/createNotice", manager.token, {
     method: "POST",
     body: { notice: { title: "Server verification notice", category: "검증", body: "Manager notice.", targetRoles: ["owner", "manager"] } }
@@ -364,6 +435,11 @@ async function runVerification(baseUrl) {
   assert(bootstrapAfterWrites.reservations.some((item) => item.id === createdReservation.id), "/bootstrap must expose server-created reservations.");
   assert(bootstrapAfterWrites.payments.some((item) => item.id === createdRegistration.id), "/bootstrap must expose server-created payment records.");
   assert(bootstrapAfterWrites.tasks.some((item) => item.id === createdTask.id), "/bootstrap must expose server-created tasks.");
+  assert(bootstrapAfterWrites.workLogs.some((item) => item.id === createdWorkLog.id), "/bootstrap must expose server-created work logs.");
+  assert(bootstrapAfterWrites.meetings.some((item) => item.id === createdMeeting.id), "/bootstrap must expose server-created meetings.");
+  assert(bootstrapAfterWrites.calendarEvents.some((item) => item.id === createdCalendarEvent.id), "/bootstrap must expose server-created calendar events.");
+  assert(bootstrapAfterWrites.accountRequests.some((item) => item.id === publicAccountRequest.id && item.status === "승인"), "/bootstrap must expose reviewed account requests.");
+  assert(bootstrapAfterWrites.publicSettings.loginNotice === "Verified login notice", "/bootstrap must expose server-updated public settings.");
   assert(bootstrapAfterWrites.notices.some((item) => item.id === createdNotice.id), "/bootstrap must expose server-created notices.");
 
   const createdConsultation = await authorizedRequest(baseUrl, "/actions/createConsultation", student.token, {
@@ -568,6 +644,7 @@ async function runVerification(baseUrl) {
     "/audit-logs must include student creation audit entries."
   );
   for (const [action, targetId] of [
+    ["approve_account_request", approvedAccountRequest.account.id],
     ["create_enrollment", createdEnrollment.id],
     ["create_teacher", createdTeacher.id],
     ["create_lesson", createdLesson.id],
@@ -576,6 +653,10 @@ async function runVerification(baseUrl) {
     ["create_reservation", createdReservation.id],
     ["create_registration", createdRegistration.id],
     ["create_task", createdTask.id],
+    ["clock_in", createdWorkLog.id],
+    ["create_meeting", createdMeeting.id],
+    ["create_calendar_event", createdCalendarEvent.id],
+    ["update_public_settings", "public-settings"],
     ["create_notice", createdNotice.id]
   ]) {
     assert(

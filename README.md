@@ -4,6 +4,12 @@
 
 Version.3 is moving toward real academy operation on a separate server instead of Apps Script. To run the official Next UI with the local Version.3 server contract, use:
 
+### 2026-07-02 08:10 implementation status
+
+The real Version.3 server contract now covers the core academy operation flow: role login and permission-gated menus, account requests and approval, password reset and forced password change, students and linked student accounts, consultations, enrollments, lessons, attendance, lesson notes, space reservations with overlap checks, registrations/payments, tasks, work logs, meetings, calendar events, notices, shared public settings, data export/import, backups, data quality checks, and audit logs.
+
+`public/version3-offline-inspection.html` is only an offline inspection surface. It uses browser `localStorage` to let operators click through the same work areas without a server, but the source of truth for actual operation remains the Version.3 server API and the official Next UI.
+
 ```text
 pnpm run dev:version3
 ```
@@ -63,8 +69,11 @@ https://ethicsjayden31.github.io/bonsungsystem/
 | `/students/` | 학생 목록과 상세 관리 |
 | `/teachers/` | 강사별 데이터 조회 |
 | `/practice-rooms/` | 강의실/연습실 예약 |
+| `/tasks/` | 내부 업무, 근태, 회의, 일정 |
+| `/accounts/` | 계정, 권한, 계정 요청 승인, 비밀번호 초기화 |
 | `/data-quality/` | 데이터 점검 |
 | `/profile-settings/` | 개인화 설정 |
+| `/version3-offline-inspection.html` | 서버 없이 기능 흐름을 눌러보는 임시 점검용 HTML |
 | `/legacy-preview/` | 전환 검증용 기존 Apps Script 운영 화면 |
 
 ## 유지할 핵심 파일

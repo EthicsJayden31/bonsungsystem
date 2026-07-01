@@ -12,9 +12,11 @@ import { redirectToAppPath } from "@/lib/client-session";
 import { useOperationsData } from "@/lib/operations-data";
 import { useCurrentUser } from "@/lib/use-current-user";
 import { usePreviewRole } from "@/lib/use-preview-role";
+import { callVersion3Server, hasVersion3ServerSession } from "@/lib/version3-server-client";
 import { ENABLE_PREVIEW_LOGIN } from "@/lib/version3-runtime-flags";
 import { version3AccountRoles, version3PermissionGroups, version3PermissionKeys, version3ServerEntities, type Version3Account, type Version3AccountHistory, type Version3AccountInput, type Version3Permissions } from "@/lib/version3-server-contract";
 import type { Role } from "@/lib/auth-shared";
+import type { AccountRequest } from "@/lib/demo-data";
 
 const accountSourceLabel = {
   loading: "계정 확인 중",
@@ -40,10 +42,12 @@ export default function AccountsPage() {
   const [pendingAccountId, setPendingAccountId] = useState("");
   const [permissionAccountId, setPermissionAccountId] = useState("");
   const [permissionDraft, setPermissionDraft] = useState<Version3Permissions>({});
+  const [requestPendingId, setRequestPendingId] = useState("");
   const accessUser = user ?? role;
   const canCreateAccount = hasVersion3Permission(accessUser, "manageAccounts");
   const canManageAccount = hasVersion3Permission(accessUser, "manageAccounts");
   const canEditPermissions = hasVersion3Permission(accessUser, "managePermissions");
+  const canReviewAccountRequests = hasVersion3Permission(accessUser, "reviewAccountRequests");
   const canSubmitAccount = canCreateAccount && (accountState.hasLiveSession || ENABLE_PREVIEW_LOGIN);
   const accountWriteModeLabel = accountState.hasLiveSession ? "계정 생성" : ENABLE_PREVIEW_LOGIN ? "Preview 초안 추가" : "서버 로그인 필요";
   const linkedStudentCount = useMemo(
@@ -219,6 +223,52 @@ export default function AccountsPage() {
     setPermissionDraft(account?.permissions || {});
   }
 
+  async function submitAccountRequestReview(event: FormEvent<HTMLFormElement>, request: AccountRequest) {
+    event.preventDefault();
+    if (!canReviewAccountRequests) {
+      setMessage("계정 요청 승인은 대표 권한에서만 진행합니다.");
+      return;
+    }
+    if (!hasVersion3ServerSession()) {
+      setMessage("계정 요청 승인은 Version.3 서버 로그인 세션에서만 진행합니다.");
+      return;
+    }
+    const form = event.currentTarget;
+    const submitter = (event.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null;
+    const decision = submitter?.value || "approve";
+    const values = Object.fromEntries(new FormData(form).entries()) as Record<string, string>;
+    const initialPassword = values.initialPassword || "";
+    const linkedStudentId = values.linkedStudentId || request.linkedStudentId || "";
+
+    if (decision === "approve" && initialPassword.length < 8) {
+      setMessage("승인할 계정의 초기 비밀번호는 8자 이상이어야 합니다.");
+      return;
+    }
+    if (decision === "approve" && request.requestedRole === "student" && !linkedStudentId) {
+      setMessage("수강생 계정 요청은 연결할 학생을 선택해야 승인할 수 있습니다.");
+      return;
+    }
+
+    setRequestPendingId(request.id);
+    try {
+      await callVersion3Server(`/account-requests/${encodeURIComponent(request.id)}/review`, {
+        method: "PATCH",
+        body: {
+          decision,
+          initialPassword,
+          linkedStudentId,
+          memo: values.memo || ""
+        }
+      });
+      setMessage(decision === "approve" ? `${request.name} 계정 요청을 승인했습니다. 새로고침 후 계정 목록에 반영됩니다.` : `${request.name} 계정 요청을 반려했습니다.`);
+      form.reset();
+    } catch (caught) {
+      setMessage(caught instanceof Error ? caught.message : "계정 요청을 처리하지 못했습니다.");
+    } finally {
+      setRequestPendingId("");
+    }
+  }
+
   return (
     <AppShell area="accounts">
       <Section
@@ -236,6 +286,69 @@ export default function AccountsPage() {
             {accountState.error ? (
               <div className="rounded-2xl border border-accent/25 bg-accent/10 p-4 text-sm leading-6 text-accent">
                 계정 연결 오류: {accountState.error}
+              </div>
+            ) : null}
+
+            {canReviewAccountRequests ? (
+              <div className="rounded-[24px] border border-line bg-white p-5 shadow-card">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <h2 className="text-lg font-extrabold tracking-tight text-ink">계정 요청 승인</h2>
+                    <p className="mt-1 text-sm leading-6 text-muted">계정 요청을 검토한 뒤 초기 비밀번호와 학생 연결을 지정해 실제 계정으로 전환합니다.</p>
+                  </div>
+                  <Badge tone={operations.data.accountRequests.filter((item) => item.status === "대기").length ? "warn" : "good"}>
+                    대기 {operations.data.accountRequests.filter((item) => item.status === "대기").length}건
+                  </Badge>
+                </div>
+                {operations.data.accountRequests.length ? (
+                  <div className="mt-4 grid gap-3">
+                    {operations.data.accountRequests.map((request) => (
+                      <form className="rounded-2xl border border-line bg-surface-muted p-4" key={request.id} onSubmit={(event) => submitAccountRequestReview(event, request)}>
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div>
+                            <p className="font-extrabold text-ink">{request.name} · {request.loginId}</p>
+                            <p className="mt-1 text-xs leading-5 text-muted">{roleLabel(request.requestedRole)} 요청 · {request.phone || request.email || "연락처 없음"}</p>
+                            {request.message ? <p className="mt-2 text-sm leading-6 text-muted">{request.message}</p> : null}
+                          </div>
+                          <Badge tone={request.status === "대기" ? "warn" : request.status === "승인" ? "good" : "danger"}>{request.status}</Badge>
+                        </div>
+                        {request.status === "대기" ? (
+                          <div className="mt-4 grid gap-3 lg:grid-cols-2">
+                            <label className="block">
+                              <span className="text-xs font-bold text-ink">연결 학생</span>
+                              <select className="mt-1 h-11 w-full rounded-xl border border-line bg-white px-3 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/15" defaultValue={request.linkedStudentId} disabled={request.requestedRole !== "student" || requestPendingId === request.id} name="linkedStudentId">
+                                <option value="">학생 선택</option>
+                                {availableStudents.map((student) => (
+                                  <option value={student.id} key={student.id}>{student.name}</option>
+                                ))}
+                              </select>
+                            </label>
+                            <label className="block">
+                              <span className="text-xs font-bold text-ink">초기 비밀번호</span>
+                              <input className="mt-1 h-11 w-full rounded-xl border border-line bg-white px-3 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/15" disabled={requestPendingId === request.id} name="initialPassword" placeholder="8자 이상" type="password" />
+                            </label>
+                            <label className="block lg:col-span-2">
+                              <span className="text-xs font-bold text-ink">검토 메모</span>
+                              <input className="mt-1 h-11 w-full rounded-xl border border-line bg-white px-3 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/15" disabled={requestPendingId === request.id} name="memo" />
+                            </label>
+                            <div className="flex flex-wrap gap-2 lg:col-span-2">
+                              <button className="rounded-xl bg-brand px-4 py-2 text-sm font-bold text-white transition hover:bg-brand-dark disabled:cursor-not-allowed disabled:bg-brand/45" disabled={requestPendingId === request.id} name="decision" type="submit" value="approve">
+                                승인
+                              </button>
+                              <button className="rounded-xl border border-accent/30 bg-white px-4 py-2 text-sm font-bold text-accent transition hover:bg-accent/10 disabled:cursor-not-allowed disabled:opacity-60" disabled={requestPendingId === request.id} name="decision" type="submit" value="reject">
+                                반려
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="mt-3 text-xs leading-5 text-muted">검토자: {request.reviewedByName || "-"} · 검토일: {formatAccountHistoryTime(request.reviewedAt)}</p>
+                        )}
+                      </form>
+                    ))}
+                  </div>
+                ) : (
+                  <EmptyState title="계정 요청이 없습니다" description="로그인 전 계정 요청이 들어오면 이곳에서 승인하거나 반려합니다." />
+                )}
               </div>
             ) : null}
 
@@ -531,11 +644,13 @@ function statusBadge(account: Version3Account) {
 function accountActionLabel(action: string) {
   if (action === "create_account") return "계정 생성";
   if (action === "activate_account") return "계정 재개";
+  if (action === "pause_account") return "계정 중지";
   if (action === "deactivate_account") return "계정 중지";
   if (action === "reset_password") return "비밀번호 초기화";
   if (action === "update_account") return "계정 정보 변경";
   if (action === "update_permissions") return "권한 변경";
   if (action === "approve_account_request") return "계정 요청 승인";
+  if (action === "reject_account_request") return "계정 요청 반려";
   if (action === "bootstrap_admin") return "초기 대표 계정 생성";
   return action || "계정 변경";
 }

@@ -15,12 +15,19 @@ import {
   lessons,
   notices,
   payments,
+  accountRequests,
+  calendarEvents,
+  meetings,
+  publicSettings,
   reservations,
   rooms,
   students,
   tasks,
   teachers,
+  workLogs,
+  type AccountRequest,
   type Attendance,
+  type CalendarEvent,
   type Consultation,
   type ConsultationHistory,
   type Course,
@@ -30,11 +37,14 @@ import {
   type LessonNote,
   type Notice,
   type Payment,
+  type PublicSettings,
   type Reservation,
   type Room,
   type Student,
   type Task,
-  type Teacher
+  type Teacher,
+  type Meeting,
+  type WorkLog
 } from "@/lib/demo-data";
 import { normalizeRole, type Role } from "@/lib/auth-shared";
 import { canAccessVersion3Area, hasVersion3Permission, type AccessUser } from "@/lib/access-policy";
@@ -99,6 +109,11 @@ export type OperationsData = {
   reservations: Reservation[];
   payments: Payment[];
   tasks: Task[];
+  workLogs: WorkLog[];
+  meetings: Meeting[];
+  calendarEvents: CalendarEvent[];
+  accountRequests: AccountRequest[];
+  publicSettings: PublicSettings;
   notices: Notice[];
   dashboardWorkQueue?: Version3DashboardWorkItem[];
   overview?: LiveOverview;
@@ -134,6 +149,11 @@ type BootstrapPayload = {
   rooms?: LiveRecord[];
   reservations?: LiveRecord[];
   tasks?: LiveRecord[];
+  workLogs?: LiveRecord[];
+  meetings?: LiveRecord[];
+  calendarEvents?: LiveRecord[];
+  accountRequests?: LiveRecord[];
+  publicSettings?: LiveRecord;
   consultations?: LiveRecord[];
   consultationHistory?: LiveRecord[];
   dashboardWorkQueue?: LiveRecord[];
@@ -174,6 +194,17 @@ const emptyOperationsData: OperationsData = {
   reservations: [],
   payments: [],
   tasks: [],
+  workLogs: [],
+  meetings: [],
+  calendarEvents: [],
+  accountRequests: [],
+  publicSettings: {
+    loginNotice: "",
+    academyPhone: "",
+    reservationGuide: "",
+    updatedAt: "",
+    updatedBy: ""
+  },
   notices: []
 };
 
@@ -575,6 +606,11 @@ function buildPreviewData(role: Role | null): OperationsData {
     reservations: visibleReservations,
     payments: visiblePayments,
     tasks,
+    workLogs,
+    meetings,
+    calendarEvents,
+    accountRequests,
+    publicSettings,
     notices
   };
 }
@@ -651,6 +687,15 @@ function filterOperationsData(data: OperationsData, user: AccessUser | Role | nu
         })
       : [],
     tasks: hasVersion3Permission(user, "manageOperations") ? data.tasks : [],
+    workLogs: hasVersion3Permission(user, "viewTeam")
+      ? data.workLogs.filter((item) => hasVersion3Permission(user, "manageOperations") || item.accountId === userId)
+      : [],
+    meetings: hasVersion3Permission(user, "viewMeetings") ? data.meetings : [],
+    calendarEvents: hasVersion3Permission(user, "viewCalendar")
+      ? data.calendarEvents.filter((item) => !item.targetRoles.length || item.targetRoles.includes(role))
+      : [],
+    accountRequests: hasVersion3Permission(user, "reviewAccountRequests") ? data.accountRequests : [],
+    publicSettings: data.publicSettings,
     notices: data.notices.filter((notice) => canViewNotice(role, notice.targetRoles)),
     dashboardWorkQueue: visibleDashboardWorkQueue
   };
@@ -668,6 +713,11 @@ function normalizeBootstrap(payload: BootstrapPayload, role: Role | null): Opera
   const liveRooms = (payload.rooms ?? []).map(mapRoom);
   const liveReservations = (payload.reservations ?? []).map(mapReservation);
   const liveTasks = (payload.tasks ?? []).map(mapTask);
+  const liveWorkLogs = (payload.workLogs ?? []).map(mapWorkLog);
+  const liveMeetings = (payload.meetings ?? []).map(mapMeeting);
+  const liveCalendarEvents = (payload.calendarEvents ?? payload.calendar ?? []).map(mapCalendarEvent);
+  const liveAccountRequests = (payload.accountRequests ?? []).map(mapAccountRequest);
+  const livePublicSettings = mapPublicSettings(payload.publicSettings ?? {});
   const liveDashboardWorkQueue = (payload.dashboardWorkQueue ?? []).map(mapDashboardWorkItem);
   const liveConsultations = (payload.consultations ?? []).map(mapConsultation);
   const liveConsultationHistory = (payload.consultationHistory ?? []).map(mapConsultationHistory);
@@ -692,6 +742,11 @@ function normalizeBootstrap(payload: BootstrapPayload, role: Role | null): Opera
     reservations: liveReservations.length ? liveReservations : previewFallback.reservations,
     payments: livePayments.length ? livePayments : previewFallback.payments,
     tasks: liveTasks.length ? liveTasks : previewFallback.tasks,
+    workLogs: liveWorkLogs.length ? liveWorkLogs : previewFallback.workLogs,
+    meetings: liveMeetings.length ? liveMeetings : previewFallback.meetings,
+    calendarEvents: liveCalendarEvents.length ? liveCalendarEvents : previewFallback.calendarEvents,
+    accountRequests: liveAccountRequests.length ? liveAccountRequests : previewFallback.accountRequests,
+    publicSettings: Object.values(livePublicSettings).some(Boolean) ? livePublicSettings : previewFallback.publicSettings,
     notices: liveNotices.length ? liveNotices : previewFallback.notices,
     dashboardWorkQueue: liveDashboardWorkQueue.length ? liveDashboardWorkQueue : undefined,
     overview: payload.overview
@@ -855,6 +910,70 @@ function mapTask(item: LiveRecord): Task {
     status: stringValue(item.status, "할일"),
     priority: stringValue(item.priority, "보통"),
     memo: stringValue(item.memo)
+  };
+}
+
+function mapWorkLog(item: LiveRecord): WorkLog {
+  return {
+    id: stringValue(item.work_log_id || item.id),
+    accountId: stringValue(item.account_id || item.accountId),
+    accountName: stringValue(item.account_name || item.accountName),
+    workDate: stringValue(item.work_date || item.workDate),
+    clockInAt: stringValue(item.clock_in_at || item.clockInAt),
+    clockOutAt: stringValue(item.clock_out_at || item.clockOutAt),
+    memo: stringValue(item.memo)
+  };
+}
+
+function mapMeeting(item: LiveRecord): Meeting {
+  return {
+    id: stringValue(item.meeting_id || item.id),
+    title: stringValue(item.title, "회의명 없음"),
+    startsAt: stringValue(item.starts_at || item.startsAt),
+    participantNames: stringListValue(item.participant_names || item.participantNames),
+    status: stringValue(item.status, "예정"),
+    memo: stringValue(item.memo)
+  };
+}
+
+function mapCalendarEvent(item: LiveRecord): CalendarEvent {
+  const startsAt = stringValue(item.starts_at || item.startsAt);
+  return {
+    id: stringValue(item.calendar_event_id || item.id),
+    title: stringValue(item.title, "일정명 없음"),
+    date: stringValue(item.date) || startsAt.slice(0, 10),
+    startTime: stringValue(item.start_time || item.startTime) || startsAt.slice(11, 16),
+    targetRoles: noticeTargetRoles(item.target_roles || item.targetRoles),
+    memo: stringValue(item.memo)
+  };
+}
+
+function mapAccountRequest(item: LiveRecord): AccountRequest {
+  return {
+    id: stringValue(item.account_request_id || item.id),
+    loginId: stringValue(item.login_id || item.loginId),
+    name: stringValue(item.name, "이름 없음"),
+    requestedRole: normalizeRole(stringValue(item.requested_role || item.requestedRole)) ?? "student",
+    email: stringValue(item.email),
+    phone: stringValue(item.phone),
+    linkedStudentId: stringValue(item.linked_student_id || item.linkedStudentId),
+    message: stringValue(item.message),
+    status: stringValue(item.status, "대기"),
+    reviewedByName: stringValue(item.reviewed_by_name || item.reviewedByName),
+    reviewedAt: stringValue(item.reviewed_at || item.reviewedAt),
+    reviewMemo: stringValue(item.review_memo || item.reviewMemo),
+    createdAccountId: stringValue(item.created_account_id || item.createdAccountId),
+    createdAt: stringValue(item.created_at || item.createdAt)
+  };
+}
+
+function mapPublicSettings(item: LiveRecord): PublicSettings {
+  return {
+    loginNotice: stringValue(item.loginNotice || item.login_notice),
+    academyPhone: stringValue(item.academyPhone || item.academy_phone),
+    reservationGuide: stringValue(item.reservationGuide || item.reservation_guide),
+    updatedAt: stringValue(item.updatedAt || item.updated_at),
+    updatedBy: stringValue(item.updatedBy || item.updated_by)
   };
 }
 

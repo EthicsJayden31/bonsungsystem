@@ -178,10 +178,15 @@ export type Version3ConsultationStatus = (typeof version3ConsultationStatuses)[n
 
 export const version3ServerEntities = [
   { name: "accounts", label: "계정", owner: "대표", keyFields: ["id", "loginId", "role", "linkedStudentId", "status", "mustChangePassword"] },
+  { name: "accountRequests", label: "계정 요청", owner: "대표", keyFields: ["id", "loginId", "requestedRole", "status", "reviewedAt"] },
   { name: "students", label: "학생", owner: "매니저", keyFields: ["id", "name", "teacherId", "status"] },
   { name: "lessons", label: "수업", owner: "강사", keyFields: ["id", "studentId", "teacherId", "startsAt"] },
   { name: "notices", label: "공지", owner: "대표/매니저", keyFields: ["id", "title", "targetRoles", "pinned"] },
   { name: "consultationRequests", label: "상담요청", owner: "매니저", keyFields: ["id", "studentId", "status", "assignedTo", "statusUpdatedAt", "unreadForAccountIds"] },
+  { name: "workLogs", label: "근태", owner: "운영진/강사", keyFields: ["id", "accountId", "workDate", "clockInAt", "clockOutAt"] },
+  { name: "meetings", label: "회의", owner: "운영진", keyFields: ["id", "title", "startsAt", "participantIds", "status"] },
+  { name: "calendarEvents", label: "일정", owner: "운영진", keyFields: ["id", "title", "date", "startTime", "targetRoles"] },
+  { name: "publicSettings", label: "운영 환경 설정", owner: "대표", keyFields: ["loginNotice", "academyPhone", "reservationGuide", "updatedAt"] },
   { name: "dashboardWorkQueue", label: "대시보드 우선 처리 목록", owner: "서버", keyFields: ["id", "kind", "sourceType", "sourceId", "priority", "href"] },
   { name: "auditLogs", label: "감사 로그", owner: "대표", keyFields: ["id", "actorId", "action", "targetType", "targetId", "createdAt"] },
   { name: "sessions", label: "세션", owner: "서버", keyFields: ["id", "accountId", "expiresAt"] }

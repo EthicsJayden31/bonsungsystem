@@ -39,7 +39,7 @@ const navGroups: NavGroup[] = [
     items: [
       { href: "/dashboard", label: "홈", area: "dashboard", tab: "home" },
       { href: "/data-quality", label: "데이터 점검", area: "data-quality", tab: "more" },
-      { href: "/tasks", label: "업무", area: "tasks", tab: "more" },
+      { href: "/tasks", label: "내부 운영", area: "tasks", tab: "more" },
       { href: "/notices", label: "공지", area: "notices", tab: "notices" }
     ]
   },
@@ -89,7 +89,7 @@ const pageCopy: Record<string, { title: string; description: string; action: str
   accounts: { title: "계정 관리", description: "대표, 매니저, 강사, 수강생 계정과 학생 연결을 관리합니다.", action: "계정 입력" },
   payments: { title: "수납", description: "청구, 입금, 미납, 환불 상태를 분리해 확인합니다.", action: "결제 등록" },
   "data-quality": { title: "데이터 점검", description: "Version.3 서버 운영 데이터의 누락, 중복, 참조 오류를 확인합니다.", action: "점검 새로고침" },
-  tasks: { title: "업무", description: "운영 업무의 담당자, 마감일, 우선순위를 관리합니다.", action: "업무 추가" },
+  tasks: { title: "내부 운영", description: "업무, 근태, 회의, 일정을 함께 관리합니다.", action: "업무 추가" },
   notices: { title: "공지/문서", description: "운영 기준과 강사 매뉴얼을 정리합니다.", action: "문서 작성" },
   "profile-settings": { title: "개인화 설정", description: "내 화면 방식, 시작 화면, 메뉴 표시 방식을 조정합니다.", action: "설정 저장" }
 };
