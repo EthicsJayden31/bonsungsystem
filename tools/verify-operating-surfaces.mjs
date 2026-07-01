@@ -177,7 +177,9 @@ const requiredFiles = [
   "render.yaml",
   ".github/workflows/version3-server-image.yml",
   ".github/workflows/version3-external-verify.yml",
+  ".github/workflows/connect-version3-server.yml",
   "docs/project/version3-production-deploy.md",
+  "docs/project/version3-verified-connection.md",
   "lib/version3-runtime-flags.ts",
   "lib/version3-server-client.ts",
   "server/version3-local-server.mjs",
@@ -260,6 +262,11 @@ const requiredSourceSignals = [
     label: "production deployment checklist explains external server setup and verification gates"
   },
   {
+    file: "docs/project/version3-verified-connection.md",
+    includes: ["Connect Verified Version.3 Server", "Verify External Version.3 Server", "server_url", "VERSION3_API_BASE_URL", "NEXT_PUBLIC_VERSION3_API_BASE_URL", "verify:version3-release", "verify:version3-server", "version3-inspection.html"],
+    label: "verified connection note explains how a checked external server URL becomes the public UI server"
+  },
+  {
     file: "Dockerfile",
     includes: ["node:22-alpine", "NODE_ENV=production", "VERSION3_SERVER_HOST=0.0.0.0", "VERSION3_LOCAL_DATA_FILE=/data/version3-data.json", "HEALTHCHECK", "/health", "CMD [\"node\", \"server/version3-local-server.mjs\"]"],
     label: "Docker package runs the Version.3 server as a deployable separate service"
@@ -283,6 +290,11 @@ const requiredSourceSignals = [
     file: ".github/workflows/version3-external-verify.yml",
     includes: ["Verify External Version.3 Server", "workflow_dispatch", "server_url", "VERSION3_API_BASE_URL: ${{ inputs.server_url }}", "VERSION3_SERVER_VERIFY_BASE_URL: ${{ inputs.server_url }}", "pnpm verify:version3-release", "pnpm verify:version3-server"],
     label: "external Version.3 verifier can validate a hosted HTTPS server before Pages points to it"
+  },
+  {
+    file: ".github/workflows/connect-version3-server.yml",
+    includes: ["Connect Verified Version.3 Server", "workflow_dispatch", "server_url", "deploy_pages", "actions: write", "VERSION3_API_BASE_URL: ${{ inputs.server_url }}", "VERSION3_SERVER_VERIFY_BASE_URL: ${{ inputs.server_url }}", "pnpm verify:version3-release", "pnpm verify:version3-server", "gh variable set VERSION3_API_BASE_URL", "gh workflow run pages.yml"],
+    label: "verified Version.3 server connector saves the external URL and redeploys Pages only after release and contract checks pass"
   },
   {
     file: "tools/verify-version3-server.mjs",

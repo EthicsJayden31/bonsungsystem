@@ -320,6 +320,16 @@
             <li>실제 외부 HTTPS 서버 URL로 <code>verify:version3-server</code>를 통과해야 최종 운영 검증으로 볼 수 있습니다.</li>
           </ul>
         </section>
+
+        <section>
+          <h2>6. 공개 UI 연결 절차</h2>
+          <ul>
+            <li>외부 HTTPS 서버가 준비되면 GitHub Actions에서 <code>Connect Verified Version.3 Server</code>를 실행합니다.</li>
+            <li>이 작업은 서버 URL 형식과 실제 Version.3 API 동작을 먼저 검증합니다.</li>
+            <li>검증을 통과한 URL만 <code>VERSION3_API_BASE_URL</code> 배포 변수로 저장하고 GitHub Pages를 다시 배포합니다.</li>
+            <li>재배포 후 이 점검 페이지에 같은 서버 주소를 넣어 <code>/health</code> 응답을 다시 확인합니다.</li>
+          </ul>
+        </section>
       </div>
 
       <footer>

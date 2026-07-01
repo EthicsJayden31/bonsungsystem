@@ -1,0 +1,64 @@
+name: Connect Verified Version.3 Server
+
+on:
+  workflow_dispatch:
+    inputs:
+      server_url:
+        description: "External HTTPS Version.3 server URL"
+        required: true
+        type: string
+      deploy_pages:
+        description: "Dispatch Pages deployment after updating VERSION3_API_BASE_URL"
+        required: true
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: connect-version3-server
+  cancel-in-progress: false
+
+jobs:
+  connect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.0.7 --activate
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify release URL shape
+        env:
+          VERSION3_API_BASE_URL: ${{ inputs.server_url }}
+        run: pnpm verify:version3-release
+
+      - name: Verify external server contract
+        env:
+          VERSION3_SERVER_VERIFY_BASE_URL: ${{ inputs.server_url }}
+        run: pnpm verify:version3-server
+
+      - name: Save verified server URL
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION3_API_BASE_URL: ${{ inputs.server_url }}
+        run: gh variable set VERSION3_API_BASE_URL --repo "$GITHUB_REPOSITORY" --body "$VERSION3_API_BASE_URL"
+
+      - name: Dispatch Pages deployment
+        if: inputs.deploy_pages
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" --ref "$GITHUB_REF_NAME"
