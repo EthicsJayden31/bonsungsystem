@@ -177,7 +177,6 @@ const requiredFiles = [
   "render.yaml",
   ".github/workflows/version3-server-image.yml",
   ".github/workflows/version3-external-verify.yml",
-  ".github/workflows/connect-version3-server.yml",
   "docs/project/version3-production-deploy.md",
   "docs/project/version3-verified-connection.md",
   "lib/version3-runtime-flags.ts",
@@ -263,7 +262,7 @@ const requiredSourceSignals = [
   },
   {
     file: "docs/project/version3-verified-connection.md",
-    includes: ["Connect Verified Version.3 Server", "Verify External Version.3 Server", "server_url", "VERSION3_API_BASE_URL", "NEXT_PUBLIC_VERSION3_API_BASE_URL", "verify:version3-release", "verify:version3-server", "version3-inspection.html"],
+    includes: ["Deploy GitHub Pages Preview", "Verify External Version.3 Server", "server_url", "save_verified_server_url", "VERSION3_API_BASE_URL", "NEXT_PUBLIC_VERSION3_API_BASE_URL", "verify:version3-release", "verify:version3-server", "version3-inspection.html"],
     label: "verified connection note explains how a checked external server URL becomes the public UI server"
   },
   {
@@ -292,11 +291,6 @@ const requiredSourceSignals = [
     label: "external Version.3 verifier can validate a hosted HTTPS server before Pages points to it"
   },
   {
-    file: ".github/workflows/connect-version3-server.yml",
-    includes: ["Connect Verified Version.3 Server", "workflow_dispatch", "server_url", "deploy_pages", "actions: write", "VERSION3_API_BASE_URL: ${{ inputs.server_url }}", "VERSION3_SERVER_VERIFY_BASE_URL: ${{ inputs.server_url }}", "pnpm verify:version3-release", "pnpm verify:version3-server", "gh variable set VERSION3_API_BASE_URL", "gh workflow run pages.yml"],
-    label: "verified Version.3 server connector saves the external URL and redeploys Pages only after release and contract checks pass"
-  },
-  {
     file: "tools/verify-version3-server.mjs",
     includes: ["VERSION3_SERVER_VERIFY_BASE_URL", "VERSION3_LOCAL_DATA_FILE", "Version.3 server verification passed", "/health", "assertPublicStartupGuard", "Public Version.3 server startup must reject the default seed password", "/auth/login", "/auth/logout", "/auth/change-password", "mustChangePassword", "/bootstrap", "/accounts", "/account-history", "/audit-logs", "/data-export", "/data-import", "/data-backups", "Only owner accounts must be allowed to import Version.3 data", "Only owner accounts must be allowed to list Version.3 data backups", "must expose backup metadata without full filesystem paths", "must restore the exported student count", "import_data", "/actions/createStudent", "/actions/createTeacher", "/actions/createEnrollment", "/actions/createLesson", "/actions/updateAttendance", "/actions/createLessonLog", "/actions/createReservation", "/actions/createRegistration", "/actions/createTask", "Unknown Version.3 actions must fail", "Teacher accounts must not create students", "createEnrollment must reject invalid teacher references", "updateAttendance must reject orphan attendance", "createLessonLog must reject notes that are not linked to an existing lesson", "createReservation must reject end times before start times", "createNotice must require both title and body", "reference-integrity", "brokenReferences", "backupEnabled", "must not expose account passwords", "must store account passwords as scrypt hashes", "Repeated invalid login attempts must be temporarily throttled", "login_throttled", "security audit entries", "must reject short initial passwords", "must reject duplicate login IDs", "must reject missing linked students", "Invited student accounts must be able to sign in", "Invited account first login must activate the account", "must reject short temporary passwords", "must not pause their own account", "must use profile settings", "must not edit their own permissions", "Password reset must invalidate existing sessions", "Permission changes must invalidate existing sessions", "export_data", "/actions/createConsultation", "/actions/acknowledgeConsultation", "unreadForAccountIds", "Student accounts must not be allowed to triage consultation requests", "Consultation assignee must not be a student account", "/data-quality"],
     label: "Version.3 server verifier checks local or external server contract endpoints"
@@ -313,8 +307,8 @@ const requiredSourceSignals = [
   },
   {
     file: ".github/workflows/pages.yml",
-    includes: ["NEXT_PUBLIC_VERSION3_API_BASE_URL", "vars.VERSION3_API_BASE_URL", "pnpm verify:version3-server", "pnpm verify:version3-release", "VERSION3_RELEASE_ALLOW_TRANSITION_FLAGS"],
-    label: "GitHub Pages workflow requires, injects, and verifies the Version.3 server URL for release branches"
+    includes: ["NEXT_PUBLIC_VERSION3_API_BASE_URL", "vars.VERSION3_API_BASE_URL", "server_url", "save_verified_server_url", "inputs.server_url || vars.VERSION3_API_BASE_URL", "gh variable set VERSION3_API_BASE_URL", "pnpm verify:version3-server", "pnpm verify:version3-release", "VERSION3_RELEASE_ALLOW_TRANSITION_FLAGS"],
+    label: "GitHub Pages workflow can verify, save, inject, and deploy the Version.3 server URL for release branches"
   },
   {
     file: "lib/apps-script-client.ts",

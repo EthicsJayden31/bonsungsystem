@@ -10,11 +10,23 @@ on:
     branches:
       - codex/v1-intranet
   workflow_dispatch:
+    inputs:
+      server_url:
+        description: "Optional external HTTPS Version.3 server URL to verify and connect"
+        required: false
+        type: string
+        default: ""
+      save_verified_server_url:
+        description: "Save server_url as VERSION3_API_BASE_URL after verification"
+        required: true
+        type: boolean
+        default: true
 
 permissions:
   contents: read
   pages: write
   id-token: write
+  actions: write
 
 concurrency:
   group: pages
@@ -48,9 +60,9 @@ jobs:
           node --check /tmp/bonsung-code.js
 
       - name: Verify Version.3 release configuration
-        if: github.event_name != 'pull_request' && vars.VERSION3_API_BASE_URL != '' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/codex/v1-intranet')
+        if: github.event_name != 'pull_request' && (vars.VERSION3_API_BASE_URL != '' || inputs.server_url != '') && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/codex/v1-intranet')
         env:
-          VERSION3_API_BASE_URL: ${{ vars.VERSION3_API_BASE_URL }}
+          VERSION3_API_BASE_URL: ${{ inputs.server_url || vars.VERSION3_API_BASE_URL }}
           NEXT_PUBLIC_ENABLE_APPS_SCRIPT_TRANSITION: ${{ vars.ENABLE_APPS_SCRIPT_TRANSITION }}
           NEXT_PUBLIC_ENABLE_LEGACY_PREVIEW: ${{ vars.ENABLE_LEGACY_PREVIEW }}
           NEXT_PUBLIC_ENABLE_PREVIEW_LOGIN: ${{ vars.ENABLE_PREVIEW_LOGIN }}
@@ -59,7 +71,7 @@ jobs:
 
       - name: Build Next.js static site
         env:
-          NEXT_PUBLIC_VERSION3_API_BASE_URL: ${{ vars.VERSION3_API_BASE_URL }}
+          NEXT_PUBLIC_VERSION3_API_BASE_URL: ${{ inputs.server_url || vars.VERSION3_API_BASE_URL }}
           NEXT_PUBLIC_ENABLE_APPS_SCRIPT_TRANSITION: ${{ vars.ENABLE_APPS_SCRIPT_TRANSITION }}
           NEXT_PUBLIC_ENABLE_LEGACY_PREVIEW: ${{ vars.ENABLE_LEGACY_PREVIEW }}
           NEXT_PUBLIC_ENABLE_PREVIEW_LOGIN: ${{ vars.ENABLE_PREVIEW_LOGIN }}
@@ -74,10 +86,17 @@ jobs:
         run: pnpm verify:version3-cleanup
 
       - name: Verify Version.3 server contract
-        if: vars.VERSION3_API_BASE_URL != ''
+        if: vars.VERSION3_API_BASE_URL != '' || inputs.server_url != ''
         env:
-          VERSION3_SERVER_VERIFY_BASE_URL: ${{ vars.VERSION3_API_BASE_URL }}
+          VERSION3_SERVER_VERIFY_BASE_URL: ${{ inputs.server_url || vars.VERSION3_API_BASE_URL }}
         run: pnpm verify:version3-server
+
+      - name: Save verified Version.3 server URL
+        if: github.event_name == 'workflow_dispatch' && inputs.server_url != '' && inputs.save_verified_server_url
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION3_API_BASE_URL: ${{ inputs.server_url }}
+        run: gh variable set VERSION3_API_BASE_URL --repo "$GITHUB_REPOSITORY" --body "$VERSION3_API_BASE_URL"
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

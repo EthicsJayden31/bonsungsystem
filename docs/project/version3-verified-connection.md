@@ -6,7 +6,7 @@ This note explains the final connection step between the public GitHub Pages UI 
 
 Use `Verify External Version.3 Server` when you only want to test a hosted server URL.
 
-Use `Connect Verified Version.3 Server` when the server is ready for the public UI to use.
+Use `Deploy GitHub Pages Preview` with the optional `server_url` input when the server is ready for the public UI to use.
 
 ## Required server URL
 
@@ -20,7 +20,7 @@ Do not use local addresses such as `http://127.0.0.1:4303` or `http://localhost:
 
 ## What the workflow checks
 
-`Connect Verified Version.3 Server` runs these checks before changing the public UI configuration:
+`Deploy GitHub Pages Preview` runs these checks before changing the public UI configuration when `server_url` is provided:
 
 1. `verify:version3-release`
    - Confirms the URL is a public HTTPS URL.
@@ -38,7 +38,7 @@ After both checks pass, the workflow saves the verified URL as the GitHub reposi
 VERSION3_API_BASE_URL
 ```
 
-If `deploy_pages` is true, it also dispatches `pages.yml`. The next GitHub Pages build receives the same value as:
+If `save_verified_server_url` is true, future GitHub Pages builds keep using the verified server URL. The same workflow run also receives the value as:
 
 ```text
 NEXT_PUBLIC_VERSION3_API_BASE_URL
