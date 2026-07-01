@@ -38,7 +38,7 @@ ghcr.io/ethicsjayden31/bonsung-version3-server:codex-v1-intranet
 2026-07-01 기준 확인된 digest:
 
 ```text
-sha256:ee21d65a6464a40219c103d69e03b658e669b09ca20e07b39932e454dd75570e
+sha256:ca0f49d1e9df82b728807311f18a680fb14b7c3fb1f15cbb682267b14094f0d2
 ```
 
 외부 호스트에서 이 이미지를 실행할 때는 반드시 `/data` 같은 영구 디스크를 붙이고 `VERSION3_LOCAL_DATA_FILE=/data/version3-data.json`을 사용합니다.
