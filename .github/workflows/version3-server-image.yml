@@ -58,6 +58,35 @@ jobs:
             type=sha,prefix=sha-
             type=raw,value=latest,enable={{is_default_branch}}
 
+      - name: Build Version.3 server image for smoke test
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          load: true
+          tags: bonsung-version3-server:smoke
+
+      - name: Smoke test Version.3 server container
+        run: |
+          docker run -d --name version3-smoke -p 4303:4303 \
+            -e NODE_ENV=production \
+            -e VERSION3_SERVER_HOST=0.0.0.0 \
+            -e VERSION3_LOCAL_SERVER_PASSWORD=replace-with-safe-ci-password \
+            -e VERSION3_ALLOWED_ORIGINS=https://ethicsjayden31.github.io \
+            -e VERSION3_LOCAL_DATA_FILE=/data/version3-data.json \
+            -e VERSION3_SESSION_TTL_HOURS=12 \
+            bonsung-version3-server:smoke
+          for attempt in 1 2 3 4 5 6 7 8 9 10; do
+            if curl --fail --silent http://127.0.0.1:4303/health; then
+              docker rm -f version3-smoke
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs version3-smoke
+          docker rm -f version3-smoke
+          exit 1
+
       - name: Build and push Version.3 server image
         uses: docker/build-push-action@v6
         with:
