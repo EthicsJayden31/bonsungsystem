@@ -47,6 +47,11 @@ async function startLocalServer() {
 async function runVerification(baseUrl) {
   const health = await request(baseUrl, "/health");
   assert(health.service === "bonsung-version3-server" && health.status === "ok", "/health must return Version.3 server health.");
+  if (explicitBaseUrl) {
+    assert(health.persistence?.enabled === true, "External Version.3 server must use persistent storage.");
+    assert(health.persistence?.backupEnabled === true, "External Version.3 server must keep data backups enabled.");
+    assert(health.cors?.restricted === true, "External Version.3 server must restrict CORS to official UI origins.");
+  }
 
   const owner = await login(baseUrl, "owner");
   const manager = await login(baseUrl, "manager");
@@ -677,7 +682,38 @@ function assertLocalStoredPasswordHashes() {
   );
 }
 
-function assertPublicStartupGuard() {
+async function assertPublicStartupGuard() {
+  await assertRejectedPublicStartup(
+    {
+      VERSION3_LOCAL_SERVER_PASSWORD: "version3",
+      VERSION3_ALLOWED_ORIGINS: "https://bonsung.example.com",
+      VERSION3_LOCAL_DATA_FILE: "memory"
+    },
+    /non-default value/i,
+    "Public Version.3 server startup must reject the default seed password."
+  );
+  await assertRejectedPublicStartup(
+    {
+      VERSION3_LOCAL_SERVER_PASSWORD: "safe-public-password",
+      VERSION3_ALLOWED_ORIGINS: "https://bonsung.example.com",
+      VERSION3_LOCAL_DATA_FILE: "memory"
+    },
+    /persistent file/i,
+    "Public Version.3 server startup must reject memory-only storage."
+  );
+  await assertRejectedPublicStartup(
+    {
+      VERSION3_LOCAL_SERVER_PASSWORD: "safe-public-password",
+      VERSION3_ALLOWED_ORIGINS: "https://bonsung.example.com",
+      VERSION3_LOCAL_DATA_FILE: tempDataFile || "version3-data.json",
+      VERSION3_DISABLE_LOCAL_BACKUPS: "true"
+    },
+    /backups enabled/i,
+    "Public Version.3 server startup must reject disabled data backups."
+  );
+}
+
+function assertRejectedPublicStartup(extraEnv, errorPattern, message) {
   return new Promise((resolve, reject) => {
     const guardProcess = spawn(process.execPath, ["server/version3-local-server.mjs"], {
       cwd: process.cwd(),
@@ -685,9 +721,7 @@ function assertPublicStartupGuard() {
         ...process.env,
         VERSION3_SERVER_HOST: "0.0.0.0",
         VERSION3_LOCAL_SERVER_PORT: String(localPort + 1000),
-        VERSION3_LOCAL_SERVER_PASSWORD: "version3",
-        VERSION3_ALLOWED_ORIGINS: "https://bonsung.example.com",
-        VERSION3_LOCAL_DATA_FILE: "memory"
+        ...extraEnv
       },
       stdio: ["ignore", "ignore", "pipe"]
     });
@@ -698,7 +732,7 @@ function assertPublicStartupGuard() {
     guardProcess.on("error", reject);
     guardProcess.on("close", (code) => {
       try {
-        assert(code !== 0 && /non-default value/i.test(stderr), "Public Version.3 server startup must reject the default seed password.");
+        assert(code !== 0 && errorPattern.test(stderr), message);
         resolve();
       } catch (error) {
         reject(error);

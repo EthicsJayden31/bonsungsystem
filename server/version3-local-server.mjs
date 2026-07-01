@@ -51,11 +51,11 @@ const permissionSets = {
   }
 };
 
+assertServerRuntimeSafe();
+
 const db = loadDatabase();
 const sessions = new Map();
 const loginAttempts = new Map();
-
-assertServerRuntimeSafe();
 
 const server = createServer(async (request, response) => {
   try {
@@ -1267,6 +1267,12 @@ function assertServerRuntimeSafe() {
   }
   if (allowedOrigins.includes("*")) {
     throw new Error("Set VERSION3_ALLOWED_ORIGINS to the official Version.3 UI origin before running a public Version.3 server.");
+  }
+  if (!persistenceEnabled) {
+    throw new Error("Set VERSION3_LOCAL_DATA_FILE to a persistent file before running a public Version.3 server.");
+  }
+  if (!backupEnabled) {
+    throw new Error("Keep Version.3 data backups enabled before running a public Version.3 server.");
   }
 }
 
