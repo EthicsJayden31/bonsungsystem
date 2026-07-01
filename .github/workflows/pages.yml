@@ -47,11 +47,37 @@ jobs:
           cp google-apps-script/Code.gs /tmp/bonsung-code.js
           node --check /tmp/bonsung-code.js
 
+      - name: Verify Version.3 release configuration
+        if: github.event_name != 'pull_request' && vars.VERSION3_API_BASE_URL != '' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/codex/v1-intranet')
+        env:
+          VERSION3_API_BASE_URL: ${{ vars.VERSION3_API_BASE_URL }}
+          NEXT_PUBLIC_ENABLE_APPS_SCRIPT_TRANSITION: ${{ vars.ENABLE_APPS_SCRIPT_TRANSITION }}
+          NEXT_PUBLIC_ENABLE_LEGACY_PREVIEW: ${{ vars.ENABLE_LEGACY_PREVIEW }}
+          NEXT_PUBLIC_ENABLE_PREVIEW_LOGIN: ${{ vars.ENABLE_PREVIEW_LOGIN }}
+          VERSION3_RELEASE_ALLOW_TRANSITION_FLAGS: ${{ vars.VERSION3_RELEASE_ALLOW_TRANSITION_FLAGS }}
+        run: pnpm verify:version3-release
+
       - name: Build Next.js static site
+        env:
+          NEXT_PUBLIC_VERSION3_API_BASE_URL: ${{ vars.VERSION3_API_BASE_URL }}
+          NEXT_PUBLIC_ENABLE_APPS_SCRIPT_TRANSITION: ${{ vars.ENABLE_APPS_SCRIPT_TRANSITION }}
+          NEXT_PUBLIC_ENABLE_LEGACY_PREVIEW: ${{ vars.ENABLE_LEGACY_PREVIEW }}
+          NEXT_PUBLIC_ENABLE_PREVIEW_LOGIN: ${{ vars.ENABLE_PREVIEW_LOGIN }}
         run: pnpm build:pages
 
       - name: Verify operating surfaces
+        env:
+          NEXT_PUBLIC_ENABLE_LEGACY_PREVIEW: ${{ vars.ENABLE_LEGACY_PREVIEW }}
         run: pnpm verify:surfaces
+
+      - name: Verify cleanup boundaries
+        run: pnpm verify:version3-cleanup
+
+      - name: Verify Version.3 server contract
+        if: vars.VERSION3_API_BASE_URL != ''
+        env:
+          VERSION3_SERVER_VERIFY_BASE_URL: ${{ vars.VERSION3_API_BASE_URL }}
+        run: pnpm verify:version3-server
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

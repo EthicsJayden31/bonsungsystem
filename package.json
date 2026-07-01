@@ -7,7 +7,13 @@
     "dev": "next dev",
     "build": "next build",
     "build:pages": "cross-env GITHUB_PAGES=true next build && node tools/preserve-legacy-preview.mjs",
+    "dev:version3": "node tools/dev-version3-local.mjs",
     "verify:surfaces": "node tools/verify-operating-surfaces.mjs",
+    "verify:version3-server": "node tools/verify-version3-server.mjs",
+    "verify:version3-production-env": "node tools/verify-version3-production-env.mjs",
+    "verify:version3-cleanup": "node tools/verify-version3-cleanup.mjs",
+    "verify:version3-release": "node tools/verify-version3-release.mjs",
+    "server:version3": "node server/version3-local-server.mjs",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit"
