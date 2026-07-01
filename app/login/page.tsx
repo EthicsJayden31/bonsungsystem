@@ -1,33 +1,19 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { assetPath } from "@/lib/assets";
-import type { Role } from "@/lib/auth-shared";
 import { loginWithAppsScript } from "@/lib/apps-script-client";
-import { clearClientSession, isNextRole, PREVIEW_ROLE_KEY, redirectToAppPath, setLiveSession, setPreviewSession, setServerSession } from "@/lib/client-session";
+import { clearClientSession, isNextRole, PREVIEW_ROLE_KEY, redirectToAppPath, setLiveSession, setServerSession } from "@/lib/client-session";
 import { readPreferences } from "@/lib/preferences";
 import { isVersion3ServerConfigured, loginWithVersion3Server } from "@/lib/version3-server-client";
-import { ENABLE_APPS_SCRIPT_TRANSITION, ENABLE_LEGACY_PREVIEW, ENABLE_PREVIEW_LOGIN } from "@/lib/version3-runtime-flags";
-
-const accounts: Array<{ role: Role; title: string; description: string }> = [
-  { role: "owner", title: "대표", description: "전체 운영 현황, 공지, 수납, 데이터 점검, 권한 흐름을 확인합니다." },
-  { role: "manager", title: "매니저", description: "상담요청 접수, 학생/강사/수업 관리, 공지 작성을 담당합니다." },
-  { role: "teacher", title: "강사", description: "담당 수업, 학생, 출결, 레슨노트, 전달받은 상담 흐름을 확인합니다." },
-  { role: "student", title: "수강생", description: "공지, 내 수업, 레슨노트, 공간 예약, 상담요청을 확인합니다." }
-];
+import { ENABLE_APPS_SCRIPT_TRANSITION, ENABLE_LEGACY_PREVIEW } from "@/lib/version3-runtime-flags";
 
 export default function LoginPage() {
   const router = useRouter();
   const [liveLoginError, setLiveLoginError] = useState("");
   const [liveLoginPending, setLiveLoginPending] = useState(false);
-
-  function previewLogin(role: Role) {
-    setPreviewSession(role);
-    router.push(readPreferences().startPage);
-  }
 
   async function liveLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -98,64 +84,23 @@ export default function LoginPage() {
         </div>
 
         <div>
-          <div className="mb-5 max-w-2xl">
-            <p className="text-sm font-bold text-brand">접속 방식 선택</p>
-            <h2 className="mt-2 text-3xl font-extrabold tracking-tight text-ink">실사용 로그인 우선</h2>
-            <p className="mt-3 text-sm leading-6 text-muted">
-              Version.3는 대표, 매니저, 강사, 수강생 네 계정 체계를 기준으로 운영 서버에 로그인합니다.
-            </p>
-          </div>
-
           <div className="mb-5 rounded-2xl border border-brand/15 bg-white p-5 shadow-card">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <p className="text-sm font-extrabold text-ink">Version.3 서버 로그인</p>
-                <p className="mt-2 text-sm leading-6 text-muted">
-                  별도 서버의 계정과 권한을 기준으로 학생, 수업, 상담요청, 공지와 운영 기록을 관리합니다.
-                </p>
-              </div>
-              {ENABLE_LEGACY_PREVIEW ? (
-                <Link className="text-sm font-bold text-brand hover:text-brand-dark" href={assetPath("/legacy-preview/")}>
-                  legacy 화면
-                </Link>
-              ) : null}
-            </div>
             <form className="mt-4 grid gap-3 sm:grid-cols-[1fr_1fr_auto]" onSubmit={liveLogin}>
               <label className="block">
-                <span className="sr-only">아이디</span>
-                <input className="h-11 w-full rounded-xl border border-line px-3 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/15" name="loginId" placeholder="아이디" autoComplete="username" disabled={liveLoginPending} />
+                <span className="sr-only">ID</span>
+                <input className="h-11 w-full rounded-xl border border-line px-3 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/15" name="loginId" placeholder="ID" autoComplete="username" disabled={liveLoginPending} />
               </label>
               <label className="block">
-                <span className="sr-only">비밀번호</span>
-                <input className="h-11 w-full rounded-xl border border-line px-3 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/15" name="password" placeholder="비밀번호" type="password" autoComplete="current-password" disabled={liveLoginPending} />
+                <span className="sr-only">PW</span>
+                <input className="h-11 w-full rounded-xl border border-line px-3 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/15" name="password" placeholder="PW" type="password" autoComplete="current-password" disabled={liveLoginPending} />
               </label>
               <button className="h-11 rounded-xl bg-brand px-4 text-sm font-bold text-white transition hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-60" disabled={liveLoginPending} type="submit">
-                {liveLoginPending ? "로그인 중" : "실사용 로그인"}
+                {liveLoginPending ? "LOGIN..." : "LOGIN"}
               </button>
             </form>
+            <p className="mt-3 text-sm font-medium text-muted">※계정 요청 및 패스워드 초기화는 매니저에게 문의 바랍니다.</p>
             {liveLoginError ? <p className="mt-3 text-sm font-medium text-danger" role="alert">{liveLoginError}</p> : null}
           </div>
-
-          {ENABLE_PREVIEW_LOGIN ? (
-            <details className="rounded-2xl border border-line bg-white p-5 shadow-card" open>
-              <summary className="cursor-pointer list-none text-sm font-extrabold text-ink">
-                Preview 계정으로 앱 화면 보기
-              </summary>
-              <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                {accounts.map((account) => (
-                  <article className="flex rounded-2xl border border-line bg-surface-muted p-4" key={account.role}>
-                    <div className="flex flex-1 flex-col">
-                      <h3 className="text-base font-extrabold text-ink">{account.title}</h3>
-                      <p className="mt-2 flex-1 text-sm leading-6 text-muted">{account.description}</p>
-                      <button className="mt-5 w-full rounded-xl border border-brand/20 bg-brand/5 px-3 py-3 text-sm font-bold text-brand transition hover:bg-brand/10" onClick={() => previewLogin(account.role)}>
-                        Preview로 시작
-                      </button>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            </details>
-          ) : null}
         </div>
       </section>
     </main>

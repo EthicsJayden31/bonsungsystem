@@ -213,8 +213,8 @@ const requiredSourceSignals = [
   },
   {
     file: "app/login/page.tsx",
-    includes: ["ENABLE_APPS_SCRIPT_TRANSITION", "ENABLE_LEGACY_PREVIEW", "ENABLE_PREVIEW_LOGIN", "isVersion3ServerConfigured", "loginWithVersion3Server", "setServerSession", "loginWithAppsScript", "readPreferences().startPage", "Version.3 서버 로그인", "bonsung-logo-seal.png"],
-    label: "login page defaults to Version.3 server login and gates Apps Script, legacy, and preview paths"
+    includes: ["ENABLE_APPS_SCRIPT_TRANSITION", "ENABLE_LEGACY_PREVIEW", "isVersion3ServerConfigured", "loginWithVersion3Server", "setServerSession", "loginWithAppsScript", "readPreferences().startPage", "placeholder=\"ID\"", "placeholder=\"PW\"", "LOGIN", "※계정 요청 및 패스워드 초기화는 매니저에게 문의 바랍니다.", "bonsung-logo-seal.png"],
+    label: "login page keeps the real login surface minimal while retaining Version.3 server login and transition gates"
   },
   {
     file: "lib/version3-runtime-flags.ts",
@@ -278,7 +278,7 @@ const requiredSourceSignals = [
   },
   {
     file: "public/version3-offline-inspection.html",
-    includes: ["본성 스테이지 오프라인 점검", "서버 설정 없이 사용하는 점검판", "localStorage", "강은미", "조영진", "장윤호", "본성 프리컬리지", "상담요청 저장", "공지 저장"],
+    includes: ["본성 스테이지 오프라인 점검", "서버 설정 없이 사용하는 점검판", "localStorage", "OFFLINE APP", "수업/시간표", "공간 예약", "운영 점검", "강은미", "조영진", "장윤호", "본성 프리컬리지", "상담요청 저장", "공지 저장", "JSON 내보내기"],
     label: "standalone offline inspection page can exercise Version.3 operating flows without server configuration"
   },
   {
