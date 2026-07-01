@@ -397,8 +397,8 @@ const requiredSourceSignals = [
   },
   {
     file: "app/students/page.tsx",
-    includes: ["mobileCards", "상세 보기", "권한 제한", "학생 관리", "URLSearchParams", "student-detail", "scrollIntoView", "createStudent", "createAccountAfter"],
-    label: "student page uses mobile cards, teacher-safe masking, detail deeplinks, server student creation, and account handoff"
+    includes: ["mobileCards", "상세 보기", "권한 제한", "학생 관리", "URLSearchParams", "student-detail", "scrollIntoView", "createStudent", "createAccountAfter", "assetPath", "accountCreatePath"],
+    label: "student page uses mobile cards, teacher-safe masking, detail deeplinks, server student creation, and basePath-aware account handoff"
   },
   {
     file: "components/students/student-detail-panel.tsx",

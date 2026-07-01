@@ -7,6 +7,7 @@ import { StudentDetailPanel } from "@/components/students/student-detail-panel";
 import { Badge } from "@/components/ui/badge";
 import { hasVersion3Permission } from "@/lib/access-policy";
 import { useAccountsData } from "@/lib/accounts-data";
+import { assetPath } from "@/lib/assets";
 import { teacherName, useOperationAction, useOperationsData, type DataSource } from "@/lib/operations-data";
 import { useCurrentUser } from "@/lib/use-current-user";
 import { usePreviewRole } from "@/lib/use-preview-role";
@@ -73,7 +74,7 @@ export default function StudentsPage() {
     if (values.createAccountAfter !== "on") return;
     const studentId = String(created.student_id || created.id || "");
     if (studentId) {
-      window.location.assign(`/accounts?student=${encodeURIComponent(studentId)}#create-account`);
+      window.location.assign(accountCreatePath(studentId));
     }
   }
 
@@ -239,7 +240,7 @@ function studentRow({
 function StudentAccountCell({ account, studentId }: { account?: Version3Account; studentId: string }) {
   if (!account) {
     return (
-      <a className="inline-flex rounded-xl border border-accent/25 bg-accent/10 px-3 py-1.5 text-xs font-bold text-accent transition hover:bg-accent/15" href={`/accounts?student=${studentId}#create-account`}>
+      <a className="inline-flex rounded-xl border border-accent/25 bg-accent/10 px-3 py-1.5 text-xs font-bold text-accent transition hover:bg-accent/15" href={accountCreatePath(studentId)}>
         계정 필요
       </a>
     );
@@ -265,6 +266,10 @@ function studentAccountText(account?: Version3Account) {
   if (account.status === "invited") return "초안";
   if (account.mustChangePassword) return "비밀번호 변경 필요";
   return "연결됨";
+}
+
+function accountCreatePath(studentId: string) {
+  return assetPath(`/accounts?student=${encodeURIComponent(studentId)}#create-account`);
 }
 
 function maskTeacherMemo(memo: string) {
