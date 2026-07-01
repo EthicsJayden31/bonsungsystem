@@ -89,6 +89,9 @@ async function runVerification(baseUrl) {
   for (const key of ["teachers", "students", "consultations", "notices", "dashboardWorkQueue"]) {
     assert(Array.isArray(bootstrap[key]), `/bootstrap must return ${key} array.`);
   }
+  assert(bootstrap.teachers.some((item) => item.name === "강은미" && item.role === "Director"), "Bootstrap must include Notion staff data.");
+  assert(bootstrap.students.some((item) => item.name === "장윤호"), "Bootstrap must include Notion student data.");
+  assert(bootstrap.courses.some((item) => item.name === "본성 프리컬리지"), "Bootstrap must include Notion program data.");
 
   const accounts = await authorizedRequest(baseUrl, "/accounts", owner.token);
   assert(Array.isArray(accounts) && accounts.some((account) => account.role === "student"), "/accounts must include student accounts.");
@@ -329,7 +332,7 @@ async function runVerification(baseUrl) {
     method: "POST",
     body: { notice: { title: "Server verification notice", category: "검증", body: "Manager notice.", targetRoles: ["owner", "manager"] } }
   });
-  assert(createdNotice.id && createdNotice.author === "Manager Account", "Managers must be able to create notices.");
+  assert(createdNotice.id && createdNotice.author === manager.user.name, "Managers must be able to create notices.");
 
   const rejectedEmptyNotice = await authorizedRequest(baseUrl, "/actions/createNotice", manager.token, {
     method: "POST",

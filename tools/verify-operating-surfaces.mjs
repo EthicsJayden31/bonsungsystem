@@ -182,6 +182,7 @@ const requiredFiles = [
   "lib/version3-runtime-flags.ts",
   "lib/version3-server-client.ts",
   "server/version3-local-server.mjs",
+  "server/bonsung-initial-data.mjs",
   "tools/verify-version3-production-env.mjs",
   "tools/verify-version3-cleanup.mjs",
   "tools/verify-version3-server.mjs",
@@ -205,6 +206,11 @@ if (legacyPreviewEnabled) {
 }
 
 const requiredSourceSignals = [
+  {
+    file: "server/bonsung-initial-data.mjs",
+    includes: ["bonsungInitialTeachers", "bonsungInitialStudents", "bonsungInitialCourses", "강은미", "조영진", "장윤호", "본성 프리컬리지", "본성 아티스트", "보컬 리디자인", "해피아워 클래스"],
+    label: "Notion-based Bonsung initial staff, student, and program data ships with the Version.3 server"
+  },
   {
     file: "app/login/page.tsx",
     includes: ["ENABLE_APPS_SCRIPT_TRANSITION", "ENABLE_LEGACY_PREVIEW", "ENABLE_PREVIEW_LOGIN", "isVersion3ServerConfigured", "loginWithVersion3Server", "setServerSession", "loginWithAppsScript", "readPreferences().startPage", "Version.3 서버 로그인", "bonsung-logo-seal.png"],
@@ -267,8 +273,18 @@ const requiredSourceSignals = [
   },
   {
     file: "Dockerfile",
-    includes: ["node:22-alpine", "NODE_ENV=production", "VERSION3_SERVER_HOST=0.0.0.0", "VERSION3_LOCAL_DATA_FILE=/data/version3-data.json", "HEALTHCHECK", "/health", "CMD [\"node\", \"server/version3-local-server.mjs\"]"],
+    includes: ["node:22-alpine", "NODE_ENV=production", "VERSION3_SERVER_HOST=0.0.0.0", "VERSION3_LOCAL_DATA_FILE=/data/version3-data.json", "server/bonsung-initial-data.mjs", "HEALTHCHECK", "/health", "CMD [\"node\", \"server/version3-local-server.mjs\"]"],
     label: "Docker package runs the Version.3 server as a deployable separate service"
+  },
+  {
+    file: "public/version3-offline-inspection.html",
+    includes: ["본성 스테이지 오프라인 점검", "서버 설정 없이 사용하는 점검판", "localStorage", "강은미", "조영진", "장윤호", "본성 프리컬리지", "상담요청 저장", "공지 저장"],
+    label: "standalone offline inspection page can exercise Version.3 operating flows without server configuration"
+  },
+  {
+    file: "public/version3-inspection.html",
+    includes: ["오프라인 점검판", "version3-offline-inspection.html"],
+    label: "temporary inspection page links to the standalone offline inspection file"
   },
   {
     file: ".dockerignore",

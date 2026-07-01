@@ -90,9 +90,9 @@ export default function LoginPage() {
           <div className="absolute -bottom-24 right-8 h-64 w-64 rounded-full bg-white/5" />
           <Image src={assetPath("/brand/bonsung-logo-seal.png")} alt="본성뮤직 아카데미 로고" width={112} height={112} className="relative rounded-full object-contain shadow-lg" priority />
           <div className="relative mt-8">
-            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-white/75">Bonsung Music Academy</p>
-            <h1 className="mt-3 text-4xl font-extrabold leading-tight tracking-tight">본성뮤직 인트라넷</h1>
-            <p className="mt-4 max-w-md text-base leading-7 text-white/80">전문적인 음악 교육과 체계적인 운영 관리를 위한 모바일 우선 아카데미 시스템입니다.</p>
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-white/75">BONSUNG MUSIC ACADEMY</p>
+            <h1 className="mt-3 text-4xl font-extrabold leading-tight tracking-tight">본성 스테이지</h1>
+            <p className="mt-4 max-w-md text-base leading-7 text-white/80">교육행정운영 통합 관리 시스템</p>
             <p className="mt-8 text-sm font-bold uppercase tracking-[0.18em]">BONSUNG MUSIC A NEW BEGINNING</p>
           </div>
         </div>

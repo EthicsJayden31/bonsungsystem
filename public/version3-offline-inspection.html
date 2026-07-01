@@ -1,0 +1,528 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>본성 스테이지 오프라인 점검</title>
+    <style>
+      :root {
+        --brand: #7a1017;
+        --ink: #1f2530;
+        --muted: #667085;
+        --line: #d8dee8;
+        --paper: #f6f7fa;
+        --panel: #ffffff;
+        --good: #176b45;
+        --warn: #9a5f00;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--paper);
+        color: var(--ink);
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        line-height: 1.55;
+      }
+
+      main {
+        width: min(1180px, calc(100% - 28px));
+        margin: 0 auto;
+        padding: 24px 0 48px;
+      }
+
+      header {
+        display: grid;
+        gap: 8px;
+        padding: 24px 0 18px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin: 0;
+      }
+
+      h1 {
+        font-size: clamp(26px, 4vw, 42px);
+        letter-spacing: 0;
+      }
+
+      h2 {
+        font-size: 18px;
+        margin-bottom: 12px;
+      }
+
+      h3 {
+        font-size: 15px;
+      }
+
+      .lead {
+        max-width: 820px;
+        color: var(--muted);
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(12, 1fr);
+        gap: 14px;
+        margin-top: 18px;
+      }
+
+      section,
+      article {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 16px;
+      }
+
+      section {
+        grid-column: span 12;
+      }
+
+      .half {
+        grid-column: span 6;
+      }
+
+      .third {
+        grid-column: span 4;
+      }
+
+      .toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+      }
+
+      button,
+      select,
+      input,
+      textarea {
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        color: var(--ink);
+        font: inherit;
+      }
+
+      button {
+        min-height: 38px;
+        padding: 8px 12px;
+        background: var(--brand);
+        color: white;
+        cursor: pointer;
+        font-weight: 700;
+      }
+
+      button.secondary {
+        background: white;
+        color: var(--brand);
+        border-color: #caa0a4;
+      }
+
+      input,
+      select,
+      textarea {
+        width: 100%;
+        padding: 9px 10px;
+        background: white;
+      }
+
+      textarea {
+        min-height: 90px;
+        resize: vertical;
+      }
+
+      label {
+        display: grid;
+        gap: 6px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+      }
+
+      th,
+      td {
+        border-bottom: 1px solid var(--line);
+        padding: 9px 8px;
+        text-align: left;
+        vertical-align: top;
+      }
+
+      th {
+        color: var(--muted);
+        font-size: 12px;
+        white-space: nowrap;
+      }
+
+      .cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 10px;
+      }
+
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        width: fit-content;
+        min-height: 26px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 3px 8px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .badge.good {
+        border-color: #a8d5bc;
+        color: var(--good);
+      }
+
+      .badge.warn {
+        border-color: #e1bf77;
+        color: var(--warn);
+      }
+
+      .stack {
+        display: grid;
+        gap: 10px;
+      }
+
+      .form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .full {
+        grid-column: 1 / -1;
+      }
+
+      .note {
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      @media (max-width: 760px) {
+        section,
+        .half,
+        .third {
+          grid-column: span 12;
+        }
+
+        .form-grid {
+          grid-template-columns: 1fr;
+        }
+
+        table {
+          font-size: 13px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <span class="badge">서버 설정 없이 사용하는 점검판</span>
+        <h1>본성 스테이지 오프라인 점검</h1>
+        <p class="lead">
+          이 HTML은 별도 서버가 없어도 직원, 수강생, 프로그램, 상담요청, 공지 흐름을 브라우저에서 점검할 수 있게 만든 임시 파일입니다.
+          입력한 상담요청과 공지는 현재 브라우저의 localStorage에만 저장됩니다.
+        </p>
+      </header>
+
+      <div class="grid">
+        <section>
+          <h2>역할별 보기</h2>
+          <div class="toolbar">
+            <button data-role="owner">대표</button>
+            <button data-role="manager" class="secondary">매니저</button>
+            <button data-role="teacher" class="secondary">강사</button>
+            <button data-role="student" class="secondary">수강생</button>
+            <span id="roleHelp" class="note"></span>
+          </div>
+        </section>
+
+        <section class="third">
+          <h2>직원·강사</h2>
+          <p class="lead"><strong id="teacherCount">0</strong>명</p>
+        </section>
+
+        <section class="third">
+          <h2>수강생</h2>
+          <p class="lead"><strong id="studentCount">0</strong>명</p>
+        </section>
+
+        <section class="third">
+          <h2>프로그램</h2>
+          <p class="lead"><strong id="courseCount">0</strong>개</p>
+        </section>
+
+        <section class="half">
+          <h2>수강생 목록</h2>
+          <div style="overflow-x:auto">
+            <table>
+              <thead>
+                <tr>
+                  <th>이름</th>
+                  <th>등록</th>
+                  <th>담당</th>
+                  <th>프로그램</th>
+                  <th>결제</th>
+                </tr>
+              </thead>
+              <tbody id="studentRows"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="half">
+          <h2>직원·프로그램</h2>
+          <div id="staffCards" class="cards"></div>
+        </section>
+
+        <section class="half">
+          <h2>상담요청 보내기</h2>
+          <form id="consultationForm" class="stack">
+            <div class="form-grid">
+              <label>수강생
+                <select name="studentId"></select>
+              </label>
+              <label>우선순위
+                <select name="priority">
+                  <option>보통</option>
+                  <option>높음</option>
+                  <option>긴급</option>
+                </select>
+              </label>
+              <label class="full">요청 내용
+                <textarea name="memo" placeholder="예: 다음 수업 시간 변경 가능 여부를 확인해주세요."></textarea>
+              </label>
+            </div>
+            <button type="submit">상담요청 저장</button>
+          </form>
+          <p class="note">수강생은 요청만 보낼 수 있고, 대표/매니저/강사는 상태 확인용으로 봅니다.</p>
+        </section>
+
+        <section class="half">
+          <h2>공지 작성</h2>
+          <form id="noticeForm" class="stack">
+            <div class="form-grid">
+              <label>제목
+                <input name="title" placeholder="공지 제목" />
+              </label>
+              <label>대상
+                <select name="target">
+                  <option value="all">전체</option>
+                  <option value="staff">직원/강사</option>
+                  <option value="students">수강생</option>
+                </select>
+              </label>
+              <label class="full">내용
+                <textarea name="body" placeholder="공지 내용을 입력합니다."></textarea>
+              </label>
+            </div>
+            <button type="submit">공지 저장</button>
+          </form>
+          <p id="noticeGuard" class="note"></p>
+        </section>
+
+        <section class="half">
+          <h2>상담요청 기록</h2>
+          <div id="consultationList" class="stack"></div>
+        </section>
+
+        <section class="half">
+          <h2>공지 기록</h2>
+          <div id="noticeList" class="stack"></div>
+        </section>
+
+        <section>
+          <h2>프로그램 목록</h2>
+          <div id="courseCards" class="cards"></div>
+        </section>
+      </div>
+    </main>
+
+    <script>
+      const teachers = [
+        ["강은미", "Director", "대표/원장, 교육철학, 전체 운영 방향, 대외 브랜드 대표성"],
+        ["황휘현", "Head Coach", "수석 강사, 교육 운영 핵심 담당"],
+        ["최혜령", "Head Coach", "수석 강사, 교육 운영 핵심 담당"],
+        ["이성현", "Coach", "강사"],
+        ["김새미", "Coach", "강사"],
+        ["조영진", "Student Success Manager", "학생관리, 상담, 학사관리, 멘토링"],
+        ["진호", "Finance & Operations Manager", "재무, 행정, 운영관리"],
+        ["김재은", "Brand Producer", "브랜드, 콘텐츠, SNS, 제작 관련 업무"]
+      ];
+
+      const students = [
+        "장윤호","문홍재","신동우","문지환","최훈","정영진","신호근","이민진","임승현","(신) 김태지",
+        "서민엽","(신) 조영진","문인수","김영석","박소영","이선제","오상훈","(신) 이지수","문대성",
+        "최준명","황동규","박재동","김태형(?)","장세진","(신) 하혜영","김미진","(신) 이성현","지다솜"
+      ].map((name) => ({
+        id: slug(name),
+        name,
+        registration: name.startsWith("(신)") ? "확인 필요" : "등록 확정",
+        teacher: "미정",
+        program: "미정",
+        payment: "확인 필요"
+      }));
+
+      const courses = [
+        ["본성 프리컬리지", "핵심", "입시생, 예비 전공자", "입시 및 예비 음악가 과정"],
+        ["본성 아티스트", "핵심", "성인 취미·전문 지향 수강생", "성인 전문과정, 작품 제작형 교육"],
+        ["보컬 리디자인", "핵심", "청소년, 성인, 음성 사용 직업군", "목소리·호흡·자기표현 회복형 보컬 교육"],
+        ["프로젝트 수업", "확장", "전체 수강생 중 참여자", "결과물 중심 교육"],
+        ["교양교육", "확장", "프리컬리지, 심화 수강생", "생각하는 음악가 양성"],
+        ["단기 목적형 수업", "단기", "축가, 대회, 발표, 면접 등 특정 목적 수강생", "단기 목표 달성"],
+        ["해피아워 클래스", "보조", "시니어, 주부, 오전 가능 성인", "오전 시간대 커뮤니티 형성"]
+      ];
+
+      const state = {
+        role: "owner",
+        consultations: readList("bonsung_offline_consultations"),
+        notices: readList("bonsung_offline_notices")
+      };
+
+      if (!state.notices.length) {
+        state.notices.push({ title: "초기 운영 데이터 점검", target: "all", body: "Notion DB 기반 직원·수강생·프로그램 데이터가 반영되었습니다.", createdAt: nowText(), authorRole: "owner" });
+        save();
+      }
+
+      document.querySelectorAll("[data-role]").forEach((button) => {
+        button.addEventListener("click", () => {
+          state.role = button.dataset.role;
+          render();
+        });
+      });
+
+      document.querySelector("#consultationForm").addEventListener("submit", (event) => {
+        event.preventDefault();
+        const data = new FormData(event.currentTarget);
+        const student = students.find((item) => item.id === data.get("studentId"));
+        const memo = String(data.get("memo") || "").trim();
+        if (!student || !memo) return;
+        state.consultations.unshift({ studentName: student.name, priority: data.get("priority"), memo, status: "접수됨", createdAt: nowText() });
+        event.currentTarget.reset();
+        save();
+        render();
+      });
+
+      document.querySelector("#noticeForm").addEventListener("submit", (event) => {
+        event.preventDefault();
+        if (!["owner", "manager"].includes(state.role)) return;
+        const data = new FormData(event.currentTarget);
+        const title = String(data.get("title") || "").trim();
+        const body = String(data.get("body") || "").trim();
+        if (!title || !body) return;
+        state.notices.unshift({ title, body, target: data.get("target"), createdAt: nowText(), authorRole: state.role });
+        event.currentTarget.reset();
+        save();
+        render();
+      });
+
+      render();
+
+      function render() {
+        document.querySelectorAll("[data-role]").forEach((button) => {
+          button.classList.toggle("secondary", button.dataset.role !== state.role);
+        });
+        document.querySelector("#roleHelp").textContent = roleHelp();
+        document.querySelector("#teacherCount").textContent = teachers.length;
+        document.querySelector("#studentCount").textContent = students.length;
+        document.querySelector("#courseCount").textContent = courses.length;
+
+        const visibleStudents = state.role === "student" ? students.slice(0, 1) : students;
+        document.querySelector("#studentRows").innerHTML = visibleStudents.map((student) => `
+          <tr>
+            <td>${escapeHtml(student.name)}</td>
+            <td><span class="badge ${student.registration === "등록 확정" ? "good" : "warn"}">${student.registration}</span></td>
+            <td>${student.teacher}</td>
+            <td>${student.program}</td>
+            <td>${student.payment}</td>
+          </tr>
+        `).join("");
+
+        const studentSelect = document.querySelector("select[name='studentId']");
+        studentSelect.innerHTML = visibleStudents.map((student) => `<option value="${student.id}">${escapeHtml(student.name)}</option>`).join("");
+
+        document.querySelector("#staffCards").innerHTML = teachers.map(([name, role, memo]) => `
+          <article>
+            <h3>${escapeHtml(name)}</h3>
+            <p><span class="badge">${escapeHtml(role)}</span></p>
+            <p class="note">${escapeHtml(memo)}</p>
+          </article>
+        `).join("");
+
+        document.querySelector("#courseCards").innerHTML = courses.map(([name, type, target, purpose]) => `
+          <article>
+            <h3>${escapeHtml(name)}</h3>
+            <p><span class="badge">${escapeHtml(type)}</span></p>
+            <p class="note">${escapeHtml(target)}</p>
+            <p>${escapeHtml(purpose)}</p>
+          </article>
+        `).join("");
+
+        const canWriteNotice = ["owner", "manager"].includes(state.role);
+        document.querySelector("#noticeForm").querySelectorAll("input, select, textarea, button").forEach((control) => {
+          control.disabled = !canWriteNotice;
+        });
+        document.querySelector("#noticeGuard").textContent = canWriteNotice ? "대표와 매니저만 공지를 작성할 수 있습니다." : "현재 역할은 공지 작성 권한이 없습니다.";
+
+        document.querySelector("#consultationList").innerHTML = state.consultations.length
+          ? state.consultations.map((item) => `<article><h3>${escapeHtml(item.studentName)} · ${escapeHtml(item.priority)}</h3><p>${escapeHtml(item.memo)}</p><p class="note">${escapeHtml(item.status)} · ${escapeHtml(item.createdAt)}</p></article>`).join("")
+          : `<p class="note">아직 상담요청이 없습니다.</p>`;
+
+        document.querySelector("#noticeList").innerHTML = state.notices.map((item) => `<article><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(item.body)}</p><p class="note">${escapeHtml(item.target)} · ${escapeHtml(item.createdAt)}</p></article>`).join("");
+      }
+
+      function roleHelp() {
+        const map = {
+          owner: "대표: 전체 데이터와 공지 작성 가능",
+          manager: "매니저: 운영 데이터와 공지 작성 가능",
+          teacher: "강사: 수업 관련 데이터 확인 중심",
+          student: "수강생: 본인 데이터와 상담요청 중심"
+        };
+        return map[state.role];
+      }
+
+      function save() {
+        localStorage.setItem("bonsung_offline_consultations", JSON.stringify(state.consultations));
+        localStorage.setItem("bonsung_offline_notices", JSON.stringify(state.notices));
+      }
+
+      function readList(key) {
+        try {
+          const value = JSON.parse(localStorage.getItem(key) || "[]");
+          return Array.isArray(value) ? value : [];
+        } catch {
+          return [];
+        }
+      }
+
+      function slug(value) {
+        return String(value).replace(/[()?\s]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
+      }
+
+      function nowText() {
+        return new Date().toLocaleString("ko-KR", { hour12: false });
+      }
+
+      function escapeHtml(value) {
+        return String(value).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
+      }
+    </script>
+  </body>
+</html>

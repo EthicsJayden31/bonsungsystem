@@ -9,6 +9,7 @@ ENV VERSION3_LOCAL_DATA_FILE=/data/version3-data.json
 RUN mkdir -p /app/server /data && chown -R node:node /app /data
 
 COPY --chown=node:node server/version3-local-server.mjs ./server/version3-local-server.mjs
+COPY --chown=node:node server/bonsung-initial-data.mjs ./server/bonsung-initial-data.mjs
 
 USER node
 

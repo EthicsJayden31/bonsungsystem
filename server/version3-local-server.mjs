@@ -2,6 +2,7 @@ import { createServer } from "node:http";
 import { randomUUID, scryptSync, timingSafeEqual } from "node:crypto";
 import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, statSync, writeFileSync } from "node:fs";
 import { basename, dirname, resolve } from "node:path";
+import { bonsungInitialCourses, bonsungInitialStudents, bonsungInitialTeachers } from "./bonsung-initial-data.mjs";
 
 const port = Number(process.env.VERSION3_LOCAL_SERVER_PORT || process.env.PORT || 4303);
 const host = (process.env.VERSION3_SERVER_HOST || "127.0.0.1").trim() || "127.0.0.1";
@@ -724,7 +725,7 @@ function handleAction(response, account, action, body) {
       priority: stringValue(input.priority || "보통"),
       memo: stringValue(input.memo),
       assignedTo: "manager-1",
-      assignedToName: "Manager Account",
+      assignedToName: "조영진",
       statusUpdatedAt: new Date().toISOString(),
       unreadForAccountIds: notificationAccountIds(["owner", "manager"], account.id)
     };
@@ -1355,69 +1356,65 @@ function backupPathFor(path) {
 
 function createSeedData() {
   const accounts = [
-    createSeedAccount("owner-1", "owner", "Owner Account", "owner", ""),
-    createSeedAccount("manager-1", "manager", "Manager Account", "manager", ""),
-    createSeedAccount("teacher-1", "teacher", "Teacher Account", "teacher", ""),
-    createSeedAccount("student-1-account", "student", "Student Account", "student", "student-1", "Lee Doyun")
+    createSeedAccount("owner-1", "owner", "강은미", "owner", ""),
+    createSeedAccount("manager-1", "manager", "조영진", "manager", ""),
+    createSeedAccount("teacher-1", "teacher", "황휘현", "teacher", ""),
+    createSeedAccount("student-1-account", "student", "장윤호", "student", "student-jang-yunho", "장윤호")
   ];
 
   return {
     accounts,
     accountHistory: [
-      { id: "account-history-1", accountId: "manager-1", accountName: "Manager Account", actorId: "owner-1", actorName: "Owner Account", action: "create_account", role: "manager", occurredAt: "2026-07-01T09:10:00+09:00" }
+      { id: "account-history-1", accountId: "manager-1", accountName: "조영진", actorId: "owner-1", actorName: "강은미", action: "create_account", role: "manager", occurredAt: "2026-07-01T09:10:00+09:00" }
     ],
     auditLogs: [
-      { id: "audit-1", actorId: "owner-1", actorName: "Owner Account", action: "create_account", targetType: "account", targetId: "manager-1", targetName: "Manager Account", metadata: { role: "manager" }, createdAt: "2026-07-01T09:10:00+09:00" }
+      { id: "audit-1", actorId: "owner-1", actorName: "강은미", action: "create_account", targetType: "account", targetId: "manager-1", targetName: "조영진", metadata: { role: "manager" }, createdAt: "2026-07-01T09:10:00+09:00" }
     ],
     teachers: [
-      { id: "teacher-1", name: "Teacher Account", major: "Vocal" },
-      { id: "teacher-2", name: "Kim Piano", major: "Piano" }
+      ...bonsungInitialTeachers
     ],
     students: [
-      { id: "student-1", name: "Lee Doyun", birthDate: "2007-04-12", phone: "010-1111-2222", major: "Vocal", goal: "Entrance audition basics", status: "재원", enrolledAt: "2026-06-01", memo: "Rhythm and pitch check", teacherId: "teacher-1" },
-      { id: "student-2", name: "Choi Seoyeon", birthDate: "2009-09-21", phone: "010-3333-4444", major: "Piano", goal: "Jazz harmony basics", status: "등록대기", enrolledAt: "", memo: "Needs student account", teacherId: "teacher-2" }
+      ...bonsungInitialStudents
     ],
     guardians: [
-      { id: "guardian-1", studentId: "student-1", name: "Lee Guardian", relation: "Mother", phone: "010-7777-1111", payer: true, emergency: true, memo: "Prefers SMS" },
-      { id: "guardian-2", studentId: "student-2", name: "Choi Guardian", relation: "Father", phone: "010-7777-2222", payer: true, emergency: false, memo: "Afternoon calls" }
+      { id: "guardian-1", studentId: "student-jang-yunho", name: "장윤호 보호자", relation: "보호자", phone: "", payer: true, emergency: true, memo: "Notion 초기 데이터에는 연락처가 없어 추후 입력 필요" }
     ],
     consultations: [
-      { id: "consult-1", studentId: "student-1", studentName: "Lee Doyun", guardianName: "", phone: "", channel: "Version.3", major: "Vocal", goal: "Schedule change", date: "2026-07-01", followUpDate: "", status: "접수됨", priority: "보통", memo: "Please check next lesson time.", assignedTo: "manager-1", assignedToName: "Manager Account", statusUpdatedAt: "2026-07-01", unreadForAccountIds: ["owner-1", "manager-1"] }
+      { id: "consult-1", studentId: "student-jang-yunho", studentName: "장윤호", guardianName: "", phone: "", channel: "Version.3", major: "미정", goal: "초기 운영 데이터 확인", date: "2026-07-01", followUpDate: "", status: "접수됨", priority: "보통", memo: "Notion 수강생 DB 이관 후 수업 요일/시간과 프로그램 배정 확인 필요.", assignedTo: "manager-1", assignedToName: "조영진", statusUpdatedAt: "2026-07-01", unreadForAccountIds: ["owner-1", "manager-1"] }
     ],
     consultationHistory: [
-      { id: "consult-history-1", consultationId: "consult-1", actorId: "student-1-account", actorName: "Student Account", action: "create_consultation", status: "접수됨", assignedTo: "manager-1", assignedToName: "Manager Account", occurredAt: "2026-07-01T09:30:00+09:00" }
+      { id: "consult-history-1", consultationId: "consult-1", actorId: "student-1-account", actorName: "장윤호", action: "create_consultation", status: "접수됨", assignedTo: "manager-1", assignedToName: "조영진", occurredAt: "2026-07-01T09:30:00+09:00" }
     ],
     courses: [
-      { id: "course-1", name: "Vocal Private Lesson", major: "Vocal", teacherId: "teacher-1", status: "운영중" },
-      { id: "course-2", name: "Jazz Piano", major: "Piano", teacherId: "teacher-2", status: "운영중" }
+      ...bonsungInitialCourses
     ],
     enrollments: [
-      { id: "enroll-1", studentId: "student-1", courseId: "course-1", teacherId: "teacher-1", startDate: "2026-06-01", status: "수강중", memo: "Weekly 60 minutes" }
+      { id: "enroll-1", studentId: "student-jang-yunho", courseId: "course-precollege", teacherId: "teacher-unassigned", startDate: "", status: "등록 확정", memo: "Notion 수강생 DB 기준 등록 확정. 실제 프로그램/담당 강사 배정 필요." }
     ],
     lessons: [
-      { id: "lesson-1", studentId: "student-1", teacherId: "teacher-1", courseId: "course-1", startsAt: "2026-07-01T14:00:00+09:00", duration: 60, status: "예정", memo: "Pitch check" }
+      { id: "lesson-1", studentId: "student-jang-yunho", teacherId: "teacher-unassigned", courseId: "course-precollege", startsAt: "2026-07-02T14:00:00+09:00", duration: 60, status: "배정필요", memo: "초기 이관 데이터 점검용 수업" }
     ],
     attendance: [
-      { id: "att-1", lessonId: "lesson-1", studentId: "student-1", status: "미처리", makeupNeeded: false, memo: "Today" }
+      { id: "att-1", lessonId: "lesson-1", studentId: "student-jang-yunho", status: "미처리", makeupNeeded: false, memo: "초기 이관 데이터 점검" }
     ],
     lessonNotes: [
-      { id: "note-1", lessonId: "lesson-1", studentId: "student-1", teacherId: "teacher-1", date: "2026-07-01", content: "Warmups", homework: "Metronome practice", nextGoal: "Stable pitch", practiceRequest: "20 minutes daily", internalMemo: "Nervous at start" }
+      { id: "note-1", lessonId: "lesson-1", studentId: "student-jang-yunho", teacherId: "teacher-unassigned", date: "2026-07-02", content: "초기 이관 데이터 확인", homework: "프로그램과 담당 강사 배정 확인", nextGoal: "실제 수업 시작일 입력", practiceRequest: "", internalMemo: "Notion 수강생 DB 기반" }
     ],
     rooms: [
       { id: "room-1", name: "A Vocal Room", location: "2F", capacity: 2, status: "사용가능" }
     ],
     reservations: [
-      { id: "reserve-1", roomId: "room-1", studentId: "student-1", requester: "Manager Account", startsAt: "2026-07-01T18:00:00+09:00", endsAt: "2026-07-01T19:00:00+09:00", status: "예약", memo: "Practice" }
+      { id: "reserve-1", roomId: "room-1", studentId: "student-jang-yunho", requester: "조영진", startsAt: "2026-07-02T18:00:00+09:00", endsAt: "2026-07-02T19:00:00+09:00", status: "예약", memo: "초기 점검용 예약" }
     ],
     payments: [
-      { id: "payment-1", studentId: "student-1", title: "July Vocal Lesson", amount: 280000, status: "청구완료", dueDate: "2026-07-10", paidAt: "", memo: "Guardian confirmation" }
+      { id: "payment-1", studentId: "student-jang-yunho", title: "초기 등록 확인", amount: 0, status: "확인 필요", dueDate: "", paidAt: "", memo: "Notion 결제 상태: 확인 필요" }
     ],
     tasks: [
-      { id: "task-1", title: "Prepare opening 상담 list", assignee: "Manager Account", dueDate: "2026-07-03", status: "진행중", priority: "높음", memo: "Sort by channel" }
+      { id: "task-1", title: "초기 수강생 프로그램 배정", assignee: "조영진", dueDate: "2026-07-03", status: "진행중", priority: "높음", memo: "Notion 수강생 DB 등록 확정자부터 프로그램과 담당 강사를 배정" }
     ],
     notices: [
-      { id: "notice-1", title: "Opening operation standard", category: "운영규정", author: "Owner Account", updatedAt: "2026-07-01", body: "Managers check consultation requests first.", targetRoles: ["owner", "manager", "teacher", "student"], pinned: true, active: true },
-      { id: "notice-2", title: "Lesson note standard", category: "강사매뉴얼", author: "Manager Account", updatedAt: "2026-07-01", body: "Record lesson content, homework, and next goal.", targetRoles: ["owner", "manager", "teacher"], pinned: false, active: true }
+      { id: "notice-1", title: "본성 스테이지 초기 운영 데이터 반영", category: "운영규정", author: "강은미", updatedAt: "2026-07-01", body: "직원, 수강생, 프로그램 초기 데이터는 Notion 본성뮤직 초기 운영 자료 DB를 기준으로 반영합니다.", targetRoles: ["owner", "manager", "teacher", "student"], pinned: true, active: true },
+      { id: "notice-2", title: "수업 기록 작성 기준", category: "강사매뉴얼", author: "조영진", updatedAt: "2026-07-01", body: "수업 내용, 과제, 다음 목표, 특이사항을 수업 후 바로 기록합니다.", targetRoles: ["owner", "manager", "teacher"], pinned: false, active: true }
     ]
   };
 }
