@@ -5,6 +5,17 @@ import { students } from "@/lib/demo-data";
 import { APPS_SCRIPT_ENDPOINT, APPS_SCRIPT_SESSION_TOKEN_KEY, APPS_SCRIPT_USER_KEY } from "@/lib/apps-script-client";
 import { normalizeRole, type Role } from "@/lib/auth-shared";
 import { PREVIEW_ACCOUNT_DRAFTS_KEY, PREVIEW_ACCOUNT_HISTORY_KEY } from "@/lib/client-session";
+import {
+  VERSION3_TEST_DATA_CHANGE_EVENT,
+  createVersion3TestAccount,
+  hasVersion3TestSession,
+  resetVersion3TestAccountPassword,
+  updateVersion3TestAccountStatus,
+  updateVersion3TestPermissions,
+  version3TestAccountHistory,
+  version3TestAccounts,
+  version3TestCurrentAccountId
+} from "@/lib/version3-test-mode";
 import { callVersion3Server, hasVersion3ServerSession } from "@/lib/version3-server-client";
 import { ENABLE_APPS_SCRIPT_TRANSITION, ENABLE_PREVIEW_LOGIN } from "@/lib/version3-runtime-flags";
 import {
@@ -19,7 +30,7 @@ import {
   type Version3Permissions
 } from "@/lib/version3-server-contract";
 
-type AccountSource = "loading" | "server" | "live" | "preview" | "fallback";
+type AccountSource = "loading" | "server" | "live" | "test" | "preview" | "fallback";
 
 type AccountRecord = Record<string, unknown>;
 
@@ -162,6 +173,23 @@ export function useAccountsData(options: AccountsDataOptions = {}): AccountsStat
     }
 
     const token = ENABLE_APPS_SCRIPT_TRANSITION ? window.localStorage.getItem(APPS_SCRIPT_SESSION_TOKEN_KEY) : "";
+    if (hasVersion3TestSession()) {
+      const setTestAccounts = () => {
+        if (!active) return;
+        setAccounts(version3TestAccounts());
+        setDrafts([]);
+        setAccountHistory(version3TestAccountHistory());
+        setSource("test");
+        setError("");
+      };
+      queueMicrotask(setTestAccounts);
+      window.addEventListener(VERSION3_TEST_DATA_CHANGE_EVENT, setTestAccounts);
+      return () => {
+        active = false;
+        window.removeEventListener(VERSION3_TEST_DATA_CHANGE_EVENT, setTestAccounts);
+      };
+    }
+
     if (hasVersion3ServerSession()) {
       queueMicrotask(() => {
         if (!active) return;
@@ -248,6 +276,16 @@ export function useAccountsData(options: AccountsDataOptions = {}): AccountsStat
     if (input.role === "student" && mergedAccounts.some((account) => account.role === "student" && account.linkedStudentId === input.linkedStudentId)) {
       throw new Error("이미 수강생 계정과 연결된 학생입니다.");
     }
+    if (hasVersion3TestSession()) {
+      createVersion3TestAccount(input);
+      setAccounts(version3TestAccounts());
+      setAccountHistory(version3TestAccountHistory());
+      setDrafts([]);
+      setSource("test");
+      setError("");
+      return;
+    }
+
     if (hasVersion3ServerSession()) {
       const created = await callVersion3Server<AccountRecord>("/accounts", { method: "POST", body: { account: input } });
       setAccounts((current) => [mapServerAccount(created), ...current]);
@@ -293,6 +331,15 @@ export function useAccountsData(options: AccountsDataOptions = {}): AccountsStat
   }
 
   async function updateAccountStatus(accountId: string, active: boolean) {
+    if (hasVersion3TestSession()) {
+      updateVersion3TestAccountStatus(accountId, active);
+      patchAccount(accountId, { status: active ? "active" : "paused" });
+      setAccountHistory(version3TestAccountHistory());
+      setSource("test");
+      setError("");
+      return;
+    }
+
     if (hasVersion3ServerSession()) {
       await callVersion3Server<boolean>(`/accounts/${encodeURIComponent(accountId)}/status`, { method: "PATCH", body: { active } });
       patchAccount(accountId, { status: active ? "active" : "paused" });
@@ -319,6 +366,15 @@ export function useAccountsData(options: AccountsDataOptions = {}): AccountsStat
   }
 
   async function resetAccountPassword(accountId: string, password: string) {
+    if (hasVersion3TestSession()) {
+      resetVersion3TestAccountPassword(accountId, password);
+      patchAccount(accountId, { mustChangePassword: true, status: "active" });
+      setAccountHistory(version3TestAccountHistory());
+      setSource("test");
+      setError("");
+      return;
+    }
+
     if (hasVersion3ServerSession()) {
       await callVersion3Server<boolean>(`/accounts/${encodeURIComponent(accountId)}/password`, { method: "PATCH", body: { password } });
       patchAccount(accountId, { mustChangePassword: true, status: "active" });
@@ -347,6 +403,15 @@ export function useAccountsData(options: AccountsDataOptions = {}): AccountsStat
   async function updateAccountPermissions(accountId: string, permissions: Version3Permissions) {
     const nextPermissions = normalizePermissions(permissions);
     const beforePermissions = mergedAccounts.find((account) => account.id === accountId)?.permissions || {};
+    if (hasVersion3TestSession()) {
+      updateVersion3TestPermissions(accountId, nextPermissions);
+      patchAccount(accountId, { permissions: nextPermissions });
+      setAccountHistory(version3TestAccountHistory());
+      setSource("test");
+      setError("");
+      return;
+    }
+
     if (hasVersion3ServerSession()) {
       await callVersion3Server<boolean>(`/accounts/${encodeURIComponent(accountId)}/permissions`, { method: "PATCH", body: { permissions: nextPermissions } });
       patchAccount(accountId, { permissions: nextPermissions });
@@ -421,9 +486,9 @@ export function useAccountsData(options: AccountsDataOptions = {}): AccountsStat
     source,
     accounts: mergedAccounts,
     accountHistory,
-    currentAccountId: readCurrentAccountId(),
+    currentAccountId: hasVersion3TestSession() ? version3TestCurrentAccountId() : readCurrentAccountId(),
     error,
-    hasLiveSession: typeof window !== "undefined" && (hasVersion3ServerSession() || (ENABLE_APPS_SCRIPT_TRANSITION && Boolean(window.localStorage.getItem(APPS_SCRIPT_SESSION_TOKEN_KEY)))),
+    hasLiveSession: typeof window !== "undefined" && (hasVersion3TestSession() || hasVersion3ServerSession() || (ENABLE_APPS_SCRIPT_TRANSITION && Boolean(window.localStorage.getItem(APPS_SCRIPT_SESSION_TOKEN_KEY)))),
     createAccount,
     resetAccountPassword,
     updateAccountPermissions,

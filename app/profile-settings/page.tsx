@@ -9,6 +9,7 @@ import { useOperationAction, useOperationsData } from "@/lib/operations-data";
 import { readPreferences, savePreferences, startPages, type Preferences } from "@/lib/preferences";
 import { useCurrentUser } from "@/lib/use-current-user";
 import { usePreviewRole } from "@/lib/use-preview-role";
+import { changeVersion3TestPassword, hasVersion3TestSession } from "@/lib/version3-test-mode";
 import { changeVersion3ServerPassword, hasVersion3ServerSession } from "@/lib/version3-server-client";
 
 export default function ProfileSettingsPage() {
@@ -42,8 +43,8 @@ export default function ProfileSettingsPage() {
     const newPassword = values.newPassword || "";
     const confirmPassword = values.confirmPassword || "";
 
-    if (!hasVersion3ServerSession()) {
-      setPasswordMessage("Version.3 서버 로그인 세션에서만 비밀번호를 변경할 수 있습니다.");
+    if (!hasVersion3ServerSession() && !hasVersion3TestSession()) {
+      setPasswordMessage("Version.3 서버 또는 테스트모드 로그인 세션에서만 비밀번호를 변경할 수 있습니다.");
       return;
     }
     if (newPassword.length < 8) {
@@ -58,10 +59,14 @@ export default function ProfileSettingsPage() {
     setPasswordPending(true);
     setPasswordMessage("");
     try {
-      const result = await changeVersion3ServerPassword(currentPassword, newPassword);
-      updateServerSessionUser(result.user);
+      if (hasVersion3TestSession()) {
+        changeVersion3TestPassword(currentPassword, newPassword);
+      } else {
+        const result = await changeVersion3ServerPassword(currentPassword, newPassword);
+        updateServerSessionUser(result.user);
+      }
       form.reset();
-      setPasswordMessage("비밀번호가 변경되었습니다. 이제 모든 Version.3 화면을 사용할 수 있습니다.");
+      setPasswordMessage("비밀번호가 변경되었습니다.");
     } catch (caught) {
       setPasswordMessage(caught instanceof Error ? caught.message : "비밀번호를 변경하지 못했습니다.");
     } finally {
@@ -103,7 +108,7 @@ export default function ProfileSettingsPage() {
 
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
           <div className="space-y-5">
-            {hasVersion3ServerSession() ? (
+            {hasVersion3ServerSession() || hasVersion3TestSession() ? (
               <SettingCard
                 title={user?.mustChangePassword || forcePasswordChange ? "비밀번호 변경 필요" : "Version.3 계정 보안"}
                 description={user?.mustChangePassword || forcePasswordChange ? "임시 비밀번호로 로그인한 계정입니다. 새 비밀번호를 설정해야 다른 운영 화면을 계속 사용할 수 있습니다." : "서버 계정의 비밀번호를 변경합니다."}

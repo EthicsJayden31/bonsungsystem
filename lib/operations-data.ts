@@ -50,13 +50,14 @@ import { normalizeRole, type Role } from "@/lib/auth-shared";
 import { canAccessVersion3Area, hasVersion3Permission, type AccessUser } from "@/lib/access-policy";
 import { APPS_SCRIPT_ENDPOINT, APPS_SCRIPT_SESSION_TOKEN_KEY } from "@/lib/apps-script-client";
 import { useCurrentUser } from "@/lib/use-current-user";
+import { VERSION3_TEST_DATA_CHANGE_EVENT, hasVersion3TestSession, readVersion3TestData, runVersion3TestAction } from "@/lib/version3-test-mode";
 import { normalizeConsultationStatus, type Version3AuditLog, type Version3DashboardWorkItem, type Version3DashboardWorkPriority, type Version3DashboardWorkTone } from "@/lib/version3-server-contract";
 import { callVersion3Server, hasVersion3ServerSession, version3ServerEndpoint } from "@/lib/version3-server-client";
 import { ENABLE_APPS_SCRIPT_TRANSITION, ENABLE_PREVIEW_LOGIN } from "@/lib/version3-runtime-flags";
 
 const SESSION_TOKEN_KEY = APPS_SCRIPT_SESSION_TOKEN_KEY;
 
-export type DataSource = "loading" | "server" | "live" | "preview" | "fallback";
+export type DataSource = "loading" | "server" | "live" | "test" | "preview" | "fallback";
 
 export type DataQualityIssue = {
   severity: "blocking" | "warning" | "info";
@@ -229,6 +230,20 @@ export function useOperationAction(): OperationActionState {
   const [error, setError] = useState("");
 
   async function run<T>(action: string, payload: Record<string, unknown> = {}) {
+    if (hasVersion3TestSession()) {
+      setPending(true);
+      setError("");
+      try {
+        return await runVersion3TestAction<T>(action, payload);
+      } catch (caught) {
+        const message = caught instanceof Error ? caught.message : String(caught);
+        setError(message);
+        throw new Error(message);
+      } finally {
+        setPending(false);
+      }
+    }
+
     if (hasVersion3ServerSession()) {
       setPending(true);
       setError("");
@@ -266,8 +281,8 @@ export function useOperationAction(): OperationActionState {
   return {
     pending,
     error,
-    hasLiveSession: typeof window !== "undefined" && (hasVersion3ServerSession() || (ENABLE_APPS_SCRIPT_TRANSITION && Boolean(window.localStorage.getItem(SESSION_TOKEN_KEY)))),
-    endpoint: hasVersion3ServerSession() ? version3ServerEndpoint() : APPS_SCRIPT_ENDPOINT,
+    hasLiveSession: typeof window !== "undefined" && (hasVersion3TestSession() || hasVersion3ServerSession() || (ENABLE_APPS_SCRIPT_TRANSITION && Boolean(window.localStorage.getItem(SESSION_TOKEN_KEY)))),
+    endpoint: hasVersion3TestSession() ? "localStorage:version3-test" : hasVersion3ServerSession() ? version3ServerEndpoint() : APPS_SCRIPT_ENDPOINT,
     run
   };
 }
@@ -288,6 +303,25 @@ export function useOperationsData(role: Role | null): OperationsState {
   useEffect(() => {
     let active = true;
     const token = ENABLE_APPS_SCRIPT_TRANSITION ? window.localStorage.getItem(SESSION_TOKEN_KEY) : "";
+    if (hasVersion3TestSession()) {
+      const setTestState = () => {
+        if (!active) return;
+        setState({
+          source: "test",
+          data: filterOperationsData(readVersion3TestData(), accessUser),
+          error: "",
+          hasLiveSession: true,
+          endpoint: "localStorage:version3-test"
+        });
+      };
+      queueMicrotask(setTestState);
+      window.addEventListener(VERSION3_TEST_DATA_CHANGE_EVENT, setTestState);
+      return () => {
+        active = false;
+        window.removeEventListener(VERSION3_TEST_DATA_CHANGE_EVENT, setTestState);
+      };
+    }
+
     if (hasVersion3ServerSession()) {
       queueMicrotask(() => {
         if (!active) return;
@@ -392,6 +426,37 @@ export function useDataQualityReport(): DataQualityState {
   useEffect(() => {
     let active = true;
     const token = ENABLE_APPS_SCRIPT_TRANSITION ? window.localStorage.getItem(SESSION_TOKEN_KEY) : "";
+    if (hasVersion3TestSession()) {
+      queueMicrotask(() => {
+        if (!active) return;
+        const data = readVersion3TestData();
+        setState({
+          source: "test",
+          report: {
+            generatedAt: new Date().toISOString(),
+            summary: {
+              totalIssues: 0,
+              blocking: 0,
+              warning: 0,
+              info: 0,
+              checkedSheets: ["localStorage"],
+              checkedRecords: data.students.length + data.accounts.length + data.auditLogs.length,
+              accounts: data.accounts.length,
+              students: data.students.length,
+              auditLogs: data.auditLogs.length,
+              backupEnabled: true
+            },
+            checks: [],
+            issues: []
+          },
+          error: "",
+          hasLiveSession: true,
+          endpoint: "localStorage:version3-test"
+        });
+      });
+      return () => { active = false; };
+    }
+
     if (hasVersion3ServerSession()) {
       callVersion3Server<DataQualityReport>("/data-quality")
         .then((report) => {
@@ -435,6 +500,19 @@ export function useAuditLogs(): AuditLogsState {
 
   useEffect(() => {
     let active = true;
+    if (hasVersion3TestSession()) {
+      const setTestLogs = () => {
+        if (!active) return;
+        setState({ source: "test", logs: readVersion3TestData().auditLogs, error: "", hasLiveSession: true, endpoint: "localStorage:version3-test" });
+      };
+      queueMicrotask(setTestLogs);
+      window.addEventListener(VERSION3_TEST_DATA_CHANGE_EVENT, setTestLogs);
+      return () => {
+        active = false;
+        window.removeEventListener(VERSION3_TEST_DATA_CHANGE_EVENT, setTestLogs);
+      };
+    }
+
     if (hasVersion3ServerSession()) {
       callVersion3Server<Version3AuditLog[]>("/audit-logs")
         .then((logs) => {

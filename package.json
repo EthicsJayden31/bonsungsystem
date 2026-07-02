@@ -13,6 +13,7 @@
     "verify:version3-production-env": "node tools/verify-version3-production-env.mjs",
     "verify:version3-cleanup": "node tools/verify-version3-cleanup.mjs",
     "verify:version3-release": "node tools/verify-version3-release.mjs",
+    "verify:version3-test-mode": "node tools/verify-version3-test-mode.mjs",
     "server:version3": "node server/version3-local-server.mjs",
     "start": "next start",
     "lint": "eslint .",

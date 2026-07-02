@@ -341,10 +341,11 @@ function SourceBanner({ source, error, hasLiveSession }: { source: DataSource; e
     loading: "데이터 확인 중",
     server: "Version.3 서버 데이터",
     live: "전환 연결층 데이터",
+    test: "Version.3 테스트모드",
     preview: "기능 점검 Preview 데이터",
     fallback: "연결 실패"
   }[source];
-  const tone = source === "server" || source === "live" ? "good" : source === "fallback" ? "warn" : "default";
+  const tone = source === "server" || source === "live" || source === "test" ? "good" : source === "fallback" ? "warn" : "default";
 
   return (
     <div className="rounded-2xl border border-line bg-white p-4 shadow-card">
@@ -354,6 +355,8 @@ function SourceBanner({ source, error, hasLiveSession }: { source: DataSource; e
           <p className="mt-1 text-xs leading-5 text-muted">
             {source === "server"
               ? "Version.3 별도 서버 세션을 사용해 운영 데이터를 먼저 불러옵니다."
+              : source === "test"
+              ? "테스트모드 세션을 사용해 실제 화면을 localStorage 데이터로 점검합니다."
               : source === "fallback"
               ? "운영 데이터를 불러오지 못했습니다. 서버 연결과 권한을 확인해야 합니다."
               : hasLiveSession

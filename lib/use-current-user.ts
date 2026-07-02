@@ -8,6 +8,7 @@ import {
 } from "@/lib/apps-script-client";
 import { normalizeRole, users, type CurrentUser } from "@/lib/auth-shared";
 import { PREVIEW_ROLE_KEY, SESSION_CHANGE_EVENT } from "@/lib/client-session";
+import { VERSION3_TEST_SESSION_KEY, version3TestCurrentUser } from "@/lib/version3-test-mode";
 import { VERSION3_SERVER_SESSION_TOKEN_KEY, VERSION3_SERVER_USER_KEY, type Version3ServerUser } from "@/lib/version3-server-client";
 import { ENABLE_APPS_SCRIPT_TRANSITION, ENABLE_PREVIEW_LOGIN } from "@/lib/version3-runtime-flags";
 
@@ -22,15 +23,16 @@ function subscribe(callback: () => void) {
 
 function getSnapshot() {
   const role = normalizeRole(window.localStorage.getItem(PREVIEW_ROLE_KEY));
+  const testSession = window.localStorage.getItem(VERSION3_TEST_SESSION_KEY) || "";
   const serverToken = window.localStorage.getItem(VERSION3_SERVER_SESSION_TOKEN_KEY);
   const serverUser = serverToken ? window.localStorage.getItem(VERSION3_SERVER_USER_KEY) || "" : "";
   const token = ENABLE_APPS_SCRIPT_TRANSITION ? window.localStorage.getItem(APPS_SCRIPT_SESSION_TOKEN_KEY) : "";
   const liveUser = serverUser || (token ? window.localStorage.getItem(APPS_SCRIPT_USER_KEY) || "" : "");
-  return JSON.stringify({ role, liveUser });
+  return JSON.stringify({ role, liveUser, testSession });
 }
 
 function getServerSnapshot() {
-  return JSON.stringify({ role: null, liveUser: "" });
+  return JSON.stringify({ role: null, liveUser: "", testSession: "" });
 }
 
 export function useCurrentUser() {
@@ -39,9 +41,13 @@ export function useCurrentUser() {
 }
 
 function userFromSnapshot(snapshot: string): CurrentUser | null {
-  const parsed = JSON.parse(snapshot) as { role: string | null; liveUser: string };
+  const parsed = JSON.parse(snapshot) as { role: string | null; liveUser: string; testSession?: string };
   const role = normalizeRole(parsed.role);
   if (!role) return null;
+  if (parsed.testSession) {
+    const testUser = version3TestCurrentUser();
+    if (testUser) return testUser;
+  }
   const liveUser = parsed.liveUser ? liveSessionUser(role, parsed.liveUser) : null;
   return liveUser ?? (ENABLE_PREVIEW_LOGIN ? users[role] : null);
 }

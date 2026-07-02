@@ -13,6 +13,7 @@ const sourceLabel = {
   loading: "점검 중",
   server: "Version.3 서버 데이터",
   live: "전환 연결층 데이터",
+  test: "Version.3 테스트모드",
   preview: "기능 점검 Preview",
   fallback: "연결 실패"
 };

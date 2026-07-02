@@ -8,7 +8,9 @@ Version.3 is moving toward real academy operation on a separate server instead o
 
 The real Version.3 server contract now covers the core academy operation flow: role login and permission-gated menus, account requests and approval, password reset and forced password change, students and linked student accounts, consultations, enrollments, lessons, attendance, lesson notes, space reservations with overlap checks, registrations/payments, tasks, work logs, meetings, calendar events, notices, shared public settings, data export/import, backups, data quality checks, and audit logs.
 
-`public/version3-offline-inspection.html` is only an offline inspection surface. It uses browser `localStorage` to let operators click through the same work areas without a server, but the source of truth for actual operation remains the Version.3 server API and the official Next UI.
+`/version3-test/` is the temporary inspection entry for the official Next UI. It uses browser `localStorage` so operators can test the same dashboard, student, consultation, lesson, attendance, lesson-note, reservation, payment, account, and data-management screens without a server. The source of truth for actual operation remains the Version.3 server API and the official Next UI.
+
+`public/version3-offline-inspection.html` is now a lightweight guide/backup HTML that opens `/version3-test/`. It must not become a separate fake management app.
 
 ```text
 pnpm run dev:version3
@@ -73,7 +75,8 @@ https://ethicsjayden31.github.io/bonsungsystem/
 | `/accounts/` | 계정, 권한, 계정 요청 승인, 비밀번호 초기화 |
 | `/data-quality/` | 데이터 점검 |
 | `/profile-settings/` | 개인화 설정 |
-| `/version3-offline-inspection.html` | 서버 없이 기능 흐름을 눌러보는 임시 점검용 HTML |
+| `/version3-test/` | 실제 Next 화면을 localStorage 데이터로 점검하는 테스트모드 |
+| `/version3-offline-inspection.html` | `/version3-test/`로 이동하는 임시 점검용 HTML 안내 |
 | `/legacy-preview/` | 전환 검증용 기존 Apps Script 운영 화면 |
 
 ## 유지할 핵심 파일
@@ -99,6 +102,7 @@ pnpm typecheck
 pnpm lint
 pnpm build:pages
 pnpm verify:surfaces
+pnpm verify:version3-test-mode
 pnpm verify:version3-server
 pnpm verify:version3-cleanup
 ```

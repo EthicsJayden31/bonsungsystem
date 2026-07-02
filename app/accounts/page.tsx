@@ -12,6 +12,7 @@ import { redirectToAppPath } from "@/lib/client-session";
 import { useOperationsData } from "@/lib/operations-data";
 import { useCurrentUser } from "@/lib/use-current-user";
 import { usePreviewRole } from "@/lib/use-preview-role";
+import { hasVersion3TestSession, reviewVersion3TestAccountRequest } from "@/lib/version3-test-mode";
 import { callVersion3Server, hasVersion3ServerSession } from "@/lib/version3-server-client";
 import { ENABLE_PREVIEW_LOGIN } from "@/lib/version3-runtime-flags";
 import { version3AccountRoles, version3PermissionGroups, version3PermissionKeys, version3ServerEntities, type Version3Account, type Version3AccountHistory, type Version3AccountInput, type Version3Permissions } from "@/lib/version3-server-contract";
@@ -22,6 +23,7 @@ const accountSourceLabel = {
   loading: "계정 확인 중",
   server: "Version.3 서버 계정",
   live: "실사용 계정",
+  test: "Version.3 테스트모드",
   preview: "Version.3 Preview",
   fallback: "계정 연결 실패"
 };
@@ -229,8 +231,8 @@ export default function AccountsPage() {
       setMessage("계정 요청 승인은 대표 권한에서만 진행합니다.");
       return;
     }
-    if (!hasVersion3ServerSession()) {
-      setMessage("계정 요청 승인은 Version.3 서버 로그인 세션에서만 진행합니다.");
+    if (!hasVersion3ServerSession() && !hasVersion3TestSession()) {
+      setMessage("계정 요청 승인은 Version.3 서버 또는 테스트모드 로그인 세션에서만 진행합니다.");
       return;
     }
     const form = event.currentTarget;
@@ -251,15 +253,24 @@ export default function AccountsPage() {
 
     setRequestPendingId(request.id);
     try {
-      await callVersion3Server(`/account-requests/${encodeURIComponent(request.id)}/review`, {
-        method: "PATCH",
-        body: {
+      if (hasVersion3TestSession()) {
+        reviewVersion3TestAccountRequest(request.id, {
           decision,
           initialPassword,
           linkedStudentId,
           memo: values.memo || ""
-        }
-      });
+        });
+      } else {
+        await callVersion3Server(`/account-requests/${encodeURIComponent(request.id)}/review`, {
+          method: "PATCH",
+          body: {
+            decision,
+            initialPassword,
+            linkedStudentId,
+            memo: values.memo || ""
+          }
+        });
+      }
       setMessage(decision === "approve" ? `${request.name} 계정 요청을 승인했습니다. 새로고침 후 계정 목록에 반영됩니다.` : `${request.name} 계정 요청을 반려했습니다.`);
       form.reset();
     } catch (caught) {
