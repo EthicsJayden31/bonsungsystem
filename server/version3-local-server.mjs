@@ -2,7 +2,17 @@ import { createServer } from "node:http";
 import { randomUUID, scryptSync, timingSafeEqual } from "node:crypto";
 import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, statSync, writeFileSync } from "node:fs";
 import { basename, dirname, resolve } from "node:path";
-import { bonsungInitialCourses, bonsungInitialStudents, bonsungInitialTeachers } from "./bonsung-initial-data.mjs";
+import {
+  bonsungInitialCalendarEvents,
+  bonsungInitialConsultationHistory,
+  bonsungInitialConsultations,
+  bonsungInitialCourses,
+  bonsungInitialDocumentTasks,
+  bonsungInitialNotices,
+  bonsungInitialPayments,
+  bonsungInitialStudents,
+  bonsungInitialTeachers
+} from "./bonsung-initial-data.mjs";
 
 const port = Number(process.env.VERSION3_LOCAL_SERVER_PORT || process.env.PORT || 4303);
 const host = (process.env.VERSION3_SERVER_HOST || "127.0.0.1").trim() || "127.0.0.1";
@@ -1610,7 +1620,7 @@ function createSeedData() {
       { id: "account-history-1", accountId: "manager-1", accountName: "조영진", actorId: "owner-1", actorName: "강은미", action: "create_account", role: "manager", occurredAt: "2026-07-01T09:10:00+09:00" }
     ],
     accountRequests: [
-      { id: "account-request-1", loginId: "vocal.hana", name: "최하나", requestedRole: "student", email: "hana@example.com", phone: "010-2222-3300", linkedStudentId: "", message: "보컬 수강 등록 후 사용할 계정을 요청합니다.", status: "대기", reviewedBy: "", reviewedByName: "", reviewedAt: "", reviewMemo: "", createdAccountId: "", createdAt: "2026-07-01T10:10:00+09:00", updatedAt: "2026-07-01T10:10:00+09:00" }
+      { id: "account-request-1", loginId: "kimtaeji", name: "(신) 김태지", requestedRole: "student", email: "", phone: "", linkedStudentId: "student-kim-taeji-new", message: "Notion 수강생 DB에서 등록 상태가 확인 필요인 신규 수강생입니다. 계정 생성 전 상담/등록 확정 여부 확인이 필요합니다.", status: "대기", reviewedBy: "", reviewedByName: "", reviewedAt: "", reviewMemo: "", createdAccountId: "", createdAt: "2026-07-02T10:10:00+09:00", updatedAt: "2026-07-02T10:10:00+09:00" }
     ],
     auditLogs: [
       { id: "audit-1", actorId: "owner-1", actorName: "강은미", action: "create_account", targetType: "account", targetId: "manager-1", targetName: "조영진", metadata: { role: "manager" }, createdAt: "2026-07-01T09:10:00+09:00" }
@@ -1621,50 +1631,48 @@ function createSeedData() {
     students: [
       ...bonsungInitialStudents
     ],
-    guardians: [
-      { id: "guardian-1", studentId: "student-jang-yunho", name: "장윤호 보호자", relation: "보호자", phone: "", payer: true, emergency: true, memo: "Notion 초기 데이터에는 연락처가 없어 추후 입력 필요" }
-    ],
+    guardians: [],
     consultations: [
-      { id: "consult-1", studentId: "student-jang-yunho", studentName: "장윤호", guardianName: "", phone: "", channel: "Version.3", major: "미정", goal: "초기 운영 데이터 확인", date: "2026-07-01", followUpDate: "", status: "접수됨", priority: "보통", memo: "Notion 수강생 DB 이관 후 수업 요일/시간과 프로그램 배정 확인 필요.", assignedTo: "manager-1", assignedToName: "조영진", statusUpdatedAt: "2026-07-01", unreadForAccountIds: ["owner-1", "manager-1"] }
+      ...bonsungInitialConsultations
     ],
     consultationHistory: [
-      { id: "consult-history-1", consultationId: "consult-1", actorId: "student-1-account", actorName: "장윤호", action: "create_consultation", status: "접수됨", assignedTo: "manager-1", assignedToName: "조영진", occurredAt: "2026-07-01T09:30:00+09:00" }
+      ...bonsungInitialConsultationHistory
     ],
     courses: [
       ...bonsungInitialCourses
     ],
     enrollments: [
-      { id: "enroll-1", studentId: "student-jang-yunho", courseId: "course-precollege", teacherId: "teacher-unassigned", startDate: "", status: "등록 확정", memo: "Notion 수강생 DB 기준 등록 확정. 실제 프로그램/담당 강사 배정 필요." }
+      { id: "enroll-1", studentId: "student-jang-yunho", courseId: "course-precollege", teacherId: "teacher-unassigned", startDate: "", status: "등록 확정", memo: "Notion 수강생 DB 기준 등록 확정. 실제 프로그램/담당 강사 배정 필요. 화면 기능 확인용 임시 연결값입니다." }
     ],
     lessons: [
-      { id: "lesson-1", studentId: "student-jang-yunho", teacherId: "teacher-unassigned", courseId: "course-precollege", startsAt: "2026-07-02T14:00:00+09:00", duration: 60, status: "배정필요", memo: "초기 이관 데이터 점검용 수업" }
+      { id: "lesson-1", studentId: "student-jang-yunho", teacherId: "teacher-unassigned", courseId: "course-precollege", startsAt: "2026-08-18T14:00:00+09:00", duration: 60, status: "배정필요", memo: "초기 이관 데이터 점검용 수업. 실제 시간표 확정 전까지 임시값입니다." }
     ],
     attendance: [
       { id: "att-1", lessonId: "lesson-1", studentId: "student-jang-yunho", status: "미처리", makeupNeeded: false, memo: "초기 이관 데이터 점검" }
     ],
     lessonNotes: [
-      { id: "note-1", lessonId: "lesson-1", studentId: "student-jang-yunho", teacherId: "teacher-unassigned", date: "2026-07-02", content: "초기 이관 데이터 확인", homework: "프로그램과 담당 강사 배정 확인", nextGoal: "실제 수업 시작일 입력", practiceRequest: "", internalMemo: "Notion 수강생 DB 기반" }
+      { id: "note-1", lessonId: "lesson-1", studentId: "student-jang-yunho", teacherId: "teacher-unassigned", date: "2026-08-18", content: "초기 이관 데이터 확인", homework: "프로그램과 담당 강사 배정 확인", nextGoal: "실제 수업 시작일 입력", practiceRequest: "", internalMemo: "Notion 수강생 DB 기반" }
     ],
     rooms: [
       { id: "room-1", name: "A Vocal Room", location: "2F", capacity: 2, status: "사용가능" }
     ],
     reservations: [
-      { id: "reserve-1", roomId: "room-1", studentId: "student-jang-yunho", requester: "조영진", startsAt: "2026-07-02T18:00:00+09:00", endsAt: "2026-07-02T19:00:00+09:00", status: "예약", memo: "초기 점검용 예약" }
+      { id: "reserve-1", roomId: "room-1", studentId: "student-jang-yunho", requester: "조영진", startsAt: "2026-08-18T18:00:00+09:00", endsAt: "2026-08-18T19:00:00+09:00", status: "예약", memo: "초기 점검용 예약" }
     ],
     payments: [
-      { id: "payment-1", studentId: "student-jang-yunho", title: "초기 등록 확인", amount: 0, status: "확인 필요", dueDate: "", paidAt: "", memo: "Notion 결제 상태: 확인 필요" }
+      ...bonsungInitialPayments
     ],
     tasks: [
-      { id: "task-1", title: "초기 수강생 프로그램 배정", assignee: "조영진", dueDate: "2026-07-03", status: "진행중", priority: "높음", memo: "Notion 수강생 DB 등록 확정자부터 프로그램과 담당 강사를 배정" }
+      ...bonsungInitialDocumentTasks
     ],
     workLogs: [
       { id: "work-log-1", work_log_id: "work-log-1", accountId: "manager-1", account_id: "manager-1", accountName: "조영진", account_name: "조영진", workDate: "2026-07-01", work_date: "2026-07-01", clockInAt: "2026-07-01T09:05:00+09:00", clock_in_at: "2026-07-01T09:05:00+09:00", clockOutAt: "", clock_out_at: "", memo: "초기 운영 준비" }
     ],
     meetings: [
-      { id: "meeting-1", meeting_id: "meeting-1", title: "주간 운영 회의", startsAt: "2026-07-03T10:00:00+09:00", starts_at: "2026-07-03T10:00:00+09:00", participantIds: ["owner-1", "manager-1", "teacher-1"], participant_ids: "owner-1,manager-1,teacher-1", createdBy: "manager-1", created_by: "manager-1", status: "예정", memo: "초기 수강생 배정과 상담 흐름 점검" }
+      { id: "meeting-1", meeting_id: "meeting-1", title: "초기 운영 데이터 점검 회의", startsAt: "2026-08-01T10:00:00+09:00", starts_at: "2026-08-01T10:00:00+09:00", participantIds: ["owner-1", "manager-1", "teacher-1"], participant_ids: "owner-1,manager-1,teacher-1", createdBy: "manager-1", created_by: "manager-1", status: "예정", memo: "수강생 배정, 상담 흐름, 결제 확인 항목 점검" }
     ],
     calendarEvents: [
-      { id: "calendar-1", calendar_event_id: "calendar-1", title: "개원 준비 점검", date: "2026-07-04", startTime: "14:00", start_time: "14:00", targetRoles: ["owner", "manager", "teacher"], target_roles: "owner,manager,teacher", createdBy: "manager-1", created_by: "manager-1", memo: "시설, 시간표, 공지 확인" }
+      ...bonsungInitialCalendarEvents
     ],
     publicSettings: {
       loginNotice: "계정 요청 및 패스워드 초기화는 매니저에게 문의 바랍니다.",
@@ -1674,8 +1682,7 @@ function createSeedData() {
       updatedBy: "owner-1"
     },
     notices: [
-      { id: "notice-1", title: "본성 스테이지 초기 운영 데이터 반영", category: "운영규정", author: "강은미", updatedAt: "2026-07-01", body: "직원, 수강생, 프로그램 초기 데이터는 Notion 본성뮤직 초기 운영 자료 DB를 기준으로 반영합니다.", targetRoles: ["owner", "manager", "teacher", "student"], pinned: true, active: true },
-      { id: "notice-2", title: "수업 기록 작성 기준", category: "강사매뉴얼", author: "조영진", updatedAt: "2026-07-01", body: "수업 내용, 과제, 다음 목표, 특이사항을 수업 후 바로 기록합니다.", targetRoles: ["owner", "manager", "teacher"], pinned: false, active: true }
+      ...bonsungInitialNotices
     ]
   };
 }

@@ -147,10 +147,10 @@ function browserStorage() {
 function initialAccounts(): Version3TestAccount[] {
   const firstStudent = students[0];
   return [
-    account("owner-1", "owner", "대표 계정", "owner", "", "owner@bonsung.test"),
-    account("manager-1", "manager", "매니저 계정", "manager", "", "manager@bonsung.test"),
-    account("teacher-1-account", "teacher", "강사 계정", "teacher", "", "teacher@bonsung.test"),
-    account("student-1-account", "student", "수강생 계정", "student", firstStudent?.id ?? "", "student@bonsung.test", firstStudent?.name)
+    account("owner-1", "owner", "강은미", "owner", "", "owner@bonsung.test"),
+    account("manager-1", "manager", "조영진", "manager", "", "manager@bonsung.test"),
+    account("teacher-1", "teacher", "황휘현", "teacher", "", "teacher@bonsung.test"),
+    account("student-1-account", "student", firstStudent?.name || "장윤호", "student", firstStudent?.id ?? "", "student@bonsung.test", firstStudent?.name)
   ];
 }
 
@@ -209,7 +209,7 @@ function initialData(): Version3TestData {
       {
         id: "test-history-1",
         accountId: "owner-1",
-        accountName: "대표 계정",
+        accountName: "강은미",
         actorId: "system",
         actorName: "Version.3 테스트모드",
         action: "seed_test_accounts",

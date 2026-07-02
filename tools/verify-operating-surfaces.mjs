@@ -210,8 +210,8 @@ if (legacyPreviewEnabled) {
 const requiredSourceSignals = [
   {
     file: "server/bonsung-initial-data.mjs",
-    includes: ["bonsungInitialTeachers", "bonsungInitialStudents", "bonsungInitialCourses", "강은미", "조영진", "장윤호", "본성 프리컬리지", "본성 아티스트", "보컬 리디자인", "해피아워 클래스"],
-    label: "Notion-based Bonsung initial staff, student, and program data ships with the Version.3 server"
+    includes: ["bonsungInitialTeachers", "bonsungInitialStudents", "bonsungInitialCourses", "bonsungInitialPayments", "bonsungInitialDocumentTasks", "bonsungInitialCalendarEvents", "강은미", "조영진", "장윤호", "본성 프리컬리지", "보컬 리디자인", "개원 준비 체크리스트", "신규 수강상담 및 사전등록 시작"],
+    label: "Notion-based Bonsung initial staff, student, program, payment-confirmation, document-task, and opening-schedule data ships with the Version.3 server"
   },
   {
     file: "app/login/page.tsx",

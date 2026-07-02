@@ -91,13 +91,17 @@ async function runVerification(baseUrl) {
   );
 
   const bootstrap = await authorizedRequest(baseUrl, "/bootstrap", owner.token);
-  for (const key of ["teachers", "students", "consultations", "notices", "dashboardWorkQueue", "workLogs", "meetings", "calendarEvents", "accountRequests"]) {
+  for (const key of ["teachers", "students", "consultations", "courses", "payments", "tasks", "notices", "dashboardWorkQueue", "workLogs", "meetings", "calendarEvents", "accountRequests"]) {
     assert(Array.isArray(bootstrap[key]), `/bootstrap must return ${key} array.`);
   }
   assert(bootstrap.publicSettings && typeof bootstrap.publicSettings === "object", "/bootstrap must return publicSettings.");
   assert(bootstrap.teachers.some((item) => item.name === "강은미" && item.role === "Director"), "Bootstrap must include Notion staff data.");
   assert(bootstrap.students.some((item) => item.name === "장윤호"), "Bootstrap must include Notion student data.");
+  assert(bootstrap.students.length >= 28, "Bootstrap must include all selected Notion student rows.");
   assert(bootstrap.courses.some((item) => item.name === "본성 프리컬리지"), "Bootstrap must include Notion program data.");
+  assert(bootstrap.payments.some((item) => item.studentId === "student-jang-yunho" && item.status === "확인 필요"), "Bootstrap must include Notion payment-confirmation data.");
+  assert(bootstrap.tasks.some((item) => item.title.includes("개원 준비 체크리스트")), "Bootstrap must include Notion operating-document tasks.");
+  assert(bootstrap.calendarEvents.some((item) => item.title === "신규 수강상담 및 사전등록 시작"), "Bootstrap must include Notion opening-schedule calendar events.");
 
   const accounts = await authorizedRequest(baseUrl, "/accounts", owner.token);
   assert(Array.isArray(accounts) && accounts.some((account) => account.role === "student"), "/accounts must include student accounts.");

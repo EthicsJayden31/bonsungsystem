@@ -228,143 +228,208 @@ export type Notice = {
   pinned: boolean;
 };
 
+const importedAt = "2026-07-02";
+
+const rawStudents: Array<[string, string, "등록 확정" | "확인 필요"]> = [
+  ["jang-yunho", "장윤호", "등록 확정"], ["moon-hongjae", "문홍재", "등록 확정"], ["shin-dongwoo", "신동우", "등록 확정"],
+  ["moon-jihwan", "문지환", "등록 확정"], ["choi-hoon", "최훈", "등록 확정"], ["jung-youngjin", "정영진", "등록 확정"],
+  ["shin-hogeun", "신호근", "등록 확정"], ["lee-minjin", "이민진", "등록 확정"], ["lim-seunghyun", "임승현", "등록 확정"],
+  ["kim-taeji-new", "(신) 김태지", "확인 필요"], ["seo-minyeop", "서민엽", "등록 확정"], ["cho-youngjin-new", "(신) 조영진", "확인 필요"],
+  ["moon-insu", "문인수", "등록 확정"], ["kim-youngseok", "김영석", "등록 확정"], ["park-soyoung", "박소영", "등록 확정"],
+  ["lee-seonje", "이선제", "등록 확정"], ["oh-sanghoon", "오상훈", "등록 확정"], ["lee-jisu-new", "(신) 이지수", "확인 필요"],
+  ["moon-daeseong", "문대성", "등록 확정"], ["choi-junmyeong", "최준명", "등록 확정"], ["hwang-donggyu", "황동규", "등록 확정"],
+  ["park-jaedong", "박재동", "등록 확정"], ["kim-taehyeong", "김태형(?)", "등록 확정"], ["jang-sejin", "장세진", "등록 확정"],
+  ["ha-hyeyoung-new", "(신) 하혜영", "확인 필요"], ["kim-mijin", "김미진", "등록 확정"], ["lee-seonghyeon-new", "(신) 이성현", "확인 필요"],
+  ["ji-dasom", "지다솜", "등록 확정"]
+];
+
+const pendingStudentRows = rawStudents.filter(([, , registrationStatus]) => registrationStatus === "확인 필요");
+
 export const teachers: Teacher[] = [
-  { id: "teacher-1", name: "강사 계정", major: "보컬" },
-  { id: "teacher-2", name: "김건반", major: "피아노" },
-  { id: "teacher-3", name: "박드럼", major: "드럼" }
+  { id: "teacher-kang-eunmi", name: "강은미", major: "Director" },
+  { id: "teacher-1", name: "황휘현", major: "Head Coach" },
+  { id: "teacher-choi-hyeryeong", name: "최혜령", major: "Head Coach" },
+  { id: "teacher-lee-seonghyeon", name: "이성현", major: "Coach" },
+  { id: "teacher-kim-saemi", name: "김새미", major: "Coach" },
+  { id: "staff-cho-youngjin", name: "조영진", major: "Student Success" },
+  { id: "staff-jinho", name: "진호", major: "Operations" },
+  { id: "staff-kim-jaeeun", name: "김재은", major: "Brand" },
+  { id: "teacher-unassigned", name: "미정", major: "Unassigned" }
 ];
 
-export const students: Student[] = [
-  {
-    id: "student-1",
-    name: "이도윤",
-    birthDate: "2007-04-12",
-    phone: "010-1111-2222",
-    major: "보컬",
-    goal: "입시 보컬 기초 완성",
-    status: "재원",
-    enrolledAt: "2026-06-01",
-    memo: "피치 안정화와 리듬 훈련 필요",
-    teacherId: "teacher-1"
-  },
-  {
-    id: "student-2",
-    name: "최서연",
-    birthDate: "2009-09-21",
-    phone: "010-3333-4444",
-    major: "피아노",
-    goal: "재즈 화성 기초",
-    status: "등록대기",
-    enrolledAt: "",
-    memo: "보호자와 시간 조율 중",
-    teacherId: "teacher-2"
-  },
-  {
-    id: "student-3",
-    name: "문하준",
-    birthDate: "2006-12-02",
-    phone: "010-5555-6666",
-    major: "드럼",
-    goal: "실용음악과 정시 대비",
-    status: "상담중",
-    enrolledAt: "",
-    memo: "주 2회 가능 여부 확인",
-    teacherId: "teacher-3"
-  }
-];
+export const students: Student[] = rawStudents.map(([slug, name, registrationStatus]) => ({
+  id: `student-${slug}`,
+  name,
+  birthDate: "",
+  phone: "",
+  major: "미정",
+  goal: "Notion 수강생 DB 초기 이관",
+  status: registrationStatus === "등록 확정" ? "재원" : "등록대기",
+  enrolledAt: "",
+  memo: "본성뮤직 초기 운영 자료 for Monster Crew > 수강생 DB에서 이관. 결제, 콘텐츠 동의, 담당 강사, 프로그램, 수업 시간, 보호자 연락처 확인 필요.",
+  teacherId: "teacher-unassigned",
+  teacherName: "미정"
+}));
 
-export const guardians: Guardian[] = [
-  { id: "guardian-1", studentId: "student-1", name: "이도윤 모", relation: "모", phone: "010-7777-1111", payer: true, emergency: true, memo: "납부 안내 문자 선호" },
-  { id: "guardian-2", studentId: "student-2", name: "최서연 부", relation: "부", phone: "010-7777-2222", payer: true, emergency: false, memo: "평일 오후 통화 가능" },
-  { id: "guardian-3", studentId: "student-3", name: "문하준 모", relation: "모", phone: "010-7777-3333", payer: false, emergency: true, memo: "상담 후 등록 결정" }
-];
+export const guardians: Guardian[] = [];
 
-export const consultations: Consultation[] = [
-  { id: "consult-0", studentId: "student-1", studentName: "이도윤", guardianName: "", phone: "", channel: "시스템", major: "보컬", goal: "상담요청", date: "2026-06-07", followUpDate: "", status: "접수됨", priority: "보통", memo: "다음 달 레슨 시간 변경 가능 여부를 확인하고 싶습니다.", assignedTo: "manager-1", assignedToName: "매니저 계정", statusUpdatedAt: "2026-06-07" },
-  { id: "consult-1", studentId: "student-3", studentName: "문하준", guardianName: "문하준 모", phone: "010-7777-3333", channel: "네이버", major: "드럼", goal: "입시", date: "2026-06-07", followUpDate: "2026-06-09", status: "전달 필요", priority: "높음", memo: "정시반 커리큘럼 안내 필요", assignedTo: "teacher-3", assignedToName: "박드럼", statusUpdatedAt: "2026-06-07" },
-  { id: "consult-2", studentId: "student-2", studentName: "최서연", guardianName: "최서연 부", phone: "010-7777-2222", channel: "지인추천", major: "피아노", goal: "취미/전공 탐색", date: "2026-06-05", followUpDate: "2026-06-08", status: "종결", priority: "보통", memo: "첫 레슨 19시 후보", assignedTo: "manager-1", assignedToName: "매니저 계정", statusUpdatedAt: "2026-06-08" }
-];
+export const consultations: Consultation[] = pendingStudentRows.map(([slug, name], index) => ({
+  id: `consult-initial-${index + 1}`,
+  studentId: `student-${slug}`,
+  studentName: name,
+  guardianName: "",
+  phone: "",
+  channel: "Notion 초기 운영 자료",
+  major: "미정",
+  goal: "신규 사전등록 상태 확인",
+  date: importedAt,
+  followUpDate: "",
+  status: "접수됨",
+  priority: "높음",
+  memo: "수강생 DB에서 등록 상태가 '확인 필요'로 표시되어 상담/등록 확정 여부 확인 필요.",
+  assignedTo: "manager-1",
+  assignedToName: "조영진",
+  statusUpdatedAt: importedAt,
+  unreadForAccountIds: ["owner-1", "manager-1"]
+}));
 
-export const consultationHistory: ConsultationHistory[] = [
-  { id: "consult-history-1", consultationId: "consult-0", actorId: "manager-1", actorName: "매니저 계정", action: "create_consultation", status: "접수됨", assignedTo: "manager-1", assignedToName: "매니저 계정", occurredAt: "2026-06-07T09:30:00+09:00" },
-  { id: "consult-history-2", consultationId: "consult-1", actorId: "manager-1", actorName: "매니저 계정", action: "update_consultation_status", status: "전달 필요", assignedTo: "teacher-3", assignedToName: "박드럼", occurredAt: "2026-06-07T11:10:00+09:00" },
-  { id: "consult-history-3", consultationId: "consult-2", actorId: "owner-1", actorName: "대표 계정", action: "update_consultation_status", status: "종결", assignedTo: "manager-1", assignedToName: "매니저 계정", occurredAt: "2026-06-08T18:20:00+09:00" }
-];
+export const consultationHistory: ConsultationHistory[] = consultations.map((item, index) => ({
+  id: `consult-history-initial-${index + 1}`,
+  consultationId: item.id,
+  actorId: "manager-1",
+  actorName: "조영진",
+  action: "create_consultation",
+  status: item.status,
+  assignedTo: item.assignedTo || "manager-1",
+  assignedToName: item.assignedToName || "조영진",
+  occurredAt: `${importedAt}T09:${String(10 + index).padStart(2, "0")}:00+09:00`
+}));
 
 export const courses: Course[] = [
-  { id: "course-1", name: "보컬 개인레슨", major: "보컬", teacherId: "teacher-1", status: "운영중" },
-  { id: "course-2", name: "재즈피아노", major: "피아노", teacherId: "teacher-2", status: "운영중" },
-  { id: "course-3", name: "드럼 입시반", major: "드럼", teacherId: "teacher-3", status: "모집중" }
+  { id: "course-precollege", name: "본성 프리컬리지", major: "입시 및 예비 음악가 과정", teacherId: "teacher-kang-eunmi", status: "준비중" },
+  { id: "course-artist", name: "본성 아티스트", major: "성인 전문과정, 작품 제작형 교육", teacherId: "teacher-kang-eunmi", status: "운영 예정" },
+  { id: "course-vocal-redesign", name: "보컬 리디자인", major: "목소리·호흡·자기표현 회복형 보컬 교육", teacherId: "teacher-kang-eunmi", status: "준비중" },
+  { id: "course-project", name: "프로젝트 수업", major: "공연, 녹음, 촬영, 커버 콘텐츠 등 결과물 중심 교육", teacherId: "teacher-kang-eunmi", status: "준비중" },
+  { id: "course-liberal-arts", name: "교양교육", major: "생각하는 음악가 양성", teacherId: "teacher-kang-eunmi", status: "준비중" },
+  { id: "course-short-goal", name: "단기 목적형 수업", major: "단기 목표 달성을 위한 맞춤 수업", teacherId: "staff-cho-youngjin", status: "준비중" },
+  { id: "course-happy-hour", name: "해피아워 클래스", major: "오전 시간대 유휴 공간 활용, 커뮤니티 형성", teacherId: "staff-cho-youngjin", status: "준비중" }
 ];
 
 export const enrollments: Enrollment[] = [
-  { id: "enroll-1", studentId: "student-1", courseId: "course-1", teacherId: "teacher-1", startDate: "2026-06-01", status: "수강중", memo: "주 1회 60분" },
-  { id: "enroll-2", studentId: "student-2", courseId: "course-2", teacherId: "teacher-2", startDate: "2026-06-10", status: "등록대기", memo: "첫 수업 전 교재 안내" }
+  { id: "enroll-1", studentId: "student-jang-yunho", courseId: "course-precollege", teacherId: "teacher-unassigned", startDate: "", status: "등록 확정", memo: "Notion 수강생 DB 기준 등록 확정. 실제 프로그램/담당 강사 배정 필요. 화면 기능 확인용 임시 연결값입니다." }
 ];
 
 export const lessons: Lesson[] = [
-  { id: "lesson-1", studentId: "student-1", teacherId: "teacher-1", courseId: "course-1", startsAt: "2026-06-07T14:00:00+09:00", duration: 60, status: "예정", memo: "피치/발성 체크" },
-  { id: "lesson-2", studentId: "student-2", teacherId: "teacher-2", courseId: "course-2", startsAt: "2026-06-07T17:00:00+09:00", duration: 50, status: "예정", memo: "레벨 테스트" },
-  { id: "lesson-3", studentId: "student-1", teacherId: "teacher-1", courseId: "course-1", startsAt: "2026-06-05T14:00:00+09:00", duration: 60, status: "완료", memo: "출석 처리 완료" }
+  { id: "lesson-1", studentId: "student-jang-yunho", teacherId: "teacher-unassigned", courseId: "course-precollege", startsAt: "2026-08-18T14:00:00+09:00", duration: 60, status: "배정필요", memo: "초기 이관 데이터 점검용 수업. 실제 시간표 확정 전까지 임시값입니다." }
 ];
 
 export const attendance: Attendance[] = [
-  { id: "att-1", lessonId: "lesson-3", studentId: "student-1", status: "출석", makeupNeeded: false, memo: "정상 출석" },
-  { id: "att-2", lessonId: "lesson-2", studentId: "student-2", status: "미처리", makeupNeeded: false, memo: "오늘 처리 필요" }
+  { id: "att-1", lessonId: "lesson-1", studentId: "student-jang-yunho", status: "미처리", makeupNeeded: false, memo: "초기 이관 데이터 점검" }
 ];
 
 export const lessonNotes: LessonNote[] = [
-  { id: "note-1", lessonId: "lesson-3", studentId: "student-1", teacherId: "teacher-1", date: "2026-06-05", content: "복식호흡과 기본 스케일 진행", homework: "메트로놈 70bpm 스케일", nextGoal: "고음 연결 안정화", practiceRequest: "매일 20분 녹음", internalMemo: "긴장 시 박자 빨라짐" }
+  { id: "note-1", lessonId: "lesson-1", studentId: "student-jang-yunho", teacherId: "teacher-unassigned", date: "2026-08-18", content: "초기 이관 데이터 확인", homework: "프로그램과 담당 강사 배정 확인", nextGoal: "실제 수업 시작일 입력", practiceRequest: "", internalMemo: "Notion 수강생 DB 기반" }
 ];
 
 export const rooms: Room[] = [
-  { id: "room-1", name: "A 보컬룸", location: "2층", capacity: 2, status: "사용가능" },
-  { id: "room-2", name: "B 피아노룸", location: "2층", capacity: 2, status: "사용가능" },
-  { id: "room-3", name: "C 합주실", location: "지하", capacity: 6, status: "점검중" }
+  { id: "room-1", name: "A Vocal Room", location: "2F", capacity: 2, status: "사용가능" },
+  { id: "room-2", name: "B Piano Room", location: "2F", capacity: 2, status: "사용가능" },
+  { id: "room-3", name: "C Ensemble Room", location: "B1", capacity: 6, status: "점검중" }
 ];
 
 export const reservations: Reservation[] = [
-  { id: "reserve-1", roomId: "room-1", studentId: "student-1", requester: "매니저 계정", startsAt: "2026-06-07T18:00:00+09:00", endsAt: "2026-06-07T19:00:00+09:00", status: "예약", memo: "수업 후 연습" },
-  { id: "reserve-2", roomId: "room-2", studentId: "student-2", requester: "최서연 부", startsAt: "2026-06-08T16:00:00+09:00", endsAt: "2026-06-08T17:00:00+09:00", status: "예약", memo: "" }
+  { id: "reserve-1", roomId: "room-1", studentId: "student-jang-yunho", requester: "조영진", startsAt: "2026-08-18T18:00:00+09:00", endsAt: "2026-08-18T19:00:00+09:00", status: "예약", memo: "초기 점검용 예약" }
 ];
 
-export const payments: Payment[] = [
-  { id: "payment-1", studentId: "student-1", title: "6월 보컬 개인레슨", amount: 280000, status: "청구완료", dueDate: "2026-06-10", paidAt: "", memo: "보호자 확인 필요" },
-  { id: "payment-2", studentId: "student-2", title: "입회비", amount: 50000, status: "미납", dueDate: "2026-06-08", paidAt: "", memo: "등록 확정 후 납부" }
+export const payments: Payment[] = rawStudents.map(([slug, name], index) => ({
+  id: `payment-initial-${index + 1}`,
+  studentId: `student-${slug}`,
+  title: "초기 등록 수납 확인",
+  amount: 0,
+  status: "확인 필요",
+  dueDate: "",
+  paidAt: "",
+  memo: `${name} - Notion 수강생 DB 결제 상태: 확인 필요`
+}));
+
+const operatingDocumentRows: Array<[string, string, string, string, number]> = [
+  ["opening-checklist", "개원 준비 체크리스트", "개원 준비", "공사, 장비, 강의실, 상담 공간, 홈페이지/SNS 오픈 확인", 1],
+  ["student-registration-sheet", "수강생 등록 현황표", "학생 관리", "사전등록생, 기존 수강생, 신규 상담자 통합 관리", 2],
+  ["consulting-manual", "상담 프로세스 매뉴얼", "상담/등록", "문의 접수부터 등록까지 표준 절차 정리", 3],
+  ["class-room-schedule", "수업 시간표 및 강의실 배정표", "수업 운영", "8월 18일 이후 실제 수업 운영 기준", 4],
+  ["teacher-student-assignment", "강사별 담당 학생표", "학생 관리", "담당 강사, 학생 상태, 수업 시작일 정리", 5],
+  ["lesson-record-template", "수업 기록 템플릿", "수업 운영", "강사용 피드백 및 과제 기록 양식", 6],
+  ["sns-content-calendar", "SNS 콘텐츠 캘린더", "콘텐츠", "초기 30개 콘텐츠 업로드 일정 관리", 7],
+  ["homepage-materials", "홈페이지 자료 준비표", "콘텐츠", "강사 소개, 프로그램 설명, FAQ, 상담 신청 자료 정리", 8],
+  ["performance-project-sheet", "공연/프로젝트 운영표", "공연/프로젝트", "쇼케이스, 버스킹, 녹음, 촬영 일정 관리", 9],
+  ["privacy-content-consent", "개인정보 및 콘텐츠 동의서", "동의/보안", "학생 사진, 영상, 음성 활용 동의 관리", 10]
 ];
 
 export const tasks: Task[] = [
-  { id: "task-1", title: "개원 상담 명단 정리", assignee: "매니저 계정", dueDate: "2026-06-08", status: "진행중", priority: "높음", memo: "문의 경로별 분류" },
-  { id: "task-2", title: "강사 매뉴얼 초안 검토", assignee: "대표 계정", dueDate: "2026-06-12", status: "할일", priority: "보통", memo: "출석/보강 기준 포함" }
+  {
+    id: "task-initial-student-assignment",
+    title: "초기 수강생 프로그램·담당 강사 배정",
+    assignee: "조영진",
+    dueDate: "2026-08-01",
+    status: "진행중",
+    priority: "높음",
+    memo: "수강생 DB에 프로그램, 담당 강사, 요일/시간이 비어 있어 등록 확정자부터 실제 배정 필요."
+  },
+  ...operatingDocumentRows.map(([slug, title, category, purpose, rank]) => ({
+    id: `task-doc-${slug}`,
+    title: `운영 문서 작성: ${title}`,
+    assignee: "조영진",
+    dueDate: "",
+    status: "할일",
+    priority: rank <= 3 ? "높음" : rank <= 7 ? "보통" : "낮음",
+    memo: `[${category}] ${purpose}`
+  }))
 ];
 
 export const workLogs: WorkLog[] = [
-  { id: "work-log-1", accountId: "manager-1", accountName: "매니저 계정", workDate: "2026-06-07", clockInAt: "2026-06-07T09:05:00+09:00", clockOutAt: "", memo: "상담 명단 정리" }
+  { id: "work-log-1", accountId: "manager-1", accountName: "조영진", workDate: importedAt, clockInAt: `${importedAt}T09:05:00+09:00`, clockOutAt: "", memo: "Notion 초기 운영 자료 선별 반영과 후속 확인 항목 정리" }
 ];
 
 export const meetings: Meeting[] = [
-  { id: "meeting-1", title: "주간 운영 회의", startsAt: "2026-06-10T10:00:00+09:00", participantNames: ["대표 계정", "매니저 계정", "강사 계정"], status: "예정", memo: "초기 등록과 레슨노트 기준 점검" }
+  { id: "meeting-1", title: "초기 운영 데이터 점검 회의", startsAt: "2026-08-01T10:00:00+09:00", participantNames: ["강은미", "조영진", "황휘현"], status: "예정", memo: "수강생 배정, 상담 흐름, 결제 확인 항목 점검" }
 ];
 
-export const calendarEvents: CalendarEvent[] = [
-  { id: "calendar-1", title: "개원 준비 점검", date: "2026-06-12", startTime: "14:00", targetRoles: ["owner", "manager", "teacher"], memo: "시설, 수업, 상담 준비 확인" }
+const openingScheduleRows: Array<[string, string, string, string[], string]> = [
+  ["calendar-opening-interior-complete", "인테리어 공사 종료", "2026-07-28", ["대표", "운영"], "공사 완료 여부, 수업 가능 상태 확인"],
+  ["calendar-opening-homepage-complete", "홈페이지 제작 완료", "2026-08-01", ["대표", "콘텐츠"], "주요 페이지 오픈 여부 확인"],
+  ["calendar-opening-sns-start", "SNS 업로드 시작", "2026-08-01", ["대표", "콘텐츠"], "초기 콘텐츠 업로드 일정 공유"],
+  ["calendar-opening-consulting-start", "신규 수강상담 및 사전등록 시작", "2026-08-01", ["대표", "운영", "강사", "재무"], "상담 프로세스와 등록 양식 준비"],
+  ["calendar-opening-academy-ready", "수업 가능 컨디션 원내 정리 완료", "2026-08-15", ["대표", "운영", "강사"], "강의실, 대기공간, 장비 점검"],
+  ["calendar-opening-classroom-simulation", "강의실 수업 시뮬레이션", "2026-08-15", ["대표", "운영", "강사"], "동선, 소음, 장비, 시간표 테스트"],
+  ["calendar-opening-founding-vocal-start", "파운딩멤버 보컬 수업 시작", "2026-08-18", ["대표", "운영", "강사"], "첫 수업 안내, 출결, 피드백 기록"],
+  ["calendar-opening-new-student-class-start", "신규 등록자 수업 시작", "2026-09-01", ["대표", "운영", "강사", "재무"], "신규생 시간표, 담당 강사, 결제 상태 확인"],
+  ["calendar-opening-precollege-promotion-start", "프리컬리지 과정 홍보 시작", "2026-09-01", ["대표", "콘텐츠", "강사"], "프로그램 소개 자료와 상담 기준 정리"]
 ];
+
+export const calendarEvents: CalendarEvent[] = openingScheduleRows.map(([id, title, date, teams, memo]) => ({
+  id,
+  title,
+  date,
+  startTime: "",
+  targetRoles: teamsToRoles(teams),
+  memo: `${memo} / 담당팀: ${teams.join(", ")}`
+}));
 
 export const accountRequests: AccountRequest[] = [
-  { id: "account-request-1", loginId: "vocal.hana", name: "최하나", requestedRole: "student", email: "hana@example.com", phone: "010-2222-3300", linkedStudentId: "", message: "보컬 수강 등록 후 사용할 계정을 요청합니다.", status: "대기", reviewedByName: "", reviewedAt: "", reviewMemo: "", createdAccountId: "", createdAt: "2026-06-07T10:10:00+09:00" }
+  { id: "account-request-1", loginId: "kimtaeji", name: "(신) 김태지", requestedRole: "student", email: "", phone: "", linkedStudentId: "student-kim-taeji-new", message: "Notion 수강생 DB에서 등록 상태가 확인 필요인 신규 수강생입니다. 계정 생성 전 상담/등록 확정 여부 확인이 필요합니다.", status: "대기", reviewedByName: "", reviewedAt: "", reviewMemo: "", createdAccountId: "", createdAt: "2026-07-02T10:10:00+09:00" }
 ];
 
 export const publicSettings: PublicSettings = {
   loginNotice: "계정 요청 및 패스워드 초기화는 매니저에게 문의 바랍니다.",
   academyPhone: "",
   reservationGuide: "공간 예약은 정각부터 1시간 단위로 신청합니다.",
-  updatedAt: "2026-06-07T00:00:00+09:00",
+  updatedAt: "2026-07-02T00:00:00+09:00",
   updatedBy: "owner-1"
 };
 
 export const notices: Notice[] = [
-  { id: "notice-1", title: "개원 초기 상담 응대 기준", category: "운영규정", author: "대표 계정", updatedAt: "2026-06-06", body: "상담요청은 매니저가 먼저 확인한 뒤 필요한 담당자에게 공유합니다.", targetRoles: ["owner", "manager", "teacher", "student"], pinned: true },
-  { id: "notice-2", title: "강사 레슨노트 작성 기준", category: "강사매뉴얼", author: "매니저 계정", updatedAt: "2026-06-05", body: "수업 당일 수업 내용, 과제, 다음 목표를 기록합니다.", targetRoles: ["owner", "manager", "teacher"], pinned: false }
+  { id: "notice-initial-data", title: "본성 스테이지 초기 운영 데이터 반영", category: "운영공지", author: "강은미", updatedAt: importedAt, body: "직원, 수강생, 프로그램, 개원 일정, 운영 문서 초기 데이터는 Notion '본성뮤직 초기 운영 자료 for Monster Crew'에서 필요한 항목만 선별해 반영했습니다.", targetRoles: ["owner", "manager", "teacher", "student"], pinned: true },
+  { id: "notice-student-data-followup", title: "수강생 배정 정보 추가 확인 필요", category: "학생관리", author: "조영진", updatedAt: importedAt, body: "현재 수강생 DB에는 담당 강사, 프로그램, 수업 요일/시간, 보호자 연락처가 비어 있습니다. 실제 운영 전 등록 확정자부터 배정을 완료해야 합니다.", targetRoles: ["owner", "manager", "teacher"], pinned: true }
 ];
 
 export function byId<T extends { id: string }>(items: T[], id: string) {
@@ -381,4 +446,12 @@ export function getStudentName(id: string) {
 
 export function getCourseName(id: string) {
   return byId(courses, id)?.name ?? "미등록 과목";
+}
+
+function teamsToRoles(teams: string[]): Role[] {
+  const roles = new Set<Role>();
+  if (teams.includes("대표")) roles.add("owner");
+  if (teams.some((team) => ["운영", "재무", "콘텐츠", "공연"].includes(team))) roles.add("manager");
+  if (teams.includes("강사")) roles.add("teacher");
+  return Array.from(roles.size ? roles : new Set<Role>(["owner", "manager"]));
 }

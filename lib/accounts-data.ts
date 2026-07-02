@@ -61,7 +61,7 @@ const previewAccounts: Version3Account[] = [
   {
     id: "owner-1",
     loginId: "owner",
-    name: "대표 계정",
+    name: "강은미",
     role: "owner",
     email: "owner@bonsung.test",
     phone: "",
@@ -75,7 +75,7 @@ const previewAccounts: Version3Account[] = [
   {
     id: "manager-1",
     loginId: "manager",
-    name: "매니저 계정",
+    name: "조영진",
     role: "manager",
     email: "manager@bonsung.test",
     phone: "",
@@ -89,7 +89,7 @@ const previewAccounts: Version3Account[] = [
   {
     id: "teacher-1",
     loginId: "teacher",
-    name: "강사 계정",
+    name: "황휘현",
     role: "teacher",
     email: "teacher@bonsung.test",
     phone: "",
@@ -103,12 +103,12 @@ const previewAccounts: Version3Account[] = [
   {
     id: "student-1-account",
     loginId: "student",
-    name: "수강생 계정",
+    name: "장윤호",
     role: "student",
     email: "student@bonsung.test",
     phone: "",
-    linkedStudentId: "student-1",
-    linkedStudentName: students.find((student) => student.id === "student-1")?.name,
+    linkedStudentId: students[0]?.id || "student-jang-yunho",
+    linkedStudentName: students[0]?.name,
     status: "active",
     mustChangePassword: true,
     permissions: {},
@@ -128,9 +128,9 @@ const previewAccountHistory: Version3AccountHistory[] = [
   {
     id: "account-history-1",
     accountId: "manager-1",
-    accountName: "매니저 계정",
+    accountName: "조영진",
     actorId: "owner-1",
-    actorName: "대표 계정",
+    actorName: "강은미",
     action: "create_account",
     role: "manager",
     occurredAt: "2026-07-01T09:10:00+09:00"
@@ -138,9 +138,9 @@ const previewAccountHistory: Version3AccountHistory[] = [
   {
     id: "account-history-2",
     accountId: "student-1-account",
-    accountName: "수강생 계정",
+    accountName: "장윤호",
     actorId: "owner-1",
-    actorName: "대표 계정",
+    actorName: "강은미",
     action: "reset_password",
     role: "student",
     occurredAt: "2026-07-01T09:35:00+09:00"
@@ -468,7 +468,7 @@ export function useAccountsData(options: AccountsDataOptions = {}): AccountsStat
         accountId: targetAccount?.id || (typeof target === "string" ? target : ""),
         accountName: targetAccount?.name || "계정",
         actorId,
-        actorName: actor?.name || "대표 계정",
+        actorName: actor?.name || "강은미",
         action,
         role: targetAccount?.role || "",
         beforePermissions,

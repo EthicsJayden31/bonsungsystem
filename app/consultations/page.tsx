@@ -285,10 +285,10 @@ export default function ConsultationsPage() {
 }
 
 function currentActorName(role: string | null) {
-  if (role === "owner") return "대표 계정";
-  if (role === "manager") return "매니저 계정";
-  if (role === "teacher") return "강사 계정";
-  if (role === "student") return "수강생 계정";
+  if (role === "owner") return "강은미";
+  if (role === "manager") return "조영진";
+  if (role === "teacher") return "황휘현";
+  if (role === "student") return "장윤호";
   return "Preview 계정";
 }
 
@@ -347,8 +347,8 @@ function RequestedConsultationPanel({ consultation, requestId }: { consultation?
 
 function buildAssignees(teachers: Array<{ id: string; name: string }>): AssigneeOption[] {
   const options = new Map<string, AssigneeOption>();
-  options.set("manager-1", { id: "manager-1", name: "매니저 계정", role: "manager" });
-  options.set("owner-1", { id: "owner-1", name: "대표 계정", role: "owner" });
+  options.set("manager-1", { id: "manager-1", name: "조영진", role: "manager" });
+  options.set("owner-1", { id: "owner-1", name: "강은미", role: "owner" });
   teachers.forEach((teacher) => {
     if (!teacher.id) return;
     options.set(teacher.id, { id: teacher.id, name: teacher.name || teacher.id, role: "teacher" });

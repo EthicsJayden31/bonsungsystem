@@ -461,7 +461,7 @@ export default function AccountsPage() {
             </label>
             <label className="mt-3 block">
               <span className="text-xs font-bold text-ink">이름</span>
-              <input className="mt-1 h-11 w-full rounded-xl border border-line px-3 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/15" name="name" placeholder="예: 이도윤" defaultValue={accountPrefill.name} disabled={!canSubmitAccount} />
+              <input className="mt-1 h-11 w-full rounded-xl border border-line px-3 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/15" name="name" placeholder="예: 장윤호" defaultValue={accountPrefill.name} disabled={!canSubmitAccount} />
             </label>
             <label className="mt-3 block">
               <span className="text-xs font-bold text-ink">로그인 ID</span>

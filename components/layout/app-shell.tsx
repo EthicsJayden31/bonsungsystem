@@ -117,10 +117,10 @@ const roleLabel: Record<Role, string> = {
 };
 
 const previewUsers: Record<Role, CurrentUser> = {
-  owner: { id: "owner-1", name: "대표 계정", email: "owner@bonsung.test", role: "owner" },
-  manager: { id: "manager-1", name: "매니저 계정", email: "manager@bonsung.test", role: "manager" },
-  teacher: { id: "teacher-1", name: "강사 계정", email: "teacher@bonsung.test", role: "teacher" },
-  student: { id: "student-1", name: "수강생 계정", email: "student@bonsung.test", role: "student" }
+  owner: { id: "owner-1", name: "강은미", email: "owner@bonsung.test", role: "owner" },
+  manager: { id: "manager-1", name: "조영진", email: "manager@bonsung.test", role: "manager" },
+  teacher: { id: "teacher-1", name: "황휘현", email: "teacher@bonsung.test", role: "teacher" },
+  student: { id: "student-1-account", name: "장윤호", email: "student@bonsung.test", role: "student", linkedStudentId: "student-jang-yunho" }
 };
 
 type BottomTab = { id: NonNullable<NavItem["tab"]>; label: string; icon: string; fallbackHref: string; areas: string[] };

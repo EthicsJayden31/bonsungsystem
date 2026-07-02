@@ -4,6 +4,12 @@
 
 Version.3 is moving toward real academy operation on a separate server instead of Apps Script. To run the official Next UI with the local Version.3 server contract, use:
 
+### 2026-07-02 16:49 Notion initial operation data seed update
+
+The Version.3 server seed and `/version3-test/` localStorage seed now use selected records from Notion `본성뮤직 초기 운영 자료 for Monster Crew`. The imported operating seed includes 8 staff/teacher records plus the unassigned teacher marker, 28 student records, 7 program records, 28 payment-confirmation items, 5 follow-up consultations for students marked `확인 필요`, 10 operating-document tasks, and 9 opening-schedule calendar events.
+
+The Notion student rows do not yet include guardian contact, assigned teacher, program, class time, or start-date details. Those fields were not invented; they remain visible as assignment/check-needed work items so actual operation can fill them safely later.
+
 ### 2026-07-02 15:32 role-based navigation and dashboard update
 
 The official Next UI now changes the dashboard header, sidebar group labels, quick actions, stats, and panels by account role. Student accounts see a learning-focused home screen with notices, lessons, lesson notes, consultations, and room reservations, while owner and manager accounts keep the full operations view.

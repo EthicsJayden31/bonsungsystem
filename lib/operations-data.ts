@@ -638,7 +638,7 @@ async function callAppsScript<T>(action: string, token: string, payload: Record<
 }
 
 function buildPreviewData(role: Role | null): OperationsData {
-  const studentId = "student-1";
+  const studentId = students[0]?.id || "student-jang-yunho";
   const teacherId = "teacher-1";
   const visibleStudents = role === "teacher"
     ? students.filter((student) => student.teacherId === teacherId)
@@ -662,7 +662,7 @@ function buildPreviewData(role: Role | null): OperationsData {
       : lessonNotes;
   const visibleReservations = role === "student" ? reservations.filter((item) => item.studentId === studentId) : reservations;
   const visiblePayments = role === "teacher" || role === "student" ? [] : payments;
-  const visibleConsultations = role === "student" ? consultations.filter((item) => item.studentName === "이도윤") : consultations;
+  const visibleConsultations = role === "student" ? consultations.filter((item) => item.studentId === studentId || item.studentName === students[0]?.name) : consultations;
   const visibleConsultationIds = new Set(visibleConsultations.map((item) => item.id));
   const visibleConsultationHistory = consultationHistory.filter((item) => visibleConsultationIds.has(item.consultationId));
   const visibleLessonIds = new Set(visibleLessons.map((lesson) => lesson.id));
@@ -698,7 +698,7 @@ function filterOperationsData(data: OperationsData, user: AccessUser | Role | nu
   const role = typeof user === "string" ? user : user.role;
   const userId = typeof user === "string" ? "" : user.id;
   const linkedStudentId = typeof user === "string" ? "" : user.linkedStudentId || "";
-  const studentId = role === "student" ? linkedStudentId || "student-1" : "";
+  const studentId = role === "student" ? linkedStudentId || students[0]?.id || "student-jang-yunho" : "";
   const teacherId = role === "teacher" ? userId || "teacher-1" : "";
 
   const roleScopedStudents = data.students.filter((student) => {
