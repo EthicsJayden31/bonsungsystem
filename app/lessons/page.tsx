@@ -19,7 +19,7 @@ export default function LessonsPage() {
     <AppShell area="lessons">
       <ResourcePage
         title="수업/시간표"
-        description={source === "server" ? "Version.3 서버의 수업 데이터를 표시합니다." : source === "live" ? "전환 세션의 수업 데이터를 표시합니다." : source === "fallback" ? "수업 데이터를 불러오지 못했습니다. 서버 연결과 권한을 확인해야 합니다." : "Preview 데이터로 수업 일정 화면을 점검합니다."}
+        description={source === "server" || source === "test" ? "Version.3 서버의 수업 데이터를 표시합니다." : source === "live" ? "전환 세션의 수업 데이터를 표시합니다." : source === "fallback" ? "수업 데이터를 불러오지 못했습니다. 서버 연결과 권한을 확인해야 합니다." : "Preview 데이터로 수업 일정 화면을 점검합니다."}
         headers={["일시", "학생", "강사", "과목", "시간", "상태", "메모"]}
         rows={data.lessons.map((lesson) => [
           formatLessonTime(lesson.startsAt),

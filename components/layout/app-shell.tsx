@@ -13,9 +13,10 @@ import {
   APPS_SCRIPT_USER_KEY,
   type AppsScriptUser
 } from "@/lib/apps-script-client";
-import { clearClientSession, PREVIEW_ROLE_KEY } from "@/lib/client-session";
+import { clearClientSession, PREVIEW_ROLE_KEY, SESSION_CHANGE_EVENT } from "@/lib/client-session";
 import { usePreferences } from "@/lib/preferences";
 import { usePreviewRole } from "@/lib/use-preview-role";
+import { hasVersion3TestSession, version3TestCurrentUser } from "@/lib/version3-test-mode";
 import { logoutVersion3Server, VERSION3_SERVER_SESSION_TOKEN_KEY, VERSION3_SERVER_USER_KEY, type Version3ServerUser } from "@/lib/version3-server-client";
 import { ENABLE_APPS_SCRIPT_TRANSITION, ENABLE_LEGACY_PREVIEW, ENABLE_PREVIEW_LOGIN } from "@/lib/version3-runtime-flags";
 
@@ -147,6 +148,14 @@ export function AppShell({ children, area = "dashboard" }: { children: ReactNode
   const preferences = usePreferences();
   const user = useMemo(() => (role ? getSessionUser(role) ?? (ENABLE_PREVIEW_LOGIN ? previewUsers[role] : null) : null), [role]);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [testing, setTesting] = useState(false);
+
+  useEffect(() => {
+    const syncTestingState = () => setTesting(hasVersion3TestSession());
+    syncTestingState();
+    window.addEventListener(SESSION_CHANGE_EVENT, syncTestingState);
+    return () => window.removeEventListener(SESSION_CHANGE_EVENT, syncTestingState);
+  }, []);
 
   useEffect(() => {
     const stored = normalizeRole(window.localStorage.getItem(PREVIEW_ROLE_KEY));
@@ -260,6 +269,7 @@ export function AppShell({ children, area = "dashboard" }: { children: ReactNode
 
       <MobileBottomTabs groups={visibleGroups} pathname={pathname} area={area} role={user.role} onMore={() => setMenuOpen(true)} />
       <MobileMenuSheet groups={visibleGroups} open={menuOpen} pathname={pathname} role={user.role} mode={preferences.mobileMenu} onClose={() => setMenuOpen(false)} />
+      {testing ? <TestingPageMark /> : null}
     </div>
   );
 }
@@ -480,6 +490,9 @@ function MobileAppHeader({
 function getSessionUser(role: Role): CurrentUser | null {
   if (typeof window === "undefined") return null;
 
+  const testUser = version3TestCurrentUser();
+  if (testUser && testUser.role === role) return testUser;
+
   const serverToken = window.localStorage.getItem(VERSION3_SERVER_SESSION_TOKEN_KEY);
   if (serverToken) {
     const serverUser = sessionUserFromJson(role, window.localStorage.getItem(VERSION3_SERVER_USER_KEY), "server");
@@ -510,6 +523,14 @@ function sessionUserFromJson(role: Role, value: string | null, source: "server" 
   } catch {
     return null;
   }
+}
+
+function TestingPageMark() {
+  return (
+    <div className="pointer-events-none fixed right-4 top-4 z-50 select-none text-[11px] font-extrabold uppercase tracking-[0.16em] text-slate-500/45">
+      testing page
+    </div>
+  );
 }
 
 function BrandBlock({ compact = false }: { compact?: boolean }) {

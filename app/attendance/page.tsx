@@ -19,7 +19,7 @@ export default function AttendancePage() {
     <AppShell area="attendance">
       <ResourcePage
         title="출결 관리"
-        description={source === "server" ? "Version.3 서버의 출결 데이터를 표시합니다." : source === "live" ? "전환 세션의 수업/레슨노트 데이터에서 출결 상태를 계산해 표시합니다." : source === "fallback" ? "출결 데이터를 불러오지 못했습니다. 서버 연결과 권한을 확인해야 합니다." : "Preview 데이터로 출결 화면을 점검합니다."}
+        description={source === "server" || source === "test" ? "Version.3 서버의 출결 데이터를 표시합니다." : source === "live" ? "전환 세션의 수업/레슨노트 데이터에서 출결 상태를 계산해 표시합니다." : source === "fallback" ? "출결 데이터를 불러오지 못했습니다. 서버 연결과 권한을 확인해야 합니다." : "Preview 데이터로 출결 화면을 점검합니다."}
         headers={["학생", "출결 상태", "보강 필요", "메모"]}
         rows={data.attendance.map((item) => [
           studentName(data, item.studentId),

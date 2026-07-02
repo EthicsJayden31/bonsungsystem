@@ -14,7 +14,7 @@ export default function NoticesPage() {
   const user = useCurrentUser();
   const { data, source, error } = useOperationsData(role);
   const saveAction = useOperationAction();
-  const sourceLabel = source === "server" ? "Version.3 서버 데이터" : source === "live" ? "전환 데이터" : source === "fallback" ? "연결 실패" : "프리뷰 데이터";
+  const sourceLabel = source === "server" || source === "test" ? "Version.3 서버 데이터" : source === "live" ? "전환 데이터" : source === "fallback" ? "연결 실패" : "프리뷰 데이터";
   const accessUser = user ?? role;
   const accessRole = typeof accessUser === "string" ? accessUser : accessUser?.role;
   const canWriteNotice = (accessRole === "owner" || accessRole === "manager") && hasVersion3Permission(accessUser, "manageNotices");

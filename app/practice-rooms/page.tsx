@@ -80,7 +80,7 @@ export default function PracticeRoomsPage() {
 
         <ResourcePage
           title="예약 목록과 등록"
-          description={source === "server" ? "Version.3 서버의 공간/예약 데이터를 표시합니다." : source === "live" ? "전환 세션의 공간/예약 데이터를 표시합니다." : source === "fallback" ? "공간/예약 데이터를 불러오지 못했습니다. 서버 연결과 권한을 확인해야 합니다." : "Preview 데이터로 공간 예약 화면을 점검합니다."}
+          description={source === "server" || source === "test" ? "Version.3 서버의 공간/예약 데이터를 표시합니다." : source === "live" ? "전환 세션의 공간/예약 데이터를 표시합니다." : source === "fallback" ? "공간/예약 데이터를 불러오지 못했습니다. 서버 연결과 권한을 확인해야 합니다." : "Preview 데이터로 공간 예약 화면을 점검합니다."}
           headers={["공간", "예약자", "사용 시간", "상태", "메모"]}
           mobileCards={mobileCards}
           initialValues={reservationInitialValues}

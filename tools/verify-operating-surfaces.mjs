@@ -285,8 +285,8 @@ const requiredSourceSignals = [
   },
   {
     file: "app/version3-test/page.tsx",
-    includes: ["version3TestLogin", "createVersion3TestAccountRequest", "테스트 로그인", "대시보드", "학생/보호자", "공간 예약", "데이터 관리", "bonsung1"],
-    label: "Version.3 test-mode entry page opens the official app screens with localStorage-backed sessions"
+    includes: ["version3TestLogin", "교육행정운영 통합 관리 시스템", "placeholder=\"ID\"", "placeholder=\"PW\"", "LOGIN", "※계정 요청 및 패스워드 초기화는 매니저에게 문의 바랍니다.", "@Bonsungmusicacademy Alrights Reserved", "testing page"],
+    label: "Version.3 test-mode entry page mirrors the real login screen and only swaps the data/session source"
   },
   {
     file: "lib/version3-test-mode.ts",

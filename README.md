@@ -8,7 +8,7 @@ Version.3 is moving toward real academy operation on a separate server instead o
 
 The real Version.3 server contract now covers the core academy operation flow: role login and permission-gated menus, account requests and approval, password reset and forced password change, students and linked student accounts, consultations, enrollments, lessons, attendance, lesson notes, space reservations with overlap checks, registrations/payments, tasks, work logs, meetings, calendar events, notices, shared public settings, data export/import, backups, data quality checks, and audit logs.
 
-`/version3-test/` is the temporary inspection entry for the official Next UI. It uses browser `localStorage` so operators can test the same dashboard, student, consultation, lesson, attendance, lesson-note, reservation, payment, account, and data-management screens without a server. The source of truth for actual operation remains the Version.3 server API and the official Next UI.
+`/version3-test/` is the temporary inspection entry for the official Next UI. It mirrors the real login and app screens; the only intended behavioral difference is that the data/session source is browser `localStorage` instead of the Version.3 server. A small grey `testing page` mark is the only user-facing test indicator. The source of truth for actual operation remains the Version.3 server API and the official Next UI.
 
 `public/version3-offline-inspection.html` is now a lightweight guide/backup HTML that opens `/version3-test/`. It must not become a separate fake management app.
 

@@ -5,7 +5,7 @@ const root = process.cwd();
 const checks = [
   {
     file: "app/version3-test/page.tsx",
-    includes: ["version3TestLogin", "createVersion3TestAccountRequest", "테스트 로그인"]
+    includes: ["version3TestLogin", "교육행정운영 통합 관리 시스템", "※계정 요청 및 패스워드 초기화는 매니저에게 문의 바랍니다.", "@Bonsungmusicacademy Alrights Reserved", "testing page"]
   },
   {
     file: "lib/version3-test-mode.ts",
@@ -40,6 +40,13 @@ for (const check of checks) {
     if (!source.includes(needle)) {
       failures.push(`${check.file}: missing ${needle}`);
     }
+  }
+}
+
+const testPage = readFileSync(join(root, "app/version3-test/page.tsx"), "utf8");
+for (const forbidden of ["quickLogin", "계정 요청 테스트", "createVersion3TestAccountRequest", "appLinks"]) {
+  if (testPage.includes(forbidden)) {
+    failures.push(`app/version3-test/page.tsx: should not include separate test-only UI ${forbidden}`);
   }
 }
 

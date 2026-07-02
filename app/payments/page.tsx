@@ -20,7 +20,7 @@ export default function PaymentsPage() {
     <AppShell area="payments">
       <ResourcePage
         title="수납 상태 관리"
-        description={source === "server" ? "Version.3 서버의 수납 데이터를 표시합니다." : source === "live" ? "전환 세션의 등록결제 데이터를 표시합니다." : source === "fallback" ? "수납 데이터를 불러오지 못했습니다. 서버 연결과 권한을 확인해야 합니다." : "Preview 데이터로 수납 상태 화면을 점검합니다."}
+        description={source === "server" || source === "test" ? "Version.3 서버의 수납 데이터를 표시합니다." : source === "live" ? "전환 세션의 등록결제 데이터를 표시합니다." : source === "fallback" ? "수납 데이터를 불러오지 못했습니다. 서버 연결과 권한을 확인해야 합니다." : "Preview 데이터로 수납 상태 화면을 점검합니다."}
         headers={["학생", "항목", "금액", "상태", "납부기한", "확인일", "메모"]}
         rows={data.payments.map((item) => [
           item.studentName || studentName(data, item.studentId),

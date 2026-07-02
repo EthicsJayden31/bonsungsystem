@@ -18,7 +18,7 @@ export default function LessonNotesPage() {
     <AppShell area="lesson-notes">
       <ResourcePage
         title="레슨노트"
-        description={source === "server" ? "Version.3 서버의 레슨노트 데이터를 표시합니다." : source === "live" ? "전환 세션의 최근 레슨노트 데이터를 표시합니다." : source === "fallback" ? "레슨노트 데이터를 불러오지 못했습니다. 서버 연결과 권한을 확인해야 합니다." : "Preview 데이터로 레슨노트 화면을 점검합니다."}
+        description={source === "server" || source === "test" ? "Version.3 서버의 레슨노트 데이터를 표시합니다." : source === "live" ? "전환 세션의 최근 레슨노트 데이터를 표시합니다." : source === "fallback" ? "레슨노트 데이터를 불러오지 못했습니다. 서버 연결과 권한을 확인해야 합니다." : "Preview 데이터로 레슨노트 화면을 점검합니다."}
         headers={["수업일", "학생", "강사", "수업 내용", "과제", "다음 목표"]}
         rows={data.lessonNotes.map((note) => [
           note.date || "-",

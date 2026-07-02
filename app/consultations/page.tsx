@@ -31,7 +31,7 @@ export default function ConsultationsPage() {
   const isStudent = role === "student";
   const canTriage = role === "owner" || role === "manager";
   const studentName = data.students[0]?.name || "수강생";
-  const sourceLabel = source === "server" ? "Version.3 서버 데이터" : source === "live" ? "전환 데이터" : source === "fallback" ? "연결 실패" : "프리뷰 데이터";
+  const sourceLabel = source === "server" || source === "test" ? "Version.3 서버 데이터" : source === "live" ? "전환 데이터" : source === "fallback" ? "연결 실패" : "프리뷰 데이터";
   const assignees = useMemo(() => buildAssignees(data.teachers), [data.teachers]);
   const assigneeNames = useMemo(() => Object.fromEntries(assignees.map((assignee) => [assignee.id, assignee.name])), [assignees]);
   const consultations = useMemo(

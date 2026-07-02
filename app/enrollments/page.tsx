@@ -19,7 +19,7 @@ export default function EnrollmentsPage() {
     <AppShell area="enrollments">
       <ResourcePage
         title="수강 관리"
-        description={source === "server" ? "Version.3 서버의 수강 데이터를 표시합니다." : source === "live" ? "전환 세션의 수강 데이터를 표시합니다." : source === "fallback" ? "수강 데이터를 불러오지 못했습니다. 서버 연결과 권한을 확인해야 합니다." : "Preview 데이터로 수강 화면과 권한 흐름을 점검합니다."}
+        description={source === "server" || source === "test" ? "Version.3 서버의 수강 데이터를 표시합니다." : source === "live" ? "전환 세션의 수강 데이터를 표시합니다." : source === "fallback" ? "수강 데이터를 불러오지 못했습니다. 서버 연결과 권한을 확인해야 합니다." : "Preview 데이터로 수강 화면과 권한 흐름을 점검합니다."}
         headers={["학생", "과목", "강사", "시작일", "상태", "메모"]}
         rows={data.enrollments.map((item) => [
           item.studentName || studentName(data, item.studentId),

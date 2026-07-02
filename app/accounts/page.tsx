@@ -23,7 +23,7 @@ const accountSourceLabel = {
   loading: "계정 확인 중",
   server: "Version.3 서버 계정",
   live: "실사용 계정",
-  test: "Version.3 테스트모드",
+  test: "Version.3 서버 계정",
   preview: "Version.3 Preview",
   fallback: "계정 연결 실패"
 };
@@ -289,7 +289,7 @@ export default function AccountsPage() {
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
           <div className="min-w-0 space-y-4">
             <div className="grid gap-3 sm:grid-cols-3">
-              <SummaryCard label="계정 소스" value={accountSourceLabel[accountState.source]} helper={accountState.source === "server" ? "별도 서버 연결" : accountState.source === "live" ? "전환 연결층 사용" : accountState.source === "preview" ? "점검용 Preview" : "서버 세션 필요"} />
+              <SummaryCard label="계정 소스" value={accountSourceLabel[accountState.source]} helper={accountState.source === "server" || accountState.source === "test" ? "별도 서버 연결" : accountState.source === "live" ? "전환 연결층 사용" : accountState.source === "preview" ? "점검용 Preview" : "서버 세션 필요"} />
               <SummaryCard label="전체 계정" value={accountState.accounts.length} helper="대표/매니저/강사/수강생 합계" />
               <SummaryCard label="연결 가능 학생" value={availableStudents.length} helper={`연결됨 ${linkedStudentCount}명`} />
             </div>

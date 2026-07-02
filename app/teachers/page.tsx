@@ -161,10 +161,10 @@ function SourceNote({ source, error }: { source: string; error?: string }) {
     <div className="rounded-2xl border border-line bg-white p-4 shadow-card">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm font-semibold text-ink">
-          {source === "server" ? "Version.3 서버의 강사 데이터를 표시합니다." : source === "live" ? "전환 세션의 강사 데이터를 표시합니다." : source === "fallback" ? "강사 데이터를 불러오지 못했습니다. 서버 연결과 권한을 확인해야 합니다." : "Preview 점검 모드의 강사 데이터를 표시합니다."}
+          {source === "server" || source === "test" ? "Version.3 서버의 강사 데이터를 표시합니다." : source === "live" ? "전환 세션의 강사 데이터를 표시합니다." : source === "fallback" ? "강사 데이터를 불러오지 못했습니다. 서버 연결과 권한을 확인해야 합니다." : "Preview 점검 모드의 강사 데이터를 표시합니다."}
         </p>
-        <Badge tone={source === "server" || source === "live" ? "good" : source === "fallback" ? "warn" : "default"}>
-          {source === "server" ? "서버 데이터" : source === "live" ? "전환 데이터" : source === "fallback" ? "연결 실패" : "Preview"}
+        <Badge tone={source === "server" || source === "test" || source === "live" ? "good" : source === "fallback" ? "warn" : "default"}>
+          {source === "server" || source === "test" ? "서버 데이터" : source === "live" ? "전환 데이터" : source === "fallback" ? "연결 실패" : "Preview"}
         </Badge>
       </div>
       {error ? <p className="mt-2 text-xs text-muted">연결 오류: {error}</p> : null}
