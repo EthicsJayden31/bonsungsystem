@@ -185,11 +185,13 @@ const requiredFiles = [
   "server/bonsung-initial-data.mjs",
   "tools/verify-version3-production-env.mjs",
   "tools/verify-version3-cleanup.mjs",
+  "tools/verify-version3-test-mode.mjs",
   "tools/verify-version3-server.mjs",
   "out/index.html",
   "out/login/index.html",
   "out/dashboard/index.html",
   "out/accounts/index.html",
+  "out/version3-test/index.html",
   "out/teachers/index.html",
   "out/data-quality/index.html",
   "out/profile-settings/index.html",
@@ -278,8 +280,28 @@ const requiredSourceSignals = [
   },
   {
     file: "public/version3-offline-inspection.html",
-    includes: ["본성 스테이지 오프라인 점검", "서버 설정 없이 사용하는 점검판", "localStorage", "OFFLINE APP", "data-login-section=\"top\"", "data-login-section=\"middle\"", "data-login-section=\"bottom\"", "@Bonsungmusicacademy Alrights Reserved", "수업/시간표", "공간 예약", "운영 점검", "강은미", "조영진", "장윤호", "본성 프리컬리지", "상담요청 저장", "공지 저장", "JSON 내보내기"],
-    label: "standalone offline inspection page can exercise Version.3 operating flows without server configuration"
+    includes: ["본성 스테이지 임시 점검용 HTML", "서버 설정 없이 사용하는 점검판", "Version.3 테스트모드 열기", "./version3-test/", "localStorage", "실제 Next.js 시스템", "bonsung_version3_test_data_v1", "bonsung1"],
+    label: "temporary inspection HTML routes operators into the official Version.3 test mode"
+  },
+  {
+    file: "app/version3-test/page.tsx",
+    includes: ["version3TestLogin", "createVersion3TestAccountRequest", "테스트 로그인", "대시보드", "학생/보호자", "공간 예약", "데이터 관리", "bonsung1"],
+    label: "Version.3 test-mode entry page opens the official app screens with localStorage-backed sessions"
+  },
+  {
+    file: "lib/version3-test-mode.ts",
+    includes: ["VERSION3_TEST_DATA_KEY", "VERSION3_TEST_DATA_CHANGE_EVENT", "runVersion3TestAction", "createStudent", "createConsultation", "createLesson", "updateAttendance", "createLessonLog", "createReservation", "createRegistration", "reviewVersion3TestAccountRequest", "changeVersion3TestPassword", "localStorage"],
+    label: "Version.3 test-mode data layer supports real operating workflows without server configuration"
+  },
+  {
+    file: "lib/operations-data.ts",
+    includes: ["hasVersion3TestSession", "readVersion3TestData", "runVersion3TestAction", "source: \"test\"", "localStorage:version3-test"],
+    label: "official operations data hook can use the Version.3 test-mode data source"
+  },
+  {
+    file: "lib/accounts-data.ts",
+    includes: ["hasVersion3TestSession", "version3TestAccounts", "createVersion3TestAccount", "resetVersion3TestAccountPassword", "updateVersion3TestPermissions", "\"test\""],
+    label: "official account data hook can use the Version.3 test-mode account source"
   },
   {
     file: "public/version3-inspection.html",
