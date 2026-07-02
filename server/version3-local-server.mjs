@@ -45,7 +45,7 @@ const permissionSets = {
   },
   student: {
     manageAccounts: false, viewAccounts: false, manageOperations: false, manageNotices: false, managePermissions: false,
-    manageMeetings: false, manageCalendar: false, viewPayments: true, clockWork: false, viewStudents: false,
+    manageMeetings: false, manageCalendar: false, viewPayments: false, clockWork: false, viewStudents: false,
     manageStudents: false, viewLessonLogs: true, writeLessonLogs: false, viewReservations: true, manageReservations: false,
     reserveLessonRoom: false, reservePracticeRoom: true, viewTeam: false, viewMeetings: false, viewCalendar: true,
     reviewAccountRequests: false, managePublicSettings: false
@@ -203,7 +203,7 @@ function bootstrapFor(account) {
     consultations,
     consultationHistory: db.consultationHistory.filter((item) => consultations.some((consultation) => consultation.id === item.consultationId)),
     courses: db.courses,
-    enrollments: db.enrollments.filter((item) => studentIds.size === 0 || studentIds.has(item.studentId) || account.role === "owner" || account.role === "manager"),
+    enrollments: account.role === "student" ? [] : db.enrollments.filter((item) => studentIds.size === 0 || studentIds.has(item.studentId) || account.role === "owner" || account.role === "manager"),
     lessons,
     attendance: account.permissions.viewLessonLogs ? db.attendance.filter((item) => lessonIds.has(item.lessonId) || studentIds.has(item.studentId)) : [],
     lessonNotes: account.permissions.viewLessonLogs ? db.lessonNotes.filter((item) => lessonIds.has(item.lessonId) || studentIds.has(item.studentId)) : [],

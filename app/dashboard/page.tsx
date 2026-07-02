@@ -25,6 +25,12 @@ type QuickCardData = {
   tone?: "default" | "warn" | "good";
 };
 
+type StatData = {
+  label: string;
+  value: number;
+  helper: string;
+};
+
 type ConsultationAlert = {
   id: string;
   href: string;
@@ -44,26 +50,51 @@ export default function DashboardPage() {
   const data = operations.data;
   const profile = dashboardProfile(role);
   const accessUser = user ?? role;
+  const accessRole = typeof accessUser === "string" ? accessUser : accessUser?.role ?? role;
+  const isStudent = accessRole === "student";
   const canViewAccounts = canAccessVersion3Area(accessUser, "accounts");
+  const canViewStudents = canAccessVersion3Area(accessUser, "students");
+  const canViewConsultations = canAccessVersion3Area(accessUser, "consultations");
+  const canViewAttendance = canAccessVersion3Area(accessUser, "attendance");
+  const canViewLessonNotes = canAccessVersion3Area(accessUser, "lesson-notes");
+  const canViewReservations = canAccessVersion3Area(accessUser, "practice-rooms");
+  const canViewPayments = canAccessVersion3Area(accessUser, "payments");
+  const canViewTasks = canAccessVersion3Area(accessUser, "tasks");
   const accountState = useAccountsData({ enabled: canViewAccounts });
   const [acknowledgedConsultationIds, setAcknowledgedConsultationIds] = useState<string[]>([]);
   const [alertMessage, setAlertMessage] = useState("");
 
-  const unpaid = role === "teacher" ? [] : data.payments.filter((payment) => ["미납", "청구예정", "청구완료", "확인 필요"].includes(payment.status));
+  const unpaid = canViewPayments ? data.payments.filter((payment) => ["미납", "청구예정", "청구완료", "확인 필요"].includes(payment.status)) : [];
   const activeConsultationCount = countActiveConsultations(data);
   const openTaskCount = countOpenTasks(data);
   const pendingAttendanceCount = countPendingAttendance(data);
   const makeupStudents = data.attendance.filter((item) => item.makeupNeeded);
-  const priorityItems = buildDashboardWorkQueue(data, 8, canViewAccounts ? accountState.accounts : undefined);
+  const priorityItems = isStudent ? [] : buildDashboardWorkQueue(data, 8, canViewAccounts ? accountState.accounts : undefined);
   const consultationAlerts = buildConsultationAlerts(data.consultations, user ?? role, acknowledgedConsultationIds);
-  const recentStudents = data.students.slice(0, 3);
+  const recentStudents = canViewStudents ? data.students.slice(0, 3) : [];
+  const recentNotices = data.notices.slice(0, 3);
   const today = new Intl.DateTimeFormat("ko-KR", { dateStyle: "full" }).format(new Date());
-  const mobileQuickCards = buildMobileQuickCards(preferences.dashboardFocus, {
+  const dashboardStats = buildDashboardStats(accessRole, {
     lessons: data.lessons.length,
     consultations: activeConsultationCount,
     attendance: pendingAttendanceCount,
     students: data.students.length,
-    rooms: data.rooms.length
+    rooms: data.rooms.length,
+    lessonNotes: data.lessonNotes.length,
+    reservations: data.reservations.length,
+    payments: unpaid.length,
+    tasks: openTaskCount
+  });
+  const mobileQuickCards = buildMobileQuickCards(preferences.dashboardFocus, accessRole, {
+    lessons: data.lessons.length,
+    consultations: activeConsultationCount,
+    attendance: pendingAttendanceCount,
+    students: data.students.length,
+    rooms: data.rooms.length,
+    lessonNotes: data.lessonNotes.length,
+    reservations: data.reservations.length,
+    payments: unpaid.length,
+    notices: recentNotices.length
   }).filter((card) => canAccessVersion3Area(accessUser, areaFromHref(card.href)));
   const visibleActions = profile.actions.filter(([, href]) => canAccessVersion3Area(accessUser, areaFromHref(href)));
 
@@ -132,15 +163,15 @@ export default function DashboardPage() {
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <Stat label="오늘 수업" value={data.lessons.length} helper="예정 및 최근 완료 포함" />
-          <Stat label="상담요청" value={activeConsultationCount} helper="종결 제외 확인 필요" />
-          <Stat label="출결 미처리" value={pendingAttendanceCount} helper="오늘 확인할 항목" />
-          <Stat label="미완료 업무" value={openTaskCount} helper="진행 중 또는 보류" />
+          {dashboardStats.map((stat) => (
+            <Stat label={stat.label} value={stat.value} helper={stat.helper} key={stat.label} />
+          ))}
         </div>
 
         {consultationAlerts.length ? <ConsultationAlertStrip alerts={consultationAlerts} message={alertMessage} onAcknowledge={acknowledgeConsultation} pending={saveAction.pending} /> : null}
 
         <div className="grid gap-6 xl:grid-cols-2">
+          {!isStudent ? (
           <div className="xl:col-span-2">
             <Panel title="우선 처리 목록">
               {priorityItems.length ? (
@@ -160,8 +191,9 @@ export default function DashboardPage() {
               )}
             </Panel>
           </div>
+          ) : null}
 
-          <Panel title="오늘 예정 수업">
+          <Panel title={isStudent ? "내 예정 수업" : "오늘 예정 수업"}>
             {data.lessons.length ? (
               <DataTable
                 headers={["학생", "강사", "과목", "상태"]}
@@ -177,10 +209,17 @@ export default function DashboardPage() {
             )}
           </Panel>
 
-          <Panel title="상담요청 상태">
-            <DataTable headers={["학생", "상태", "담당", "작성일"]} rows={data.consultations.map((item) => [item.studentName, <Badge key={item.id}>{item.status}</Badge>, item.assignedToName || item.assignedTo || "매니저 접수", item.date || item.followUpDate || "-"])} />
-          </Panel>
+          {canViewConsultations ? (
+            <Panel title={isStudent ? "내 상담요청" : "상담요청 상태"}>
+              {data.consultations.length ? (
+                <DataTable headers={["학생", "상태", "담당", "작성일"]} rows={data.consultations.map((item) => [item.studentName, <Badge key={item.id}>{item.status}</Badge>, item.assignedToName || item.assignedTo || "매니저 접수", item.date || item.followUpDate || "-"])} />
+              ) : (
+                <EmptyState title="상담요청이 없습니다" description={isStudent ? "내가 남긴 상담요청이 없으면 이 영역은 비어 있습니다." : "확인할 상담요청이 없으면 이 영역은 비어 있습니다."} />
+              )}
+            </Panel>
+          ) : null}
 
+          {canViewAttendance && !isStudent ? (
           <Panel title="출결 미처리 수업">
             {pendingAttendanceCount ? (
               <DataTable headers={["학생", "상태", "메모"]} rows={data.attendance.filter((item) => item.status === "미처리").map((item) => [studentName(data, item.studentId), <Badge key={item.id} tone="warn">{item.status}</Badge>, item.memo])} />
@@ -188,7 +227,9 @@ export default function DashboardPage() {
               <EmptyState title="미처리 출결이 없습니다" description="출결 처리가 완료되면 이 영역은 비어 있습니다." />
             )}
           </Panel>
+          ) : null}
 
+          {canViewAttendance && !isStudent ? (
           <Panel title="보강 확인이 필요한 학생">
             {makeupStudents.length ? (
               <DataTable headers={["학생", "상태", "메모"]} rows={makeupStudents.map((item) => [studentName(data, item.studentId), <Badge key={item.id} tone="warn">{item.status}</Badge>, item.memo])} />
@@ -196,8 +237,9 @@ export default function DashboardPage() {
               <EmptyState title="보강 필요 학생이 없습니다" description="결석 처리 후 보강 필요 여부를 기록하면 이곳에 표시합니다." />
             )}
           </Panel>
+          ) : null}
 
-          {canAccessVersion3Area(accessUser, "payments") ? (
+          {canViewPayments && !isStudent ? (
             <Panel title="수납 확인 필요">
               {unpaid.length ? (
                 <DataTable headers={["학생", "항목", "상태", "금액"]} rows={unpaid.map((item) => [item.studentName || studentName(data, item.studentId), item.title, <Badge key={item.id} tone="warn">{item.status}</Badge>, `${item.amount.toLocaleString("ko-KR")}원`])} />
@@ -207,21 +249,47 @@ export default function DashboardPage() {
             </Panel>
           ) : null}
 
-          <Panel title="최근 등록 학생">
-            <DataTable headers={["이름", "전공", "상태", "등록일"]} rows={recentStudents.map((student) => [student.name, student.major, <Badge key={student.id}>{student.status}</Badge>, student.enrolledAt || "-"])} />
-          </Panel>
+          {canViewStudents ? (
+            <Panel title="최근 등록 학생">
+              {recentStudents.length ? (
+                <DataTable headers={["이름", "전공", "상태", "등록일"]} rows={recentStudents.map((student) => [student.name, student.major, <Badge key={student.id}>{student.status}</Badge>, student.enrolledAt || "-"])} />
+              ) : (
+                <EmptyState title="표시할 학생이 없습니다" description="현재 권한에서 볼 수 있는 학생이 없으면 이 영역은 비어 있습니다." />
+              )}
+            </Panel>
+          ) : null}
 
-          <Panel title="최근 레슨노트">
+          {canViewLessonNotes ? (
+          <Panel title={isStudent ? "내 레슨노트" : "최근 레슨노트"}>
             {data.lessonNotes.length ? (
               <DataTable headers={["학생", "강사", "수업일", "다음 목표"]} rows={data.lessonNotes.map((note) => [note.studentName || studentName(data, note.studentId), note.teacherName || teacherName(data, note.teacherId), note.date, note.nextGoal || "-"])} />
             ) : (
               <EmptyState title="최근 레슨노트가 없습니다" description="Version.3 서버의 레슨노트 응답을 연결해 표시합니다." />
             )}
           </Panel>
+          ) : null}
 
-          <Panel title="내부 미완료 업무">
-            <DataTable headers={["업무", "담당자", "상태", "마감일"]} rows={data.tasks.filter((task) => task.status !== "완료").map((task) => [task.title, task.assignee, <Badge key={task.id}>{task.status}</Badge>, task.dueDate])} />
-          </Panel>
+          {isStudent && canViewReservations ? (
+            <Panel title="내 예약">
+              {data.reservations.length ? (
+                <DataTable headers={["공간", "시작", "종료", "상태"]} rows={data.reservations.map((reservation) => [reservation.roomName || reservation.roomId, reservation.startsAt, reservation.endsAt, <Badge key={reservation.id}>{reservation.status}</Badge>])} />
+              ) : (
+                <EmptyState title="예약 내역이 없습니다" description="연습실 예약이 없으면 이 영역은 비어 있습니다." />
+              )}
+            </Panel>
+          ) : null}
+
+          {recentNotices.length ? (
+            <Panel title={isStudent ? "내 공지" : "최근 공지"}>
+              <DataTable headers={["제목", "분류", "수정일"]} rows={recentNotices.map((notice) => [notice.pinned ? `${notice.title} · 고정` : notice.title, notice.category, notice.updatedAt])} />
+            </Panel>
+          ) : null}
+
+          {canViewTasks ? (
+            <Panel title="내부 미완료 업무">
+              <DataTable headers={["업무", "담당자", "상태", "마감일"]} rows={data.tasks.filter((task) => task.status !== "완료").map((task) => [task.title, task.assignee, <Badge key={task.id}>{task.status}</Badge>, task.dueDate])} />
+            </Panel>
+          ) : null}
         </div>
       </Section>
     </AppShell>
@@ -257,11 +325,42 @@ function dashboardProfile(role: Role | null) {
   };
 }
 
+function buildDashboardStats(
+  role: Role | null,
+  counts: { lessons: number; consultations: number; attendance: number; students: number; rooms: number; lessonNotes: number; reservations: number; payments: number; tasks: number }
+): StatData[] {
+  if (role === "student") {
+    return [
+      { label: "내 예정 수업", value: counts.lessons, helper: "확인 가능한 수업" },
+      { label: "내 상담요청", value: counts.consultations, helper: "진행 중 요청" },
+      { label: "레슨노트", value: counts.lessonNotes, helper: "확인 가능한 기록" },
+      { label: "내 예약", value: counts.reservations, helper: "연습실 예약" }
+    ];
+  }
+
+  if (role === "teacher") {
+    return [
+      { label: "오늘 수업", value: counts.lessons, helper: "담당 수업" },
+      { label: "출결 미처리", value: counts.attendance, helper: "확인할 수업" },
+      { label: "레슨노트", value: counts.lessonNotes, helper: "최근 기록" },
+      { label: "담당 학생", value: counts.students, helper: "조회 가능 학생" }
+    ];
+  }
+
+  return [
+    { label: "상담요청", value: counts.consultations, helper: "종결 제외 확인 필요" },
+    { label: "출결 미처리", value: counts.attendance, helper: "오늘 확인할 항목" },
+    { label: "수납 확인", value: counts.payments, helper: "미납 또는 확인 필요" },
+    { label: "미완료 업무", value: counts.tasks, helper: "진행 중 또는 보류" }
+  ];
+}
+
 function buildMobileQuickCards(
   focus: "operations" | "lessons" | "students",
-  counts: { lessons: number; consultations: number; attendance: number; students: number; rooms: number }
+  role: Role | null,
+  counts: { lessons: number; consultations: number; attendance: number; students: number; rooms: number; lessonNotes: number; reservations: number; payments: number; notices: number }
 ) {
-  const cards: Record<"lessons" | "consultations" | "attendance" | "students" | "rooms", QuickCardData> = {
+  const cards: Record<"lessons" | "consultations" | "attendance" | "students" | "rooms" | "lessonNotes" | "payments" | "notices", QuickCardData> = {
     lessons: { href: "/lessons", label: "오늘 수업", value: counts.lessons, helper: "일정 확인" },
     consultations: {
       href: "/consultations",
@@ -278,12 +377,23 @@ function buildMobileQuickCards(
       tone: counts.attendance ? "warn" : "good"
     },
     students: { href: "/students", label: "학생 관리", value: counts.students, helper: "상세 조회" },
-    rooms: { href: "/practice-rooms", label: "공간 예약", value: counts.rooms, helper: "시간 선택" }
+    rooms: { href: "/practice-rooms", label: role === "student" ? "내 예약" : "공간 예약", value: role === "student" ? counts.reservations : counts.rooms, helper: "시간 선택" },
+    lessonNotes: { href: "/lesson-notes", label: "레슨노트", value: counts.lessonNotes, helper: "기록 확인" },
+    payments: {
+      href: "/payments",
+      label: "수납 확인",
+      value: counts.payments,
+      helper: "확인 필요",
+      tone: counts.payments ? "warn" : "good"
+    },
+    notices: { href: "/notices", label: "공지", value: counts.notices, helper: "최근 안내" }
   };
 
+  if (role === "student") return [cards.lessons, cards.lessonNotes, cards.consultations, cards.rooms, cards.notices];
+  if (role === "teacher") return [cards.lessons, cards.attendance, cards.lessonNotes, cards.students, cards.rooms];
   if (focus === "lessons") return [cards.lessons, cards.attendance, cards.consultations, cards.rooms, cards.students];
-  if (focus === "students") return [cards.students, cards.consultations, cards.lessons, cards.attendance, cards.rooms];
-  return [cards.consultations, cards.attendance, cards.lessons, cards.students, cards.rooms];
+  if (focus === "students") return [cards.students, cards.consultations, cards.lessons, cards.attendance, cards.payments];
+  return [cards.consultations, cards.attendance, cards.lessons, cards.payments, cards.students];
 }
 
 function buildConsultationAlerts(consultations: Consultation[], user: CurrentUser | Role | null, acknowledgedIds: string[], limit = 3): ConsultationAlert[] {

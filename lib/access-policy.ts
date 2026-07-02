@@ -107,7 +107,7 @@ const defaultPermissionsByRole: Record<Role, Version3Permissions> = {
     managePermissions: false,
     manageMeetings: false,
     manageCalendar: false,
-    viewPayments: true,
+    viewPayments: false,
     clockWork: false,
     viewStudents: false,
     manageStudents: false,
@@ -129,7 +129,7 @@ const roleOnlyAreas: Record<Role, string[]> = {
   owner: [],
   manager: [],
   teacher: ["students", "lessons", "attendance", "lesson-notes", "practice-rooms", "notices", "consultations", "profile-settings"],
-  student: ["dashboard", "lessons", "lesson-notes", "practice-rooms", "notices", "consultations", "payments", "profile-settings"]
+  student: ["dashboard", "lessons", "lesson-notes", "practice-rooms", "notices", "consultations", "profile-settings"]
 };
 
 export function permissionsFor(user: AccessUser | Role): Version3Permissions {

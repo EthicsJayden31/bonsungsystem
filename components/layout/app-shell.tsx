@@ -34,6 +34,8 @@ type NavGroup = {
   items: NavItem[];
 };
 
+const SIDEBAR_GROUP_STORAGE_KEY = "bonsung_sidebar_groups_v1";
+
 const navGroups: NavGroup[] = [
   {
     id: "operations",
@@ -100,6 +102,13 @@ const pageCopy: Record<string, { title: string; description: string; action: str
   "profile-settings": { title: "개인화 설정", description: "내 화면 방식, 시작 화면, 메뉴 표시 방식을 조정합니다.", action: "설정 저장" }
 };
 
+const dashboardPageCopyByRole: Record<Role, { title: string; description: string; action: string }> = {
+  owner: { title: "대표 운영 홈", description: "전체 운영 현황, 상담요청, 수납과 데이터 점검을 확인합니다.", action: "데이터 점검" },
+  manager: { title: "매니저 운영 홈", description: "상담요청, 학생·강사·수업 관리 흐름을 확인합니다.", action: "학생 관리" },
+  teacher: { title: "강사 업무 홈", description: "담당 학생, 수업, 출결, 레슨노트를 확인합니다.", action: "오늘 수업" },
+  student: { title: "내 수업 홈", description: "공지, 수업, 레슨노트, 상담요청과 연습실 예약을 확인합니다.", action: "내 수업 확인" }
+};
+
 const roleLabel: Record<Role, string> = {
   owner: "대표",
   manager: "매니저",
@@ -124,6 +133,27 @@ const defaultBottomTabs: BottomTab[] = [
   { id: "more", label: "메뉴", icon: "+", fallbackHref: "#app-menu", areas: [] }
 ];
 
+const roleGroupCopy: Record<string, Partial<Record<Role, { title: string; helper: string }>>> = {
+  operations: {
+    student: { title: "My Today", helper: "공지와 내 일정" },
+    teacher: { title: "Teaching Desk", helper: "수업과 확인할 일" }
+  },
+  roster: {
+    student: { title: "Support", helper: "상담요청" },
+    teacher: { title: "Students", helper: "담당 학생과 상담" },
+    owner: { title: "Academy Roster", helper: "학생, 강사, 보호자, 상담" },
+    manager: { title: "Academy Roster", helper: "학생, 강사, 보호자, 상담" }
+  },
+  classes: {
+    student: { title: "Learning", helper: "수업, 노트, 연습실" },
+    teacher: { title: "Lessons & Rooms", helper: "수업, 출결, 예약" }
+  },
+  administration: {
+    student: { title: "My Settings", helper: "개인화 설정" },
+    teacher: { title: "My Settings", helper: "개인화 설정" }
+  }
+};
+
 const studentBottomTabs: BottomTab[] = [
   { id: "home", label: "홈", icon: "H", fallbackHref: "/dashboard", areas: ["dashboard"] },
   { id: "notices", label: "공지", icon: "N", fallbackHref: "/notices", areas: ["notices"] },
@@ -146,6 +176,21 @@ function bottomTabsFor(role: Role): BottomTab[] {
   return defaultBottomTabs;
 }
 
+function readSidebarGroupState(): Record<string, boolean> {
+  if (typeof window === "undefined") return {};
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(SIDEBAR_GROUP_STORAGE_KEY) || "{}");
+    return parsed && typeof parsed === "object" ? parsed as Record<string, boolean> : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveSidebarGroupState(nextGroups: Record<string, boolean>) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(SIDEBAR_GROUP_STORAGE_KEY, JSON.stringify(nextGroups));
+}
+
 export function AppShell({ children, area = "dashboard" }: { children: ReactNode; area?: string }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -153,7 +198,8 @@ export function AppShell({ children, area = "dashboard" }: { children: ReactNode
   const preferences = usePreferences();
   const user = useMemo(() => (role ? getSessionUser(role) ?? (ENABLE_PREVIEW_LOGIN ? previewUsers[role] : null) : null), [role]);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
+  const [menuQuery, setMenuQuery] = useState("");
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(() => readSidebarGroupState());
   const [testing, setTesting] = useState(false);
 
   useEffect(() => {
@@ -199,6 +245,14 @@ export function AppShell({ children, area = "dashboard" }: { children: ReactNode
     router.push("/login");
   }
 
+  function setGroupOpen(groupId: string, nextOpen: boolean) {
+    setExpandedGroups((currentGroups) => {
+      const nextGroups = { ...currentGroups, [groupId]: nextOpen };
+      saveSidebarGroupState(nextGroups);
+      return nextGroups;
+    });
+  }
+
   if (!user || !canAccessVersion3Area(user, area)) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-canvas px-4 text-sm text-muted">
@@ -210,7 +264,8 @@ export function AppShell({ children, area = "dashboard" }: { children: ReactNode
   const visibleGroups = navGroups
     .map((group) => ({ ...group, items: group.items.filter((item) => canAccessVersion3Area(user, item.area)) }))
     .filter((group) => group.items.length > 0);
-  const current = pageCopy[area] ?? pageCopy.dashboard;
+  const sidebarGroups = filterSidebarGroups(visibleGroups, user.role, menuQuery);
+  const current = area === "dashboard" ? dashboardPageCopyByRole[user.role] : pageCopy[area] ?? pageCopy.dashboard;
   const compact = preferences.density === "compact";
 
   return (
@@ -218,17 +273,20 @@ export function AppShell({ children, area = "dashboard" }: { children: ReactNode
       <aside className="fixed inset-y-0 left-0 hidden h-screen w-72 flex-col border-r border-line bg-white px-5 py-5 lg:flex">
         <div className="shrink-0">
           <BrandBlock />
+          <SidebarAccountBadge user={user} />
+          <SidebarMenuSearch query={menuQuery} onChange={setMenuQuery} />
         </div>
         <nav className="mt-5 min-h-0 flex-1 space-y-2 overflow-y-auto pr-1" aria-label="주요 메뉴">
-          {visibleGroups.map((group) => (
+          {sidebarGroups.length ? sidebarGroups.map((group) => (
             <SidebarGroup
               expanded={expandedGroups[group.id] ?? true}
               group={group}
               key={group.id}
               pathname={pathname}
-              onToggle={() => setExpandedGroups((currentGroups) => ({ ...currentGroups, [group.id]: !(currentGroups[group.id] ?? true) }))}
+              role={user.role}
+              onToggle={() => setGroupOpen(group.id, !(expandedGroups[group.id] ?? true))}
             />
-          ))}
+          )) : <SidebarEmptySearch />}
         </nav>
         <div className="mt-4 shrink-0 space-y-3 border-t border-line pt-4">
           {ENABLE_LEGACY_PREVIEW ? (
@@ -272,7 +330,7 @@ export function AppShell({ children, area = "dashboard" }: { children: ReactNode
         </header>
 
         <MobileAppHeader current={current} user={user} onMenu={() => setMenuOpen(true)} onLogout={logout} />
-        <MobileHomeStrip groups={visibleGroups} currentArea={area} mode={preferences.mobileMenu} />
+        <MobileHomeStrip groups={visibleGroups} currentArea={area} mode={preferences.mobileMenu} role={user.role} />
         <main className={`mx-auto max-w-7xl px-4 pb-[calc(7.5rem+env(safe-area-inset-bottom))] pt-4 lg:pb-8 ${compact ? "sm:py-5" : "sm:py-8"}`}>{children}</main>
       </div>
 
@@ -287,36 +345,49 @@ function SidebarGroup({
   expanded,
   group,
   pathname,
+  role,
   onToggle
 }: {
   expanded: boolean;
   group: NavGroup;
   pathname: string;
+  role: Role;
   onToggle: () => void;
 }) {
   const active = group.items.some((item) => pathname === item.href || pathname.startsWith(`${item.href}/`));
+  const copy = groupCopyForRole(group, role);
+  const controlId = `sidebar-group-${group.id}`;
+  const activeItem = group.items.find((item) => pathname === item.href || pathname.startsWith(`${item.href}/`));
 
   return (
-    <section className="rounded-[18px] border border-line bg-surface-muted p-2">
+    <section className={`rounded-[18px] border p-2 transition ${active ? "border-brand/30 bg-brand/5" : "border-line bg-surface-muted"}`}>
       <button
-        className={`flex min-h-12 w-full items-center justify-between gap-3 rounded-[14px] px-3 py-2 text-left transition ${
-          active ? "bg-brand text-white shadow-sm" : "bg-white text-ink hover:border-brand/20 hover:bg-brand/5"
+        className={`flex min-h-[58px] w-full items-center justify-between gap-3 rounded-[14px] border px-3 py-2 text-left transition ${
+          active ? "border-brand bg-brand text-white shadow-sm" : "border-line bg-white text-ink hover:border-brand/30 hover:bg-white"
         }`}
         type="button"
         aria-expanded={expanded}
-        aria-label={`${group.title} 메뉴 ${expanded ? "접기" : "펼치기"}`}
+        aria-controls={controlId}
+        aria-label={`${copy.title} 메뉴 ${expanded ? "접기" : "펼치기"}`}
         onClick={onToggle}
       >
-        <span className="min-w-0">
-          <span className="block truncate text-[12px] font-extrabold uppercase tracking-[0.12em]">{group.title}</span>
-          <span className={`mt-0.5 block truncate text-[11px] font-semibold ${active ? "text-white/70" : "text-muted"}`}>{group.helper}</span>
+        <span className="grid min-w-0 gap-0.5">
+          <span className="block truncate text-[12px] font-extrabold uppercase tracking-[0.12em]">{copy.title}</span>
+          <span className={`block truncate text-[11px] font-semibold ${active ? "text-white/72" : "text-muted"}`}>
+            {activeItem ? activeItem.label : copy.helper}
+          </span>
         </span>
-        <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm font-extrabold ${active ? "bg-white/18 text-white" : "bg-surface-muted text-brand"}`}>
-          {expanded ? "-" : "+"}
+        <span className="flex shrink-0 items-center gap-1.5">
+          <span className={`min-w-7 rounded-full px-2 py-1 text-center text-[11px] font-black ${active ? "bg-white/18 text-white" : "bg-surface-muted text-brand"}`}>
+            {group.items.length}
+          </span>
+          <span className={`flex h-7 w-7 items-center justify-center rounded-full ${active ? "bg-white/18 text-white" : "bg-surface-muted text-brand"}`}>
+            <ChevronIcon expanded={expanded} />
+          </span>
         </span>
       </button>
       {expanded ? (
-        <div className="mt-2 space-y-1.5">
+        <div className="mt-2 space-y-1.5" id={controlId}>
           {group.items.map((item) => <NavLink item={item} pathname={pathname} key={item.href} />)}
         </div>
       ) : null}
@@ -328,30 +399,64 @@ function NavLink({ item, pathname }: { item: NavItem; pathname: string }) {
   const active = pathname === item.href;
   return (
     <Link
-      className={`group relative block rounded-[14px] border px-3.5 py-2.5 text-sm font-extrabold transition ${
+      className={`group relative flex min-h-11 items-center gap-2 rounded-[14px] border px-3.5 py-2.5 text-sm font-extrabold transition ${
         active ? "border-brand bg-brand text-white shadow-sm" : "border-line bg-white text-muted hover:border-brand/30 hover:bg-brand/5 hover:text-brand"
       }`}
       href={item.href}
       aria-current={active ? "page" : undefined}
     >
-      {item.label}
+      <span className={`h-2 w-2 shrink-0 rounded-full ${active ? "bg-white" : "bg-line group-hover:bg-brand/40"}`} />
+      <span className="truncate">{item.label}</span>
     </Link>
   );
 }
 
-function MobileHomeStrip({ groups, currentArea, mode }: { groups: NavGroup[]; currentArea: string; mode: "grouped" | "expanded" }) {
+function filterSidebarGroups(groups: NavGroup[], role: Role, query: string): NavGroup[] {
+  const normalized = query.trim().toLocaleLowerCase("ko-KR");
+  if (!normalized) return groups;
+
+  return groups
+    .map((group) => {
+      const copy = groupCopyForRole(group, role);
+      const groupMatches = matchesSidebarQuery([group.id, copy.title, copy.helper], normalized);
+      const items = groupMatches
+        ? group.items
+        : group.items.filter((item) => matchesSidebarQuery([item.label, item.area, item.href], normalized));
+      return { ...group, items };
+    })
+    .filter((group) => group.items.length > 0);
+}
+
+function matchesSidebarQuery(values: string[], query: string) {
+  return values.some((value) => value.toLocaleLowerCase("ko-KR").includes(query));
+}
+
+function groupCopyForRole(group: NavGroup, role: Role) {
+  return roleGroupCopy[group.id]?.[role] ?? { title: group.title, helper: group.helper };
+}
+
+function ChevronIcon({ expanded }: { expanded: boolean }) {
+  return (
+    <svg className={`h-3.5 w-3.5 transition-transform ${expanded ? "rotate-180" : ""}`} viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" />
+    </svg>
+  );
+}
+
+function MobileHomeStrip({ groups, currentArea, mode, role }: { groups: NavGroup[]; currentArea: string; mode: "grouped" | "expanded"; role: Role }) {
   const activeGroup = groups.find((group) => group.items.some((item) => item.area === currentArea)) ?? groups[0];
   if (!activeGroup) return null;
   const items = mode === "expanded" ? groups.flatMap((group) => group.items) : activeGroup.items;
+  const copy = groupCopyForRole(activeGroup, role);
 
   return (
     <section className="border-b border-line bg-white px-4 py-3 lg:hidden" aria-label={mode === "expanded" ? "전체 메뉴 빠른 이동" : "현재 영역 빠른 이동"}>
       <div className="mb-2 flex items-center justify-between gap-3">
         <div>
           <p className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-brand">App Menu</p>
-          <p className="text-sm font-extrabold text-ink">{mode === "expanded" ? "전체 업무" : activeGroup.title}</p>
+          <p className="text-sm font-extrabold text-ink">{mode === "expanded" ? "전체 업무" : copy.title}</p>
         </div>
-        <p className="max-w-[12rem] truncate text-right text-xs text-muted">{mode === "expanded" ? "한 번에 펼쳐 보기" : activeGroup.helper}</p>
+        <p className="max-w-[12rem] truncate text-right text-xs text-muted">{mode === "expanded" ? "한 번에 펼쳐 보기" : copy.helper}</p>
       </div>
       <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {items.map((item) => (
@@ -459,29 +564,32 @@ function MobileMenuSheet({
           </button>
         </div>
         <div className="grid gap-3">
-          {groups.map((group) => (
-            <section className="rounded-[22px] border border-line bg-surface-muted p-3" key={group.title}>
-              <div className="mb-3">
-                <p className="text-sm font-extrabold text-ink">{group.title}</p>
-                <p className="mt-1 text-xs text-muted">{group.helper}</p>
-              </div>
-              <div className={`grid gap-2 ${mode === "expanded" ? "grid-cols-1" : "grid-cols-2"}`}>
-                {group.items.map((item) => {
-                  const active = pathname === item.href;
-                  return (
-                    <Link
-                      className={`rounded-[18px] border px-3 py-4 text-sm font-extrabold ${active ? "border-brand bg-brand text-white" : "border-line bg-white text-ink"}`}
-                      href={item.href}
-                      key={item.href}
-                      onClick={onClose}
-                    >
-                      {item.label}
-                    </Link>
-                  );
-                })}
-              </div>
-            </section>
-          ))}
+          {groups.map((group) => {
+            const copy = groupCopyForRole(group, role);
+            return (
+              <section className="rounded-[22px] border border-line bg-surface-muted p-3" key={group.id}>
+                <div className="mb-3">
+                  <p className="text-sm font-extrabold text-ink">{copy.title}</p>
+                  <p className="mt-1 text-xs text-muted">{copy.helper}</p>
+                </div>
+                <div className={`grid gap-2 ${mode === "expanded" ? "grid-cols-1" : "grid-cols-2"}`}>
+                  {group.items.map((item) => {
+                    const active = pathname === item.href;
+                    return (
+                      <Link
+                        className={`rounded-[18px] border px-3 py-4 text-sm font-extrabold ${active ? "border-brand bg-brand text-white" : "border-line bg-white text-ink"}`}
+                        href={item.href}
+                        key={item.href}
+                        onClick={onClose}
+                      >
+                        {item.label}
+                      </Link>
+                    );
+                  })}
+                </div>
+              </section>
+            );
+          })}
         </div>
         <div className="mt-3 grid gap-2">
           {ENABLE_LEGACY_PREVIEW ? (
@@ -578,6 +686,50 @@ function TestingPageMark() {
   return (
     <div className="pointer-events-none fixed right-4 top-4 z-50 select-none text-[11px] font-extrabold uppercase tracking-[0.16em] text-slate-500/45">
       testing page
+    </div>
+  );
+}
+
+function SidebarMenuSearch({ query, onChange }: { query: string; onChange: (query: string) => void }) {
+  return (
+    <div className="mt-4 rounded-2xl border border-line bg-white p-2 shadow-sm">
+      <label className="sr-only" htmlFor="sidebar-menu-search">
+        메뉴 검색
+      </label>
+      <div className="flex items-center gap-2">
+        <input
+          className="min-w-0 flex-1 rounded-xl border border-transparent bg-surface-muted px-3 py-2.5 text-sm font-bold text-ink outline-none transition placeholder:text-muted focus:border-brand/30 focus:bg-white"
+          id="sidebar-menu-search"
+          value={query}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder="메뉴 검색"
+          type="search"
+        />
+        {query ? (
+          <button className="shrink-0 rounded-xl bg-brand/10 px-3 py-2 text-xs font-extrabold text-brand hover:bg-brand/15" type="button" onClick={() => onChange("")}>
+            지우기
+          </button>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function SidebarEmptySearch() {
+  return (
+    <div className="rounded-2xl border border-dashed border-line bg-surface-muted p-4 text-sm leading-6 text-muted">
+      <p className="font-extrabold text-ink">검색 결과가 없습니다</p>
+      <p className="mt-1">현재 권한에서 볼 수 있는 메뉴와 일치하는 항목이 없습니다.</p>
+    </div>
+  );
+}
+
+function SidebarAccountBadge({ user }: { user: CurrentUser }) {
+  return (
+    <div className="mt-4 rounded-2xl border border-line bg-surface-muted px-4 py-3">
+      <p className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-brand">Current Role</p>
+      <p className="mt-1 truncate text-sm font-extrabold text-ink">{roleLabel[user.role]}</p>
+      <p className="mt-0.5 truncate text-xs font-semibold text-muted">{user.name}</p>
     </div>
   );
 }

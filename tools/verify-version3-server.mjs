@@ -65,6 +65,11 @@ async function runVerification(baseUrl) {
   assert(Boolean(owner.expiresAt), "Login response must include expiresAt.");
   assert(typeof owner.user.mustChangePassword === "boolean", "Login user must include mustChangePassword.");
   assert(Boolean(student.user.linkedStudentId || student.user.linked_student_id), "Student login must include linkedStudentId.");
+  assert(student.user.permissions?.viewPayments !== true, "Student accounts must not receive payment-view permission by default.");
+
+  const studentBootstrap = await authorizedRequest(baseUrl, "/bootstrap", student.token);
+  assert(Array.isArray(studentBootstrap.payments) && studentBootstrap.payments.length === 0, "Student bootstrap must not expose payment records.");
+  assert(Array.isArray(studentBootstrap.enrollments) && studentBootstrap.enrollments.length === 0, "Student bootstrap must not expose enrollment/registration operations.");
 
   const throttledLoginId = `rate-limit-${Date.now()}`;
   for (let attempt = 0; attempt < 5; attempt += 1) {

@@ -4,6 +4,14 @@
 
 Version.3 is moving toward real academy operation on a separate server instead of Apps Script. To run the official Next UI with the local Version.3 server contract, use:
 
+### 2026-07-02 15:32 role-based navigation and dashboard update
+
+The official Next UI now changes the dashboard header, sidebar group labels, quick actions, stats, and panels by account role. Student accounts see a learning-focused home screen with notices, lessons, lesson notes, consultations, and room reservations, while owner and manager accounts keep the full operations view.
+
+Student accounts no longer receive payment-view permission by default, and the Version.3 server/test bootstrap no longer exposes payment or enrollment/registration operation records to student sessions. Sidebar search only searches the visible role-approved menu copy, so hidden finance/registration routes do not appear through search.
+
+Verification covered `pnpm run typecheck`, `pnpm run lint`, `pnpm run verify:surfaces`, `pnpm run verify:version3-server`, `pnpm run verify:version3-test-mode`, `pnpm run build:pages`, and browser checks on `/version3-test/` for student and owner roles.
+
 ### 2026-07-02 14:53 navigation usability update
 
 The official Next UI now separates desktop sidebar scrolling from the page content scroll area. Desktop menu groups use collapsible button-style parent sections named `Operations`, `Academy Roster`, `Classes & Rooms`, and `Administration`, with role-limited child links shown inside each group.

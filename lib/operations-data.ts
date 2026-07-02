@@ -661,7 +661,7 @@ function buildPreviewData(role: Role | null): OperationsData {
       ? lessonNotes.filter((note) => note.studentId === studentId)
       : lessonNotes;
   const visibleReservations = role === "student" ? reservations.filter((item) => item.studentId === studentId) : reservations;
-  const visiblePayments = role === "teacher" ? [] : role === "student" ? payments.filter((item) => item.studentId === studentId) : payments;
+  const visiblePayments = role === "teacher" || role === "student" ? [] : payments;
   const visibleConsultations = role === "student" ? consultations.filter((item) => item.studentName === "이도윤") : consultations;
   const visibleConsultationIds = new Set(visibleConsultations.map((item) => item.id));
   const visibleConsultationHistory = consultationHistory.filter((item) => visibleConsultationIds.has(item.consultationId));
@@ -738,7 +738,7 @@ function filterOperationsData(data: OperationsData, user: AccessUser | Role | nu
     consultationHistory: data.consultationHistory.filter((item) => visibleConsultationIds.has(item.consultationId)),
     enrollments: data.enrollments.filter((item) => {
       if (!hasVersion3Permission(user, "manageOperations") && role !== "teacher" && role !== "student") return false;
-      if (role === "student") return item.studentId === studentId;
+      if (role === "student") return false;
       if (role === "teacher") return item.teacherId === teacherId || roleScopedStudentIds.has(item.studentId);
       return true;
     }),
@@ -787,7 +787,7 @@ function normalizeBootstrap(payload: BootstrapPayload, role: Role | null): Opera
   const liveCourses = (payload.courses ?? payload.classTypes ?? []).map(mapCourse);
   const liveEnrollments = (payload.enrollments ?? []).map(mapEnrollment);
   const liveLessons = (payload.lessons ?? payload.overview?.todayLessons ?? []).map(mapLesson);
-  const livePayments = role === "teacher" ? [] : (payload.registrations ?? []).map(mapPayment);
+  const livePayments = role === "teacher" || role === "student" ? [] : (payload.registrations ?? []).map(mapPayment);
   const liveRooms = (payload.rooms ?? []).map(mapRoom);
   const liveReservations = (payload.reservations ?? []).map(mapReservation);
   const liveTasks = (payload.tasks ?? []).map(mapTask);
