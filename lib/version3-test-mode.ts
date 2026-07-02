@@ -47,6 +47,7 @@ import type {
 export const VERSION3_TEST_SESSION_KEY = "bonsung_version3_test_session_v1";
 export const VERSION3_TEST_DATA_KEY = "bonsung_version3_test_data_v1";
 export const VERSION3_TEST_DATA_CHANGE_EVENT = "bonsung-version3-test-data-change";
+const VERSION3_TEST_SEED_VERSION = "notion-initial-2026-07-02";
 
 type Version3TestAccount = Version3Account & { password: string };
 type Version3TestSession = {
@@ -58,6 +59,7 @@ type Version3TestSession = {
 };
 
 export type Version3TestData = OperationsData & {
+  seedVersion: string;
   accounts: Version3TestAccount[];
   accountHistory: Version3AccountHistory[];
   auditLogs: Version3AuditLog[];
@@ -183,6 +185,7 @@ function account(
 
 function initialData(): Version3TestData {
   return {
+    seedVersion: VERSION3_TEST_SEED_VERSION,
     teachers: [...teachers],
     students: [...students],
     guardians: [...guardians],
@@ -265,7 +268,7 @@ export function readVersion3TestData(): Version3TestData {
   const fallback = initialData();
   try {
     const parsed = JSON.parse(storage.getItem(VERSION3_TEST_DATA_KEY) || "null") as Partial<Version3TestData> | null;
-    const data = parsed ? mergeData(fallback, parsed) : fallback;
+    const data = parsed?.seedVersion === VERSION3_TEST_SEED_VERSION ? mergeData(fallback, parsed) : fallback;
     storage.setItem(VERSION3_TEST_DATA_KEY, JSON.stringify(data));
     return data;
   } catch {
