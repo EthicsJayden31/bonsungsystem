@@ -4,6 +4,12 @@
 
 Version.3 is moving toward real academy operation on a separate server instead of Apps Script. To run the official Next UI with the local Version.3 server contract, use:
 
+### 2026-07-02 14:53 navigation usability update
+
+The official Next UI now separates desktop sidebar scrolling from the page content scroll area. Desktop menu groups use collapsible button-style parent sections named `Operations`, `Academy Roster`, `Classes & Rooms`, and `Administration`, with role-limited child links shown inside each group.
+
+Mobile bottom navigation is now fixed, opaque white, and layered below the full menu sheet so it does not drag, blur, or shift during page scrolling. This behavior is verified against the GitHub Pages static build output through `/version3-test/`.
+
 ### 2026-07-02 08:10 implementation status
 
 The real Version.3 server contract now covers the core academy operation flow: role login and permission-gated menus, account requests and approval, password reset and forced password change, students and linked student accounts, consultations, enrollments, lessons, attendance, lesson notes, space reservations with overlap checks, registrations/payments, tasks, work logs, meetings, calendar events, notices, shared public settings, data export/import, backups, data quality checks, and audit logs.

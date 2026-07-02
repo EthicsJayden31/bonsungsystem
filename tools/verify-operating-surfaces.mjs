@@ -58,8 +58,8 @@ function runLegacyCompatibleVerification() {
     },
     {
       file: "components/layout/app-shell.tsx",
-      includes: ["MobileAppHeader", "MobileBottomTabs", "MobileMenuSheet", "usePreferences", "preferences.mobileMenu", "preferences.density", "오늘 운영", "사람", "강사", "수업과 공간", "개인화 설정", "bonsung-logo-seal.png"],
-      label: "Next UI exposes app-like mobile navigation, teacher menu, user preferences, and template-derived logo"
+      includes: ["MobileAppHeader", "MobileBottomTabs", "MobileMenuSheet", "SidebarGroup", "expandedGroups", "usePreferences", "preferences.mobileMenu", "preferences.density", "Operations", "Academy Roster", "Classes & Rooms", "Administration", "강사", "개인화 설정", "bonsung-logo-seal.png"],
+      label: "Next UI exposes app-like mobile navigation, collapsible desktop menu groups, teacher menu, user preferences, and template-derived logo"
     },
     {
       file: "components/ui/table.tsx",
@@ -385,8 +385,8 @@ const requiredSourceSignals = [
   },
   {
     file: "components/layout/app-shell.tsx",
-    includes: ["ENABLE_LEGACY_PREVIEW", "ENABLE_APPS_SCRIPT_TRANSITION", "ENABLE_PREVIEW_LOGIN", "getSessionUser(role) ?? (ENABLE_PREVIEW_LOGIN ? previewUsers[role] : null)", "MobileAppHeader", "MobileBottomTabs", "MobileMenuSheet", "usePreferences", "preferences.mobileMenu", "preferences.density", "VERSION3_SERVER_SESSION_TOKEN_KEY", "logoutVersion3Server", "mustChangePassword", "/profile-settings?forcePasswordChange=1", "오늘 운영", "사람", "강사", "수업과 공간", "개인화 설정", "bonsung-logo-seal.png"],
-    label: "Next UI exposes app-like navigation and gates legacy/App Script transition paths"
+    includes: ["ENABLE_LEGACY_PREVIEW", "ENABLE_APPS_SCRIPT_TRANSITION", "ENABLE_PREVIEW_LOGIN", "getSessionUser(role) ?? (ENABLE_PREVIEW_LOGIN ? previewUsers[role] : null)", "MobileAppHeader", "MobileBottomTabs", "MobileMenuSheet", "SidebarGroup", "expandedGroups", "usePreferences", "preferences.mobileMenu", "preferences.density", "VERSION3_SERVER_SESSION_TOKEN_KEY", "logoutVersion3Server", "mustChangePassword", "/profile-settings?forcePasswordChange=1", "Operations", "Academy Roster", "Classes & Rooms", "Administration", "강사", "개인화 설정", "bonsung-logo-seal.png"],
+    label: "Next UI exposes app-like navigation with collapsible desktop menu groups and gates legacy/App Script transition paths"
   },
   {
     file: "components/ui/table.tsx",

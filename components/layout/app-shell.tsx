@@ -28,6 +28,7 @@ type NavItem = {
 };
 
 type NavGroup = {
+  id: string;
   title: string;
   helper: string;
   items: NavItem[];
@@ -35,7 +36,8 @@ type NavGroup = {
 
 const navGroups: NavGroup[] = [
   {
-    title: "오늘 운영",
+    id: "operations",
+    title: "Operations",
     helper: "오늘 먼저 확인할 일",
     items: [
       { href: "/dashboard", label: "홈", area: "dashboard", tab: "home" },
@@ -45,7 +47,8 @@ const navGroups: NavGroup[] = [
     ]
   },
   {
-    title: "사람",
+    id: "roster",
+    title: "Academy Roster",
     helper: "학생, 강사, 보호자, 상담",
     items: [
       { href: "/students", label: "학생", area: "students", tab: "people" },
@@ -55,7 +58,8 @@ const navGroups: NavGroup[] = [
     ]
   },
   {
-    title: "수업과 공간",
+    id: "classes",
+    title: "Classes & Rooms",
     helper: "강의, 출결, 예약",
     items: [
       { href: "/enrollments", label: "수강", area: "enrollments", tab: "more" },
@@ -66,7 +70,8 @@ const navGroups: NavGroup[] = [
     ]
   },
   {
-    title: "관리",
+    id: "administration",
+    title: "Administration",
     helper: "계정, 수납과 개인 설정",
     items: [
       { href: "/accounts", label: "계정", area: "accounts", tab: "more" },
@@ -148,6 +153,7 @@ export function AppShell({ children, area = "dashboard" }: { children: ReactNode
   const preferences = usePreferences();
   const user = useMemo(() => (role ? getSessionUser(role) ?? (ENABLE_PREVIEW_LOGIN ? previewUsers[role] : null) : null), [role]);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
   const [testing, setTesting] = useState(false);
 
   useEffect(() => {
@@ -208,20 +214,23 @@ export function AppShell({ children, area = "dashboard" }: { children: ReactNode
   const compact = preferences.density === "compact";
 
   return (
-    <div className={`min-h-screen bg-canvas ${compact ? "text-[95%]" : ""}`}>
-      <aside className="fixed inset-y-0 left-0 hidden w-72 border-r border-line bg-white px-5 py-5 lg:block">
-        <BrandBlock />
-        <nav className="mt-6 space-y-5" aria-label="주요 메뉴">
+    <div className={`min-h-screen bg-canvas lg:h-screen lg:overflow-hidden ${compact ? "text-[95%]" : ""}`}>
+      <aside className="fixed inset-y-0 left-0 hidden h-screen w-72 flex-col border-r border-line bg-white px-5 py-5 lg:flex">
+        <div className="shrink-0">
+          <BrandBlock />
+        </div>
+        <nav className="mt-5 min-h-0 flex-1 space-y-2 overflow-y-auto pr-1" aria-label="주요 메뉴">
           {visibleGroups.map((group) => (
-            <div key={group.title}>
-              <p className="mb-2 px-3 text-[11px] font-extrabold uppercase tracking-[0.16em] text-muted">{group.title}</p>
-              <div className="space-y-1.5">
-                {group.items.map((item) => <NavLink item={item} pathname={pathname} key={item.href} />)}
-              </div>
-            </div>
+            <SidebarGroup
+              expanded={expandedGroups[group.id] ?? true}
+              group={group}
+              key={group.id}
+              pathname={pathname}
+              onToggle={() => setExpandedGroups((currentGroups) => ({ ...currentGroups, [group.id]: !(currentGroups[group.id] ?? true) }))}
+            />
           ))}
         </nav>
-        <div className="absolute bottom-5 left-5 right-5 space-y-3">
+        <div className="mt-4 shrink-0 space-y-3 border-t border-line pt-4">
           {ENABLE_LEGACY_PREVIEW ? (
             <Link className="block rounded-2xl border border-brand/10 bg-brand/5 p-4 text-sm font-bold text-brand hover:bg-brand/10" href={assetPath("/legacy-preview/")}>
               실사용 legacy 화면
@@ -233,7 +242,7 @@ export function AppShell({ children, area = "dashboard" }: { children: ReactNode
         </div>
       </aside>
 
-      <div className="lg:pl-72">
+      <div className="lg:h-screen lg:overflow-y-auto lg:pl-72">
         <header className="sticky top-0 z-20 hidden border-b border-line bg-white/92 px-4 py-3 backdrop-blur lg:block">
           <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-3">
@@ -274,17 +283,57 @@ export function AppShell({ children, area = "dashboard" }: { children: ReactNode
   );
 }
 
+function SidebarGroup({
+  expanded,
+  group,
+  pathname,
+  onToggle
+}: {
+  expanded: boolean;
+  group: NavGroup;
+  pathname: string;
+  onToggle: () => void;
+}) {
+  const active = group.items.some((item) => pathname === item.href || pathname.startsWith(`${item.href}/`));
+
+  return (
+    <section className="rounded-[18px] border border-line bg-surface-muted p-2">
+      <button
+        className={`flex min-h-12 w-full items-center justify-between gap-3 rounded-[14px] px-3 py-2 text-left transition ${
+          active ? "bg-brand text-white shadow-sm" : "bg-white text-ink hover:border-brand/20 hover:bg-brand/5"
+        }`}
+        type="button"
+        aria-expanded={expanded}
+        aria-label={`${group.title} 메뉴 ${expanded ? "접기" : "펼치기"}`}
+        onClick={onToggle}
+      >
+        <span className="min-w-0">
+          <span className="block truncate text-[12px] font-extrabold uppercase tracking-[0.12em]">{group.title}</span>
+          <span className={`mt-0.5 block truncate text-[11px] font-semibold ${active ? "text-white/70" : "text-muted"}`}>{group.helper}</span>
+        </span>
+        <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm font-extrabold ${active ? "bg-white/18 text-white" : "bg-surface-muted text-brand"}`}>
+          {expanded ? "-" : "+"}
+        </span>
+      </button>
+      {expanded ? (
+        <div className="mt-2 space-y-1.5">
+          {group.items.map((item) => <NavLink item={item} pathname={pathname} key={item.href} />)}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
 function NavLink({ item, pathname }: { item: NavItem; pathname: string }) {
   const active = pathname === item.href;
   return (
     <Link
-      className={`group relative block rounded-xl px-3.5 py-2.5 text-sm font-semibold transition ${
-        active ? "bg-brand text-white shadow-sm" : "text-muted hover:bg-brand/5 hover:text-brand"
+      className={`group relative block rounded-[14px] border px-3.5 py-2.5 text-sm font-extrabold transition ${
+        active ? "border-brand bg-brand text-white shadow-sm" : "border-line bg-white text-muted hover:border-brand/30 hover:bg-brand/5 hover:text-brand"
       }`}
       href={item.href}
       aria-current={active ? "page" : undefined}
     >
-      {active ? <span className="absolute left-0 top-2 h-6 w-1 rounded-r-full bg-white/80" /> : null}
       {item.label}
     </Link>
   );
@@ -339,7 +388,7 @@ function MobileBottomTabs({
 
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-white/96 px-3 pb-[calc(0.65rem+env(safe-area-inset-bottom))] pt-2 shadow-[0_-16px_38px_rgba(60,6,8,0.08)] backdrop-blur lg:hidden"
+      className="fixed bottom-0 left-0 right-0 z-50 border-t border-line bg-white px-3 pb-[calc(0.65rem+env(safe-area-inset-bottom))] pt-2 shadow-[0_-16px_38px_rgba(60,6,8,0.14)] [transform:translateZ(0)] lg:hidden"
       aria-label="앱 하단 메뉴"
     >
       <div className="mx-auto grid max-w-md grid-cols-5 gap-1.5">
@@ -399,7 +448,7 @@ function MobileMenuSheet({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-40 bg-black/30 lg:hidden" role="dialog" aria-modal="true" aria-label="전체 메뉴">
+    <div className="fixed inset-0 z-[60] bg-black/30 lg:hidden" role="dialog" aria-modal="true" aria-label="전체 메뉴">
       <button className="absolute inset-0 h-full w-full cursor-default" aria-label="메뉴 닫기" onClick={onClose} type="button" />
       <section className="absolute inset-x-0 bottom-0 max-h-[88vh] overflow-y-auto rounded-t-[28px] bg-white px-4 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-4 shadow-[0_-20px_60px_rgba(0,0,0,0.16)]">
         <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-line" />
