@@ -1,0 +1,13 @@
+.next
+node_modules
+out
+.env
+.env*.local
+coverage
+dist
+*.tsbuildinfo
+.version3-local-data.json
+.version3-local-data.json.*.tmp
+version3-data.json
+version3-data.json.*.tmp
+*.bak

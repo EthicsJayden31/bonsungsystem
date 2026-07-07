@@ -26,7 +26,8 @@ GitHub에서 새 Issue를 만들 때 다음 템플릿 중 하나를 선택합니
 | `priority:high` | 운영 사용에 직접 영향을 주는 긴급 작업 |
 | `priority:normal` | 일반 개선 작업 |
 | `needs:chrome-check` | Chrome 화면 확인 필요 |
-| `needs:apps-script` | Apps Script 또는 Google Sheets 확인 필요 |
+| `needs:server-contract` | Version.3 서버 계약 또는 운영 데이터 확인 필요 |
+| `needs:apps-script` | 전환 보조 Apps Script 또는 Google Sheets 확인 필요 |
 
 ## PR 작성
 
@@ -41,4 +42,4 @@ PR 설명에는 다음을 포함합니다.
 ## 운영 배포
 
 GitHub Pages는 `.github/workflows/pages.yml`로 배포됩니다.
-운영 반영 전에는 기능 브랜치에서 충분히 검증하고, 배포 브랜치 또는 main 반영 후 Pages workflow 성공 여부를 확인합니다.
+운영 반영 전에는 기능 브랜치에서 충분히 검증하고, `VERSION3_API_BASE_URL`이 실제 HTTPS 서버를 가리키는지 확인합니다. 배포 브랜치 또는 main 반영 후에는 Pages workflow의 release configuration, server contract, operating surfaces 검증이 모두 성공해야 합니다.

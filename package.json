@@ -1,0 +1,44 @@
+{
+  "name": "bonsung-music-intranet",
+  "version": "1.0.0",
+  "private": true,
+  "packageManager": "pnpm@11.0.7",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "build:pages": "cross-env GITHUB_PAGES=true next build && node tools/preserve-legacy-preview.mjs",
+    "dev:version3": "node tools/dev-version3-local.mjs",
+    "verify:surfaces": "node tools/verify-operating-surfaces.mjs",
+    "verify:version3-server": "node tools/verify-version3-server.mjs",
+    "verify:version3-production-env": "node tools/verify-version3-production-env.mjs",
+    "verify:version3-cleanup": "node tools/verify-version3-cleanup.mjs",
+    "verify:version3-release": "node tools/verify-version3-release.mjs",
+    "verify:version3-test-mode": "node tools/verify-version3-test-mode.mjs",
+    "server:version3": "node server/version3-local-server.mjs",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "cross-env": "^7.0.3",
+    "next": "15.3.3",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.3.1",
+    "@next/eslint-plugin-next": "15.3.3",
+    "@typescript-eslint/eslint-plugin": "^8.49.0",
+    "@typescript-eslint/parser": "^8.49.0",
+    "@types/node": "^22.15.29",
+    "@types/react": "^19.1.6",
+    "@types/react-dom": "^19.1.5",
+    "autoprefixer": "^10.4.21",
+    "eslint": "^9.28.0",
+    "eslint-config-next": "15.3.3",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "postcss": "^8.5.4",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.8.3"
+  }
+}

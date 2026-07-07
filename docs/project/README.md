@@ -1,30 +1,45 @@
-# 본성뮤직 인트라넷 프로젝트 운영
+# 프로젝트 운영 기준
 
-이 폴더는 본성뮤직 아카데미 인트라넷을 계속 개선하기 위한 작업 지시 허브입니다.
-로컬에서는 이 문서를 기준으로 작업을 정리하고, GitHub에서는 같은 분류의 Issue Template과 Label로 세부 요청을 등록합니다.
+이 폴더는 본성뮤직 인트라넷을 앞으로 개발할 때 필요한 최소 운영 기준을 보관합니다.
 
-## 작업 분류
+## 기준 브랜치
 
-| 분류 | GitHub label | 사용 시점 |
-| --- | --- | --- |
-| 페이지 코드 분석 및 유지보수 | `area:maintenance` | 기존 코드 이해, 버그 조사, 리팩터링, 불필요한 코드 정리 |
-| 세부 기능 설정 조정 및 개선 | `area:feature-settings` | 권한, 데이터 항목, 필터, 개인화, 운영 설정 등 기능 동작 변경 |
-| 페이지 디자인 및 GUI 조정 | `area:gui` | 모바일/데스크톱 레이아웃, 문구, 버튼, 입력폼, 시각적 사용성 개선 |
+- 배포 기준: `codex/v1-intranet`
+- 작업 브랜치: `codex/` 접두사 사용
+- 공개 URL: `https://ethicsjayden31.github.io/bonsungsystem/`
 
-## 작업 등록 방식
+## 작업 원칙
 
-1. `docs/project/task-template.md`를 복사해 로컬 작업 메모를 만든다.
-2. GitHub에서는 `.github/ISSUE_TEMPLATE/`의 세 분류 중 하나를 선택해 Issue를 만든다.
-3. 작업 브랜치는 `codex/` 접두사를 사용한다.
-4. 운영 반영 전에는 Chrome에서 실제 화면을 확인하고, 가능하면 GitHub Pages 배포 상태도 확인한다.
+1. 먼저 `codex/v1-intranet` 기준 worktree에서 작업 중인지 확인합니다.
+2. 기능 구현 전 `docs/project/operating-surfaces.md`를 확인합니다.
+3. Version.3 공식 화면과 별도 서버 계약을 우선 구현합니다. `pages-preview/`와 `google-apps-script/`는 전환 보조 경로이며 기본 운영 경로로 되돌리지 않습니다.
+4. 계정 권한과 개인정보 변경은 대표, 매니저, 강사, 수강생 흐름을 각각 검증합니다.
+5. 모바일 390px와 320px 화면도 완료 기준에 포함합니다.
 
-## 대화 운영
+## 관련 문서
 
-`본성_인트라넷_`으로 시작하는 전문 대화들의 역할과 배포 브랜치 기준은 [대화 운영 가이드](agent-team.md)를 따릅니다.
+- `docs/project/operating-surfaces.md`: Version.3 화면, 서버 계약, 운영 표면 기준
+- `docs/project/external-server-candidates.md`: Base44, Lovable, 별도 Node 서버 후보 검토 기준
+- `docs/project/version3-production-deploy.md`: Version.3 공개 서버 환경값, 데이터 보존, 배포 전 검증 점검표
+- `docs/project/agent-team.md`: 팀장, 프로그래밍, 디자인, 데이터관리, 업무기록 역할 기준
+- `docs/project/task-template.md`: 반복 작업 지시서 양식
 
-## 기본 완료 기준
+## 기본 검증
 
-- 변경 이유와 영향 범위가 문서나 PR 설명에 남아 있다.
-- 기존 사용자 권한, 운영 데이터, 모바일 화면을 깨뜨리지 않는다.
-- 로컬 또는 GitHub Actions에서 가능한 검증을 수행한다.
-- 실패한 검증은 숨기지 않고 원인과 남은 조치를 기록한다.
+```text
+pnpm run typecheck
+pnpm run lint
+pnpm run build:pages
+pnpm run verify:surfaces
+pnpm run verify:version3-server
+pnpm run verify:version3-production-env
+pnpm run verify:version3-cleanup
+```
+
+공개 운영 배포 전에는 실제 서버 URL로 다음 검증도 통과해야 합니다.
+
+```text
+VERSION3_API_BASE_URL=https://your-version3-server.example pnpm run verify:version3-release
+```
+
+배포 전에는 `/`, `/login/`, `/dashboard/` 공개 URL을 확인합니다. `NEXT_PUBLIC_ENABLE_LEGACY_PREVIEW=true`로 전환 검증을 켠 경우에만 `/legacy-preview/`를 확인합니다.

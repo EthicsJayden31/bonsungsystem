@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: bonsung-version3-server
+    env: docker
+    plan: starter
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    disk:
+      name: version3-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: VERSION3_SERVER_HOST
+        value: 0.0.0.0
+      - key: VERSION3_LOCAL_DATA_FILE
+        value: /data/version3-data.json
+      - key: VERSION3_SESSION_TTL_HOURS
+        value: 12
+      - key: VERSION3_ALLOWED_ORIGINS
+        sync: false
+      - key: VERSION3_LOCAL_SERVER_PASSWORD
+        sync: false

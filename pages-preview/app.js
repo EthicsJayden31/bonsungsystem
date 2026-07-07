@@ -32,10 +32,22 @@ const DEFAULT_PUBLIC_CONFIG = {
   login_popup_title: "본성뮤직 운영 안내",
   login_popup_body: "계정이 없는 구성원은 신규 계정 요청을 제출해 주세요. 관리자 승인 후 로그인할 수 있습니다."
 };
-const BRAND_MARK_HTML = '<span class="brand-mark"><img src="./assets/bonsung-brand.png" alt="" /></span>';
+const BRAND_MARK_HTML = '<span class="brand-mark"><img src="./assets/bonsung-logo-seal.png" alt="" /></span>';
 
 const DEFAULT_ADMIN_WIDGETS = ["stats", "calendar", "today", "activity", "workload", "registrations"];
 const DEFAULT_PERSONAL_WIDGETS = ["stats", "calendar", "upcoming", "enrollments", "logs"];
+const ROLE_DASHBOARD_DEFAULTS = {
+  admin: ["stats", "calendar", "registrations", "today"],
+  staff: ["stats", "today", "registrations"],
+  teacher: ["upcoming", "logs", "enrollments"],
+  student: ["upcoming", "logs", "enrollments"]
+};
+const ROLE_MOBILE_QUICK_ACTION_LIMITS = {
+  admin: 3,
+  staff: 3,
+  teacher: 3,
+  student: 3
+};
 const DASHBOARD_WIDGET_LABELS = {
   stats: "핵심 지표",
   calendar: "다가오는 일정",
@@ -141,6 +153,7 @@ const state = {
   calendarSort: "dateAsc",
   calendarFilter: "all",
   reservationFilter: { date: today(), room: "all" },
+  reservationDraft: null,
   lessonDraft: readJson(STORAGE.lessonDraft) || {},
   theme: localStorage.getItem(STORAGE.theme) || "system",
   density: localStorage.getItem(STORAGE.density) || "comfortable",
@@ -851,6 +864,10 @@ async function initializeApp() {
       render();
       await refreshData(true);
     } else {
+      if (state.user && !state.token) {
+        state.user = null;
+        localStorage.removeItem(STORAGE.user);
+      }
       const health = await api("health");
       applyPublicConfig(health.publicConfig);
       state.loading = false;
@@ -1069,13 +1086,47 @@ function navigate(page) {
   loadPageData(page);
 }
 
+function navigateSubview(page, subview) {
+  if (state.page !== page || state.selectedEntity) {
+    state.navigationStack.push({ page: state.page, subview: state.subview, selectedEntity: state.selectedEntity });
+    if (state.navigationStack.length > 20) state.navigationStack.shift();
+  }
+  state.page = page;
+  state.subview = subview || defaultSubview(page);
+  state.selectedEntity = null;
+  state.mobileMenu = false;
+  state.message = "";
+  render();
+  api("recordPageView", { page }).catch(() => {});
+  loadPageData(page);
+}
+
 function defaultSubview(page) {
-  if (page === "lesson-logs") return "browse";
+  if (page === "lesson-logs") return shouldOpenLessonLogComposer() ? "create" : "browse";
   if (page === "reservations") return "schedule";
-  if (page === "enrollments") return "history";
+  if (page === "enrollments") return "schedule";
   if (page === "accounts") return "list";
   if (page === "students") return "list";
   return "";
+}
+
+function shouldOpenLessonLogComposer() {
+  if (state.user?.role !== "teacher" || !state.capabilities.writeLessonLogs) return false;
+  return teacherPendingLessonLogsToday().length > 0;
+}
+
+function teacherPendingLessonLogsToday() {
+  if (state.user?.role !== "teacher" || !state.capabilities.writeLessonLogs) return [];
+  const todayString = today();
+  return state.lessons.filter((lesson) => {
+    if (lesson.teacher_id !== state.user.account_id || lesson.lesson_date !== todayString || lesson.status === "취소") return false;
+    return !state.lessonLogs.some((log) =>
+      log.teacher_id === lesson.teacher_id
+      && log.student_id === lesson.student_id
+      && log.subject === lesson.subject
+      && log.lesson_date === lesson.lesson_date
+    );
+  });
 }
 
 function setSubview(subview) {
@@ -1347,6 +1398,9 @@ async function createReservation(event) {
   try {
     await api("createReservation", { reservation });
     await refreshFeature("reservations");
+    state.reservationDraft = null;
+    state.subview = "schedule";
+    state.reservationFilter = { date: reservation.reservation_date, room: reservation.room_id };
     state.message = "공간 예약을 등록했습니다.";
     render();
   } catch (error) { setBusy(false, error.message); }
@@ -1773,7 +1827,7 @@ function menusFor(role) {
     if (key === "accounts" && !state.capabilities.viewAccounts) return false;
     if (key === "system-settings" && !state.capabilities.managePublicSettings) return false;
     if (key === "registrations" && !state.capabilities.viewPayments) return false;
-    if (key === "meetings" && state.accountType === "student") return false;
+    if (key === "meetings" && !state.capabilities.viewMeetings) return false;
     if (key === "students" && !state.capabilities.viewStudents) return false;
     if (key === "lesson-logs" && !state.capabilities.viewLessonLogs) return false;
     if (key === "reservations" && !state.capabilities.viewReservations) return false;
@@ -1792,7 +1846,8 @@ function render() {
   if (state.user.must_change_password) state.page = "profile";
   if (!menus.some(([key]) => key === state.page)) state.page = preferredPage(state.user);
   if (!state.subview) state.subview = defaultSubview(state.page);
-  const primaryMobile = menus.filter(([key]) => key !== "profile").slice(0, 3);
+  const primaryMobile = mobilePrimaryMenus(menus, state.user);
+  const canGoBack = state.navigationStack.length > 0;
 
   root.innerHTML = `
     ${TEST_MODE ? renderTestToolbar() : ""}
@@ -1825,10 +1880,7 @@ function render() {
       </nav>
       ${state.mobileMenu ? renderMobileMenu(menus) : ""}
       ${state.selectedLogId ? renderLogModal() : ""}
-      <div class="mobile-float-actions">
-        <button onclick="appBack()" aria-label="이전 화면">${icon("arrowLeft")}</button>
-        <button onclick="scrollTopPage()" aria-label="맨 위로">${icon("arrowUp")}</button>
-      </div>
+      ${canGoBack ? `<div class="mobile-float-actions"><button onclick="appBack()" aria-label="이전 화면">${icon("arrowLeft")}</button></div>` : ""}
     </div>`;
   labelResponsiveTables();
 }
@@ -1853,7 +1905,6 @@ function renderConnectionError() {
         </div>
       </section>
       <section class="auth-context">
-        <div class="brand-hero-card"><img src="./assets/bonsung-brand.png" alt="Bonsung Music Academy 본성뮤직 브랜드 이미지" /></div>
         <div class="context-copy"><h2>수업과 운영 기록을<br />한 흐름으로 관리합니다.</h2><p>별도의 Google Sheet 연결 과정 없이 로그인하면 역할에 맞는 업무 화면이 바로 열립니다.</p></div>
       </section>
     </main>`;
@@ -1879,7 +1930,6 @@ function renderAuth() {
         <p class="status-line error">${escapeHtml(state.message)}</p>
       </section>
       <section class="auth-context">
-        <div class="brand-hero-card"><img src="./assets/bonsung-brand.png" alt="Bonsung Music Academy 본성뮤직 브랜드 이미지" /></div>
         <div class="context-copy"><h2>${multiline(config.login_context_title)}</h2><p>${multiline(config.login_context_body)}</p></div>
         ${config.login_popup_enabled ? `<button class="login-notice-card" onclick="openAuthDialog('notice')"><span>운영 공지</span><strong>${escapeHtml(config.login_popup_title)}</strong><p>${escapeHtml(config.login_popup_body)}</p><small>자세히 보기 ${icon("chevron")}</small></button>` : ""}
         <div class="context-preview">
@@ -1923,27 +1973,101 @@ function currentPageLabel(menus) {
   return menus.find(([key]) => key === state.page)?.[1] || "홈";
 }
 
+function mobilePrimaryMenus(menus, user) {
+  const menuMap = keyBy(menus.map(([key, label, iconName]) => ({ key, label, iconName })), "key");
+  const preferred = user.role === "teacher"
+    ? ["my-overview", "lesson-logs", "students"]
+    : user.role === "student"
+      ? ["my-overview", "lesson-logs", "reservations"]
+      : user.role === "staff"
+        ? ["students", "enrollments", "registrations"]
+        : ["dashboard", "students", "accounts"];
+  const picked = preferred.map((key) => menuMap[key]).filter(Boolean);
+  const fallback = menus
+    .filter(([key]) => key !== "profile" && !picked.some((item) => item.key === key))
+    .slice(0, Math.max(0, 3 - picked.length))
+    .map(([key, label, iconName]) => ({ key, label, iconName }));
+  return [...picked, ...fallback].slice(0, 3).map((item) => [item.key, item.label, item.iconName]);
+}
+
 function renderMobileMenu(menus) {
-  return `<div class="mobile-menu-backdrop" onclick="toggleMobileMenu()"><section class="mobile-menu-sheet" onclick="event.stopPropagation()"><div class="mobile-menu-head"><strong>전체 메뉴</strong><button class="icon-button" onclick="toggleMobileMenu()" aria-label="닫기">${icon("close")}</button></div><nav>${menus.map(([key, label, iconName]) => `<div class="mobile-menu-group">${navButton(key, label, iconName)}${mobileMenuChildren(key)}</div>`).join("")}<button onclick="logout()">${icon("logout")}<span>로그아웃</span></button></nav></section></div>`;
+  const menuMap = keyBy(menus.map(([key, label, iconName]) => ({ key, label, iconName })), "key");
+  const sections = mobileMenuSections(state.user).map((section) => ({
+    ...section,
+    items: section.keys.map((key) => menuMap[key]).filter(Boolean)
+  })).filter((section) => section.items.length);
+  return `<div class="mobile-menu-backdrop" onclick="toggleMobileMenu()"><section class="mobile-menu-sheet" onclick="event.stopPropagation()"><div class="mobile-menu-grip" aria-hidden="true"></div><div class="mobile-menu-head"><div><strong>더보기</strong><small>${escapeHtml(mobileMenuHelp(state.user))}</small><em>먼저 화면을 고른 뒤, 등록·예약·작성은 각 화면의 작업 선택에서 진행해 주세요.</em></div><button class="icon-button" onclick="toggleMobileMenu()" aria-label="닫기">${icon("close")}</button></div><nav>${sections.map((section) => `<section class="mobile-menu-section"><h3>${escapeHtml(section.title)}</h3>${section.items.map((item) => `<div class="mobile-menu-group">${navButton(item.key, item.label, item.iconName)}${mobileMenuChildren(item.key)}</div>`).join("")}</section>`).join("")}<section class="mobile-menu-section mobile-menu-section-utility"><h3>계정</h3><button onclick="logout()">${icon("logout")}<span>로그아웃</span></button></section></nav></section></div>`;
+}
+
+function mobileMenuHelp(user) {
+  if (user.role === "teacher") return "수업 확인, 기록 작성, 담당 학생 확인을 빠르게 이어갑니다.";
+  if (user.role === "student") return "다음 수업, 피드백, 연습실 예약을 하나씩 확인합니다.";
+  if (user.role === "staff") return "접수, 등록, 수납, 예약을 업무 흐름대로 선택합니다.";
+  return "오늘 운영 점검부터 수강, 수납, 권한 업무까지 확인합니다.";
+}
+
+function mobileMenuSections(user) {
+  if (user.role === "teacher") {
+    return [
+      { title: "오늘 수업", keys: ["my-overview", "calendar"] },
+      { title: "수업 기록", keys: ["lesson-logs"] },
+      { title: "담당 수강생", keys: ["students"] },
+      { title: "예약·협업", keys: ["reservations", "meetings"] },
+      { title: "내 설정", keys: ["team", "profile"] }
+    ];
+  }
+  if (user.role === "student") {
+    return [
+      { title: "다음 수업", keys: ["my-overview", "calendar"] },
+      { title: "피드백", keys: ["lesson-logs"] },
+      { title: "연습실 예약", keys: ["reservations"] },
+      { title: "등록·내 설정", keys: ["registrations", "profile"] }
+    ];
+  }
+  if (user.role === "staff") {
+    return [
+      { title: "수강생 접수", keys: ["students"] },
+      { title: "수강 등록", keys: ["enrollments"] },
+      { title: "오늘 운영", keys: ["dashboard", "calendar"] },
+      { title: "수납·예약", keys: ["registrations", "reservations"] },
+      { title: "팀·설정", keys: ["team", "meetings", "accounts", "system-settings", "profile"] }
+    ];
+  }
+  return [
+    { title: "운영 점검", keys: ["dashboard", "calendar", "usage"] },
+    { title: "수강생 관리", keys: ["students"] },
+    { title: "수강·수납", keys: ["enrollments", "registrations"] },
+    { title: "수업 기록", keys: ["lesson-logs"] },
+    { title: "공간·회의", keys: ["reservations", "meetings"] },
+    { title: "팀·권한", keys: ["team", "accounts"] },
+    { title: "시스템·내 설정", keys: ["system-settings", "profile"] }
+  ];
+}
+
+function subviewActionsFor(page) {
+  const childMap = {
+    "lesson-logs": [{ subview: "browse", label: "일지 조회" }],
+    reservations: [{ subview: "schedule", label: "예약 현황" }, { subview: "list", label: "예약 목록" }, { subview: "create", label: "새 예약" }],
+    enrollments: [{ subview: "history", label: "수강 이력" }, { subview: "schedule", label: "수업 일정" }],
+    accounts: [{ subview: "list", label: "계정 목록" }],
+    students: [{ subview: "list", label: "수강생 목록" }]
+  };
+  if (state.capabilities.writeLessonLogs) childMap["lesson-logs"].push({ subview: "create", label: "일지 작성" });
+  if (state.capabilities.manageReservations) childMap.reservations.push({ subview: "rooms", label: "공간 관리" });
+  if (state.capabilities.manageOperations) childMap.enrollments.push({ subview: "create", label: "수강 등록" });
+  if (state.capabilities.manageCalendar) childMap.enrollments.push({ subview: "types", label: "등록 기준" });
+  if (state.capabilities.manageStudents) childMap.students.push({ subview: "create", label: "수강생 등록" });
+  if (state.capabilities.reviewAccountRequests) childMap.accounts.push({ subview: "requests", label: "신규 요청" });
+  if (state.capabilities.manageAccounts) childMap.accounts.push({ subview: "create", label: "계정 생성" });
+  return childMap[page] || [];
 }
 
 function mobileMenuChildren(page) {
-  const childMap = {
-    "lesson-logs": [["browse", "일지 조회"]],
-    reservations: [["schedule", "예약 현황"], ["create", "새 예약"]],
-    enrollments: [["history", "수강 이력"], ["schedule", "수업 일정"]],
-    accounts: [["list", "계정 목록"]],
-    students: [["list", "수강생 목록"]]
-  };
-  if (state.capabilities.writeLessonLogs) childMap["lesson-logs"].push(["create", "일지 작성"]);
-  if (state.capabilities.manageReservations) childMap.reservations.push(["rooms", "공간 관리"]);
-  if (state.capabilities.manageOperations) childMap.enrollments.push(["create", "수강 등록"]);
-  if (state.capabilities.manageCalendar) childMap.enrollments.push(["types", "등록 기준"]);
-  if (state.capabilities.manageStudents) childMap.students.push(["create", "수강생 등록"]);
-  if (state.capabilities.reviewAccountRequests) childMap.accounts.push(["requests", "신규 요청"]);
-  if (state.capabilities.manageAccounts) childMap.accounts.push(["create", "계정 생성"]);
-  const children = childMap[page] || [];
-  return children.map(([subview, label]) => `<button class="mobile-child" onclick="navigate('${page}');setSubview('${subview}')">${icon("chevron")}<span>${label}</span></button>`).join("");
+  const actions = subviewActionsFor(page);
+  if (actions.length < 2) return "";
+  const preview = actions.slice(0, 2).map(({ label }) => label).join(" · ");
+  const suffix = actions.length > 2 ? ` 외 ${actions.length - 2}개` : "";
+  return `<small class="mobile-child-summary">작업 선택 ${actions.length}개 · ${escapeHtml(preview)}${suffix}</small>`;
 }
 
 function labelResponsiveTables() {
@@ -1951,7 +2075,7 @@ function labelResponsiveTables() {
     const labels = Array.from(table.querySelectorAll("thead th")).map((cell) => cell.textContent.trim());
     table.querySelectorAll("tbody tr").forEach((row) => {
       Array.from(row.children).forEach((cell, index) => {
-        cell.dataset.label = labels[index] || "정보";
+        if (!cell.dataset.label) cell.dataset.label = labels[index] || "정보";
       });
     });
   });
@@ -1976,7 +2100,12 @@ function renderPage() {
 }
 
 function subviewTabs(items) {
-  return `<nav class="subview-tabs" aria-label="세부 메뉴">${items.map(([key, label, iconName]) => `<button class="${state.subview === key ? "active" : ""}" onclick="setSubview('${key}')">${icon(iconName || "list")}<span>${label}</span></button>`).join("")}</nav>`;
+  if (items.length <= 1) return "";
+  const options = items.map(([key, label]) => `<option value="${key}" ${state.subview === key ? "selected" : ""}>${escapeHtml(label)}</option>`).join("");
+  const helper = state.page === "lesson-logs" && state.user?.role === "teacher"
+    ? "오늘 담당 수업 중 미작성 일지가 있으면 작성 화면이 먼저 열립니다."
+    : "선택한 화면에서 할 일을 고르세요.";
+  return `<div class="mobile-subview-picker"><label><span>세부 작업</span><small>${escapeHtml(helper)}</small><select onchange="setSubview(this.value)">${options}</select></label></div><nav class="subview-tabs" aria-label="세부 메뉴">${items.map(([key, label, iconName]) => `<button class="${state.subview === key ? "active" : ""}" onclick="setSubview('${key}')">${icon(iconName || "list")}<span>${label}</span></button>`).join("")}</nav>`;
 }
 
 function renderTestToolbar() {
@@ -1993,14 +2122,25 @@ function statItem(label, value, suffix = "", tone = "") {
 }
 
 function dashboardPrefs(user = state.user) {
-  const defaults = user?.role === "teacher" || user?.role === "student" ? DEFAULT_PERSONAL_WIDGETS : DEFAULT_ADMIN_WIDGETS;
+  const available = dashboardAvailableWidgets(user);
+  const defaults = dashboardDefaultWidgets(user);
   try {
     const parsed = JSON.parse(user?.dashboard_prefs_json || "{}");
-    const widgets = Array.isArray(parsed.widgets) && parsed.widgets.length ? parsed.widgets.filter((item) => defaults.includes(item)) : defaults;
+    const widgets = Array.isArray(parsed.widgets) && parsed.widgets.length ? parsed.widgets.filter((item) => available.includes(item)) : defaults;
     return { widgets };
   } catch (_error) {
     return { widgets: defaults };
   }
+}
+
+function dashboardAvailableWidgets(user = state.user) {
+  return user?.role === "teacher" || user?.role === "student" ? DEFAULT_PERSONAL_WIDGETS : DEFAULT_ADMIN_WIDGETS;
+}
+
+function dashboardDefaultWidgets(user = state.user) {
+  const available = dashboardAvailableWidgets(user);
+  const defaults = ROLE_DASHBOARD_DEFAULTS[user?.role] || available;
+  return defaults.filter((item) => available.includes(item));
 }
 
 function dashboardWidgetEnabled(key) {
@@ -2008,9 +2148,67 @@ function dashboardWidgetEnabled(key) {
 }
 
 function dashboardWidgetOptions() {
-  const defaults = state.user?.role === "teacher" || state.user?.role === "student" ? DEFAULT_PERSONAL_WIDGETS : DEFAULT_ADMIN_WIDGETS;
+  const defaults = dashboardAvailableWidgets();
   const selected = dashboardPrefs().widgets;
   return `<fieldset class="field wide preference-field"><legend>홈 화면 구성</legend><div>${defaults.map((key) => `<label><input type="checkbox" name="dashboard_widgets" value="${key}" ${selected.includes(key) ? "checked" : ""} /><span>${DASHBOARD_WIDGET_LABELS[key]}</span></label>`).join("")}</div></fieldset>`;
+}
+
+function quickActionsFor(user = state.user) {
+  const c = state.capabilities || {};
+  const hasPendingLessonLog = shouldOpenLessonLogComposer();
+  const action = (label, hint, iconName, page, subview = "") => ({ label, hint, iconName, page, subview });
+  const subviewAction = (page, subview, label, hint, iconName) => {
+    const target = subviewActionsFor(page).find((item) => item.subview === subview);
+    return target ? action(label || target.label, hint, iconName, page, target.subview) : null;
+  };
+  const byRole = user.role === "teacher"
+    ? [
+        subviewAction("lesson-logs", hasPendingLessonLog ? "create" : "browse", hasPendingLessonLog ? "수업일지 작성" : "최근 일지 보기", hasPendingLessonLog ? "오늘 수업 기록 남기기" : "최근 기록 확인 · 필요 시 직접 작성", hasPendingLessonLog ? "plus" : "book"),
+        action("오늘 수업", "내 일정 바로 확인", "calendar", "my-overview"),
+        subviewAction("students", "list", "담당 수강생", "학생별 기록 확인", "users"),
+        subviewAction("reservations", "create", "공간 예약", "레슨실·연습실 예약", "building")
+      ]
+    : user.role === "student"
+      ? [
+          action("다음 수업", "예정된 수업 확인", "calendar", "my-overview"),
+          subviewAction("lesson-logs", "browse", "수업 피드백", "선생님 기록 보기", "book"),
+          subviewAction("reservations", "create", "연습실 예약", "가능한 공간 예약", "building"),
+          c.viewPayments ? action("결제 내역", "등록·결제 상태 확인", "credit", "registrations") : null
+        ]
+      : user.role === "staff"
+        ? [
+            subviewAction("students", "create", "상담/수강생 등록", "신규 학생 정보 입력", "users"),
+            subviewAction("enrollments", "create", "수강 등록", "수강과 수업 일정 연결", "calendar"),
+            c.viewPayments ? action("수납 확인", "재등록·결제 예정 점검", "credit", "registrations") : null,
+            c.viewTeam ? action("출근·퇴근", "오늘 근태 기록", "briefcase", "team") : null
+          ]
+        : [
+            subviewAction("accounts", "requests", "신규 계정 승인", `${pendingAccountRequests().length}건 대기`, "userCog"),
+            c.viewPayments ? action("재등록·수납 점검", "14일 내 예정 확인", "credit", "registrations") : null,
+            action("운영 현황", "오늘 운영 흐름 보기", "home", "dashboard"),
+            subviewAction("accounts", "list", "권한 관리", "계정 권한 설정", "settings")
+          ];
+  return byRole.filter(Boolean).slice(0, 4);
+}
+
+function quickActionIntro(user = state.user) {
+  if (user.role === "teacher") return "오늘 수업과 기록을 빠르게 챙겨요.";
+  if (user.role === "student") return "내 수업, 피드백, 연습 예약을 확인해요.";
+  if (user.role === "staff") return "접수부터 등록까지 바로 이어가요.";
+  return "운영 흐름을 한눈에 정리해요.";
+}
+
+function quickActionMobileLimit(user = state.user) {
+  return ROLE_MOBILE_QUICK_ACTION_LIMITS[user.role] || 3;
+}
+
+function renderQuickActions() {
+  const actions = quickActionsFor();
+  if (!actions.length) return "";
+  const mobileLimit = quickActionMobileLimit();
+  const hiddenActionCount = Math.max(0, actions.length - mobileLimit);
+  const more = hiddenActionCount ? `<button class="quick-actions-more" type="button" aria-expanded="${state.mobileMenu ? "true" : "false"}" aria-label="전체 메뉴 열기, 추가 작업 ${hiddenActionCount}개" onclick="toggleMobileMenu()">${icon("menu")}전체 메뉴<span class="quick-actions-count">+${hiddenActionCount}</span></button>` : "";
+  return `<section class="quick-actions" data-mobile-limit="${mobileLimit}" aria-label="빠른 작업"><div class="quick-actions-head"><div><span>오늘 먼저 할 일</span><p>${escapeHtml(quickActionIntro())}</p></div>${more}</div><div class="quick-action-grid">${actions.map((item, index) => `<button class="quick-action-card ${index === 0 ? "primary" : ""}" onclick="${item.subview ? `navigateSubview('${item.page}', '${item.subview}')` : `navigate('${item.page}')`}">${icon(item.iconName)}<strong>${escapeHtml(item.label)}</strong><small>${escapeHtml(item.hint)}</small></button>`).join("")}</div></section>`;
 }
 
 function renderDashboard() {
@@ -2019,6 +2217,7 @@ function renderDashboard() {
   const dueSoon = registrationDueSoon();
   return `
     ${pageHeading("오늘의 운영", `${formatFullDate(new Date())} 기준 학원 운영 현황입니다.`, `<button class="btn secondary small" onclick="refreshData()">${icon("refresh")}새로고침</button>`)}
+    ${renderQuickActions()}
     ${dashboardWidgetEnabled("stats") ? `<section class="stats">
       ${statItem("재원 수강생", stats.activeStudents || 0, "명")}
       ${statItem("활성 계정", stats.activeAccounts || 0, "명")}
@@ -2052,8 +2251,13 @@ function renderMyOverview() {
   const stats = overview.stats || {};
   const title = teacher ? `${state.user.name}님의 수업` : `${state.user.name}님의 수강`;
   const description = teacher ? "담당 수업과 수강생, 최근 기록을 한눈에 확인합니다." : "수강 과목과 다음 수업, 학습 기록을 확인합니다.";
+  const hasPendingLessonLog = shouldOpenLessonLogComposer();
+  const teacherLessonLogAction = hasPendingLessonLog
+    ? `<button class="btn" onclick="navigateSubview('lesson-logs','create')">${icon("plus")}수업일지 작성</button>`
+    : `<button class="btn secondary" onclick="navigateSubview('lesson-logs','browse')">${icon("book")}최근 일지 보기</button>`;
   return `
-    ${pageHeading(title, description, teacher ? `<button class="btn" onclick="navigate('lesson-logs')">${icon("plus")}수업일지 작성</button>` : "")}
+    ${pageHeading(title, description, teacher ? teacherLessonLogAction : "")}
+    ${renderQuickActions()}
     ${dashboardWidgetEnabled("stats") ? `<section class="stats">
       ${teacher ? statItem("담당 수강생", stats.activeStudents || 0, "명") : statItem("수강 과목", stats.activeCourses || 0, "개")}
       ${teacher ? statItem("담당 과목", stats.subjects || 0, "개") : statItem("수강 기간", durationText(stats.enrolledDays || 0))}
@@ -2159,7 +2363,7 @@ function accountRequestCard(item) {
 
 function accountRequestHistory(items) {
   if (!items.length) return empty("아직 처리된 요청이 없습니다.");
-  return `<div class="table-wrap"><table><thead><tr><th>요청자</th><th>아이디</th><th>요청 유형</th><th>상태</th><th>처리일</th><th>메모</th></tr></thead><tbody>${items.map((item) => `<tr><td>${escapeHtml(item.name)}</td><td>${escapeHtml(item.login_id)}</td><td>${escapeHtml(roleLabel(item.requested_role))}</td><td>${statusBadge(item.status, item.status === "승인" ? "success" : "muted")}</td><td>${escapeHtml(formatDateTime(item.reviewed_at))}</td><td>${escapeHtml(item.review_memo || "-")}</td></tr>`).join("")}</tbody></table></div>`;
+  return `<div class="table-wrap account-request-history-wrap"><table class="account-request-history-table"><thead><tr><th>요청자</th><th>아이디</th><th>요청 유형</th><th>상태</th><th>처리일</th><th>메모</th></tr></thead><tbody>${items.map((item) => `<tr><td data-label="요청자">${escapeHtml(item.name)}</td><td data-label="아이디">${escapeHtml(item.login_id)}</td><td data-label="요청 유형">${escapeHtml(roleLabel(item.requested_role))}</td><td data-label="상태">${statusBadge(item.status, item.status === "승인" ? "success" : "muted")}</td><td data-label="처리일">${escapeHtml(formatDateTime(item.reviewed_at))}</td><td data-label="메모">${escapeHtml(item.review_memo || "-")}</td></tr>`).join("")}</tbody></table></div>`;
 }
 
 function renderSystemSettings() {
@@ -2180,10 +2384,10 @@ function renderSystemSettings() {
 
 function accountsTable() {
   if (!state.accounts.length) return empty("등록된 계정이 없습니다.");
-  return `<div class="table-wrap"><table><thead><tr><th>이름</th><th>아이디</th><th>계정 구분</th><th>연결 수강생</th><th>상태</th><th>관리</th></tr></thead><tbody>${state.accounts.map((item) => {
+  return `<div class="table-wrap account-table-wrap"><table class="account-table"><thead><tr><th>이름</th><th>아이디</th><th>계정 구분</th><th>연결 수강생</th><th>상태</th><th>관리</th></tr></thead><tbody>${state.accounts.map((item) => {
     const canManage = state.capabilities.manageAccounts && item.account_id !== state.user.account_id && (state.accountType === "admin" || item.account_type !== "admin");
     const permissions = effectivePermissions(item);
-    return `<tr><td>${entityLink("account", item.account_id, item.name)}</td><td>${escapeHtml(item.login_id)}</td><td>${escapeHtml(accountLabel(item))}</td><td>${escapeHtml(studentName(item.linked_student_id) || "-")}</td><td>${statusBadge(item.active ? "사용" : "중지", item.active ? "success" : "muted")}<br /><small>로그인 ${item.login_count || 0}회 · ${item.last_login_at ? formatRelative(item.last_login_at) : "기록 없음"}</small></td><td>${canManage ? `<div class="row-actions"><button class="btn secondary small" onclick="openEntity('account-admin','${item.account_id}')">계정 편집</button><button class="btn secondary small" onclick="toggleAccount('${item.account_id}', ${!item.active})">${item.active ? "중지" : "재개"}</button><button class="btn ghost small" onclick="resetAccountPassword('${item.account_id}')">비밀번호 초기화</button></div>${state.capabilities.managePermissions && item.account_type === "staff" ? `<details class="permission-editor"><summary>페이지·기능 권한</summary><form onsubmit="updatePermissions(event,'${item.account_id}')">${permissionToggle("manageStudents", "수강생 관리", permissions.manageStudents)}${permissionToggle("writeLessonLogs", "수업일지 작성", permissions.writeLessonLogs)}${permissionToggle("manageReservations", "전체 예약 관리", permissions.manageReservations)}${permissionToggle("manageMeetings", "회의 예약", permissions.manageMeetings)}${permissionToggle("manageCalendar", "캘린더 관리", permissions.manageCalendar)}${permissionToggle("viewPayments", "수납 정보 조회", permissions.viewPayments)}<button class="btn small">저장</button></form></details>` : ""}` : "-"}</td></tr>`;
+    return `<tr><td data-label="이름">${entityLink("account", item.account_id, item.name)}</td><td data-label="아이디">${escapeHtml(item.login_id)}</td><td data-label="계정 구분">${escapeHtml(accountLabel(item))}</td><td data-label="연결 수강생">${escapeHtml(studentName(item.linked_student_id) || "-")}</td><td data-label="상태">${statusBadge(item.active ? "사용" : "중지", item.active ? "success" : "muted")}<br /><small>로그인 ${item.login_count || 0}회 · ${item.last_login_at ? formatRelative(item.last_login_at) : "기록 없음"}</small></td><td data-label="관리">${canManage ? `<div class="row-actions"><button class="btn secondary small" onclick="openEntity('account-admin','${item.account_id}')">계정 편집</button><button class="btn secondary small" onclick="toggleAccount('${item.account_id}', ${!item.active})">${item.active ? "중지" : "재개"}</button><button class="btn ghost small" onclick="resetAccountPassword('${item.account_id}')">비밀번호 초기화</button></div>${state.capabilities.managePermissions && item.account_type === "staff" ? `<details class="permission-editor"><summary>페이지·기능 권한</summary><form onsubmit="updatePermissions(event,'${item.account_id}')">${permissionToggle("manageStudents", "수강생 관리", permissions.manageStudents)}${permissionToggle("writeLessonLogs", "수업일지 작성", permissions.writeLessonLogs)}${permissionToggle("manageReservations", "전체 예약 관리", permissions.manageReservations)}${permissionToggle("manageMeetings", "회의 예약", permissions.manageMeetings)}${permissionToggle("manageCalendar", "캘린더 관리", permissions.manageCalendar)}${permissionToggle("viewPayments", "수납 정보 조회", permissions.viewPayments)}<button class="btn small">저장</button></form></details>` : ""}` : "-"}</td></tr>`;
   }).join("")}</tbody></table></div>`;
 }
 
@@ -2212,13 +2416,29 @@ function renderStudents() {
 }
 
 function studentFilters(teachers) {
-  return `<div class="filter-bar">
+  const open = !isMobileViewport() || hasAdvancedStudentFilters();
+  return `<div class="filter-bar student-filters">
     <form class="search-box" onsubmit="applyStudentSearch(event)">${icon("search")}<input name="query" value="${escapeAttr(state.studentFilters.query)}" placeholder="이름, 연락처, 목표 검색" /><button type="submit" class="sr-only">검색</button></form>
-    <select aria-label="상태 필터" onchange="setStudentFilter('status', this.value)"><option value="">전체 상태</option>${STATUS_OPTIONS.map((item) => `<option ${state.studentFilters.status === item ? "selected" : ""}>${item}</option>`).join("")}</select>
-    <select aria-label="담당 강사 필터" onchange="setStudentFilter('teacher', this.value)"><option value="">전체 강사</option>${teachers.map((item) => `<option value="${item.account_id}" ${state.studentFilters.teacher === item.account_id ? "selected" : ""}>${escapeHtml(item.name)}</option>`).join("")}</select>
-    <select aria-label="정렬" onchange="setStudentFilter('sort', this.value)"><option value="nameAsc" ${state.studentFilters.sort === "nameAsc" ? "selected" : ""}>이름순</option><option value="enrolledDesc" ${state.studentFilters.sort === "enrolledDesc" ? "selected" : ""}>최근 등록순</option><option value="status" ${state.studentFilters.sort === "status" ? "selected" : ""}>상태순</option><option value="teacher" ${state.studentFilters.sort === "teacher" ? "selected" : ""}>강사순</option></select>
-    <button type="button" class="btn ghost small" onclick="resetStudentFilters()">${icon("refresh")}초기화</button>
+    <details class="student-advanced-filters" ${open ? "open" : ""}>
+      <summary><span>필터</span><small>${activeStudentFilterCount()}개 적용</small></summary>
+      <div class="advanced-filter-grid">
+        <select aria-label="상태 필터" onchange="setStudentFilter('status', this.value)"><option value="">전체 상태</option>${STATUS_OPTIONS.map((item) => `<option ${state.studentFilters.status === item ? "selected" : ""}>${item}</option>`).join("")}</select>
+        <select aria-label="담당 강사 필터" onchange="setStudentFilter('teacher', this.value)"><option value="">전체 강사</option>${teachers.map((item) => `<option value="${item.account_id}" ${state.studentFilters.teacher === item.account_id ? "selected" : ""}>${escapeHtml(item.name)}</option>`).join("")}</select>
+        <select aria-label="정렬" onchange="setStudentFilter('sort', this.value)"><option value="nameAsc" ${state.studentFilters.sort === "nameAsc" ? "selected" : ""}>이름순</option><option value="enrolledDesc" ${state.studentFilters.sort === "enrolledDesc" ? "selected" : ""}>최근 등록순</option><option value="status" ${state.studentFilters.sort === "status" ? "selected" : ""}>상태순</option><option value="teacher" ${state.studentFilters.sort === "teacher" ? "selected" : ""}>강사순</option></select>
+        <button type="button" class="btn ghost small" onclick="resetStudentFilters()">${icon("refresh")}초기화</button>
+      </div>
+    </details>
   </div>`;
+}
+
+function hasAdvancedStudentFilters() {
+  const filters = state.studentFilters;
+  return [filters.status, filters.teacher].filter(Boolean).length > 0 || filters.sort !== "nameAsc";
+}
+
+function activeStudentFilterCount() {
+  const filters = state.studentFilters;
+  return [filters.query, filters.status, filters.teacher, filters.sort !== "nameAsc" ? filters.sort : ""].filter(Boolean).length;
 }
 
 function filteredStudents() {
@@ -2238,7 +2458,7 @@ function filteredStudents() {
 
 function studentsTable(canEdit, items = state.students) {
   if (!items.length) return empty("조건에 맞는 수강생이 없습니다.", "검색어와 필터를 조정하면 다시 표시됩니다.");
-  return `<div class="table-wrap"><table><thead><tr><th>이름</th><th>분야</th><th>상태</th><th>${canEdit ? "보호자" : "목표"}</th><th>연락처</th><th>담당 강사</th>${canEdit ? "<th>관리</th>" : ""}</tr></thead><tbody>${items.map((item) => `<tr><td>${entityLink("student", item.student_id, item.name)}</td><td>${escapeHtml(item.major || "보컬")}</td><td>${statusBadge(item.status, item.status === "재원" ? "success" : "muted")}</td><td>${escapeHtml(canEdit ? item.guardian_name || "-" : item.goal || "-")}</td><td>${escapeHtml(canEdit ? item.guardian_phone || item.phone || "-" : item.phone || "-")}</td><td>${entityLink("account", item.teacher_id, accountName(item.teacher_id) || enrollmentTeacherName(item.student_id) || "-")}</td>${canEdit ? `<td><button class="btn secondary small" onclick="beginStudentEdit('${item.student_id}')">수정</button></td>` : ""}</tr>`).join("")}</tbody></table></div>`;
+  return `<div class="table-wrap student-table-wrap"><table class="student-table"><thead><tr><th>이름</th><th>분야</th><th>상태</th><th>${canEdit ? "보호자" : "목표"}</th><th>연락처</th><th>담당 강사</th>${canEdit ? "<th>관리</th>" : ""}</tr></thead><tbody>${items.map((item) => `<tr><td data-label="이름">${entityLink("student", item.student_id, item.name)}</td><td data-label="분야">${escapeHtml(item.major || "보컬")}</td><td data-label="상태">${statusBadge(item.status, item.status === "재원" ? "success" : "muted")}</td><td data-label="${canEdit ? "보호자" : "목표"}">${escapeHtml(canEdit ? item.guardian_name || "-" : item.goal || "-")}</td><td data-label="연락처">${escapeHtml(canEdit ? item.guardian_phone || item.phone || "-" : item.phone || "-")}</td><td data-label="담당 강사">${entityLink("account", item.teacher_id, accountName(item.teacher_id) || enrollmentTeacherName(item.student_id) || "-")}</td>${canEdit ? `<td data-label="관리"><button class="btn secondary small student-edit-button" onclick="beginStudentEdit('${item.student_id}')">수정</button></td>` : ""}</tr>`).join("")}</tbody></table></div>`;
 }
 
 function studentForm(student, teachers, editing) {
@@ -2374,17 +2594,30 @@ function renderReservations() {
   });
   const upcoming = state.reservations.filter((item) => item.reservation_date >= today() && item.status === "예약");
   const purposes = state.accountType === "student" ? ["연습"] : state.employeePosition === "teacher" ? ["레슨", "이론수업", "연습"] : RESERVATION_PURPOSES;
-  const tabs = [["schedule", "예약 현황", "calendar"], ["create", "새 예약", "plus"]];
+  const tabs = [["schedule", "예약 현황", "calendar"], ["list", "예약 목록", "list"], ["create", "새 예약", "plus"]];
   if (state.capabilities.manageReservations) tabs.push(["rooms", "공간 관리", "settings"]);
   const heading = `${pageHeading("레슨실·연습실 예약", "접근 가능한 공간의 1시간 예약 현황을 확인하고 예약합니다.")}${subviewTabs(tabs)}`;
   if (state.subview === "create") {
+    const draft = state.reservationDraft || {};
+    const draftRoomId = draft.room_id || "";
+    const draftDate = draft.reservation_date || state.reservationFilter.date || today();
+    const draftStart = draft.start_time || "09:00";
+    const draftEnd = addMinutesClient(draftStart, 60);
+    const draftRoom = selectableRooms.find((item) => item.room_id === draftRoomId);
+    const selectionSummary = draftRoom ? `<div class="reservation-selection-summary" aria-live="polite">
+      <span>선택한 예약</span>
+      <strong>${escapeHtml(draftRoom.name)}</strong>
+      <p>${escapeHtml(formatDate(draftDate))} · ${escapeHtml(draftStart)}-${escapeHtml(draftEnd)}</p>
+      <button class="text-action" type="button" onclick="returnReservationSchedule()">시간 다시 선택 ${icon("chevron")}</button>
+    </div>` : "";
     return `${heading}<section class="panel form-panel focused-panel"><div class="panel-head"><div><h2>새 공간 예약</h2><p>정각부터 1시간 단위</p></div></div>
+      ${selectionSummary}
       <form class="panel-body form-grid two" onsubmit="createReservation(event)">
-        <label class="field wide"><span>공간</span><select name="room_id" required><option value="">선택</option>${selectableRooms.map((item) => `<option value="${item.room_id}">${escapeHtml(item.name)} · ${item.room_type === "lesson" ? "레슨실" : "연습실"}</option>`).join("")}</select></label>
-        <label class="field"><span>예약일</span><input name="reservation_date" type="date" value="${today()}" required /></label>
+        <label class="field wide"><span>공간</span><select name="room_id" required><option value="">선택</option>${selectableRooms.map((item) => `<option value="${item.room_id}" ${draftRoomId === item.room_id ? "selected" : ""}>${escapeHtml(item.name)} · ${item.room_type === "lesson" ? "레슨실" : "연습실"}</option>`).join("")}</select></label>
+        <label class="field"><span>예약일</span><input name="reservation_date" type="date" value="${escapeAttr(draftDate)}" required /></label>
         <label class="field"><span>목적</span><select name="purpose" required>${purposes.map((item) => `<option>${item}</option>`).join("")}</select></label>
-        <label class="field"><span>시작</span><select name="start_time" onchange="syncReservationEnd(this)" required>${hourOptions()}</select></label>
-        <label class="field"><span>종료</span><input name="end_time" value="10:00" readonly /></label>
+        <label class="field"><span>시작</span><select name="start_time" onchange="syncReservationEnd(this)" required>${hourOptions(draftStart)}</select></label>
+        <label class="field"><span>종료</span><input name="end_time" value="${escapeAttr(draftEnd)}" readonly /></label>
         <label class="field wide"><span>메모</span><textarea name="memo" placeholder="예약 대상이나 준비 사항"></textarea></label>
         <div class="form-actions wide"><button class="btn">${icon("plus")}1시간 예약하기</button></div>
       </form>
@@ -2393,15 +2626,18 @@ function renderReservations() {
   if (state.subview === "rooms" && state.capabilities.manageReservations) {
     return `${heading}${roomZoneMap(upcoming)}<section class="panel"><div class="panel-head"><div><h2>공간 이름 관리</h2><p>공간 카드를 누르면 예정 사용 일정을 확인합니다.</p></div></div><div class="room-settings">${state.rooms.map((room) => `<form onsubmit="updateRoom(event)"><input type="hidden" name="room_id" value="${room.room_id}" /><button type="button" class="room-link" onclick="openEntity('room','${room.room_id}')">${room.room_type === "lesson" ? "레슨" : "연습"}</button><input name="name" value="${escapeAttr(room.name)}" required /><button class="icon-button" aria-label="공간 이름 저장">${icon("save")}</button></form>`).join("")}</div></section>`;
   }
-  return `${heading}${roomZoneMap(upcoming)}
+  if (state.subview === "list") {
+    return `${heading}<section class="panel reservation-list-panel"><div class="panel-head"><div><h2>예약 목록</h2><p>${state.reservations.length}건 · 공간명과 예약자명을 눌러 상세 보기</p></div><button class="btn secondary small" type="button" onclick="setSubview('schedule')">${icon("calendar")}시간표 보기</button></div>${reservationsTable(state.reservations)}</section>`;
+  }
+  return `${heading}${roomZoneMap(upcoming, "reserve")}
     <section class="panel reservation-board"><div class="panel-head"><div><h2>시간별 예약 현황</h2><p>${upcoming.length}건 예정</p></div><div class="inline-filters"><input type="date" value="${escapeAttr(state.reservationFilter.date)}" onchange="setReservationFilter('date',this.value)" /><select onchange="setReservationFilter('room',this.value)"><option value="all">전체 공간</option>${selectableRooms.map((item) => `<option value="${item.room_id}" ${state.reservationFilter.room === item.room_id ? "selected" : ""}>${escapeHtml(item.name)}</option>`).join("")}</select></div></div>${reservationSchedule()}</section>
-    <section class="panel"><div class="panel-head"><div><h2>예약 목록</h2><p>공간명과 예약자명을 눌러 상세 보기</p></div></div>${reservationsTable(state.reservations)}</section>`;
+    <button class="mobile-list-shortcut" type="button" onclick="setSubview('list')">${icon("list")}예약 목록 ${state.reservations.length}건 보기</button>`;
 }
 
-function hourOptions() {
+function hourOptions(selected = "09:00") {
   return Array.from({ length: 14 }, (_, index) => {
     const time = `${String(index + 9).padStart(2, "0")}:00`;
-    return `<option value="${time}">${time} - ${addMinutesClient(time, 60)}</option>`;
+    return `<option value="${time}" ${selected === time ? "selected" : ""}>${time} - ${addMinutesClient(time, 60)}</option>`;
   }).join("");
 }
 
@@ -2410,7 +2646,12 @@ function setReservationFilter(key, value) {
   render();
 }
 
-function roomZoneMap(upcoming) {
+function returnReservationSchedule() {
+  state.subview = "schedule";
+  render();
+}
+
+function roomZoneMap(upcoming, mode = "detail") {
   const visibleRooms = state.rooms.filter((room) => room.room_type === "lesson" ? state.capabilities.reserveLessonRoom : state.capabilities.reservePracticeRoom);
   const roomById = keyBy(visibleRooms, "room_id");
   return `<section class="room-map floor-plan" aria-label="본성뮤직 아카데미 내부 공간 구조도">
@@ -2422,17 +2663,17 @@ function roomZoneMap(upcoming) {
       <a class="floor-plan-reference" href="./assets/bonsung-floor-plan-reference.png" target="_blank" rel="noreferrer">원본 구조도 보기</a>
     </header>
     <div class="floor-grid">
-      ${floorTile(roomById, upcoming, "room-lesson-large-1", "lesson-large", "lesson")}
-      ${floorTile(roomById, upcoming, "room-lesson-medium-1", "lesson-medium", "lesson")}
-      ${floorTile(roomById, upcoming, "room-lesson-small-1", "lesson-small-1", "lesson")}
-      ${floorTile(roomById, upcoming, "room-lesson-small-2", "lesson-small-2", "lesson")}
+      ${floorTile(roomById, upcoming, "room-lesson-large-1", "lesson-large", "lesson", mode)}
+      ${floorTile(roomById, upcoming, "room-lesson-medium-1", "lesson-medium", "lesson", mode)}
+      ${floorTile(roomById, upcoming, "room-lesson-small-1", "lesson-small-1", "lesson", mode)}
+      ${floorTile(roomById, upcoming, "room-lesson-small-2", "lesson-small-2", "lesson", mode)}
       ${floorStaticTile("창고 / 팬트리", "storage", "storage")}
       ${floorStaticTile("이론 강의실", "theory", "theory")}
       ${floorStaticTile("복도 공간", "corridor", "corridor")}
       ${floorStaticTile("원장(대표)실", "office-owner", "office")}
-      ${floorTile(roomById, upcoming, "room-practice-a", "practice-a", "practice")}
-      ${floorTile(roomById, upcoming, "room-practice-b", "practice-b", "practice")}
-      ${floorTile(roomById, upcoming, "room-practice-c", "practice-c", "practice")}
+      ${floorTile(roomById, upcoming, "room-practice-a", "practice-a", "practice", mode)}
+      ${floorTile(roomById, upcoming, "room-practice-b", "practice-b", "practice", mode)}
+      ${floorTile(roomById, upcoming, "room-practice-c", "practice-c", "practice", mode)}
       ${floorStaticTile("로비 및 카페테리아", "lobby", "lobby")}
       ${floorStaticTile("교무실", "office-staff", "staff")}
       <div class="floor-entrance">출입구</div>
@@ -2446,11 +2687,13 @@ function roomZoneMap(upcoming) {
   </section>`;
 }
 
-function floorTile(roomById, upcoming, roomId, area, type) {
+function floorTile(roomById, upcoming, roomId, area, type, mode = "detail") {
   const room = roomById[roomId];
   if (!room) return floorStaticTile(roomNameFallback(roomId), area, `${type} disabled`);
   const count = upcoming.filter((item) => item.room_id === room.room_id).length;
-  return `<button class="floor-room ${type} area-${area} ${count ? "has-booking" : ""}" onclick="openEntity('room','${room.room_id}')">
+  const selected = mode === "reserve" && state.reservationFilter.room === room.room_id;
+  const action = mode === "reserve" ? `setReservationFilter('room','${room.room_id}')` : `openEntity('room','${room.room_id}')`;
+  return `<button class="floor-room ${type} area-${area} ${count ? "has-booking" : ""} ${selected ? "selected" : ""}" onclick="${action}">
     <span>${escapeHtml(room.name)}</span>
     <small>${count ? `${count}건 예정` : "예약 가능"}</small>
   </button>`;
@@ -2478,7 +2721,8 @@ function reservationSchedule() {
   const hours = Array.from({ length: 14 }, (_, index) => `${String(index + 9).padStart(2, "0")}:00`);
   return `<div class="reservation-schedule">${rooms.map((room) => `<section><button class="schedule-room" onclick="openEntity('room','${room.room_id}')">${escapeHtml(room.name)}</button><div class="schedule-slots">${hours.map((hour) => {
     const reservation = state.reservations.find((item) => item.room_id === room.room_id && item.reservation_date === date && item.start_time === hour && item.status === "예약");
-    return reservation ? `<button class="slot occupied purpose-${reservationPurposeKey(reservation.purpose)}" onclick="openEntity('reservation','${reservation.reservation_id}')"><time>${hour}</time><span>${escapeHtml(reservation.purpose)}</span><small>${escapeHtml(reservation.reserved_by_name)}</small></button>` : `<button class="slot open" onclick="prefillReservation('${room.room_id}','${date}','${hour}')"><time>${hour}</time><span>예약 가능</span></button>`;
+    const slotLabel = `${room.name} ${formatDate(date)} ${hour}부터 1시간 예약하기`;
+    return reservation ? `<button class="slot occupied purpose-${reservationPurposeKey(reservation.purpose)}" onclick="openEntity('reservation','${reservation.reservation_id}')"><time>${hour}</time><span>${escapeHtml(reservation.purpose)}</span><small>${escapeHtml(reservation.reserved_by_name)}</small></button>` : `<button class="slot open" aria-label="${escapeAttr(slotLabel)}" onclick="prefillReservation('${room.room_id}','${date}','${hour}')"><time>${hour}</time><span>예약 가능</span></button>`;
   }).join("")}</div></section>`).join("")}</div>`;
 }
 
@@ -2487,14 +2731,9 @@ function reservationPurposeKey(purpose) {
 }
 
 function prefillReservation(roomId, date, time) {
+  state.reservationDraft = { room_id: roomId, reservation_date: date, start_time: time };
   state.subview = "create";
   render();
-  const form = root.querySelector("form");
-  if (!form) return;
-  form.room_id.value = roomId;
-  form.reservation_date.value = date;
-  form.start_time.value = time;
-  syncReservationEnd(form.start_time);
 }
 
 function renderTeam() {
@@ -2504,7 +2743,7 @@ function renderTeam() {
     ${state.capabilities.clockWork ? `<section class="clock-panel"><div><span>${open ? "근무 중" : "근무 시작 전"}</span><strong>${open ? `${formatTime(open.clock_in_at)} 출근` : formatFullDate(new Date())}</strong><small>${open ? "업무 종료 시 퇴근 버튼을 눌러 주세요." : "출근 버튼을 누르면 현재 시간이 기록됩니다."}</small></div><button class="btn ${open ? "secondary" : ""}" onclick="clockWork('${open ? "out" : "in"}')">${icon("clock")}${open ? "퇴근하기" : "출근하기"}</button></section>` : ""}
     <div class="overview-grid">
       <section class="panel"><div class="panel-head"><div><h2>근태 기록</h2><p>${state.capabilities.manageOperations ? "전체 직원" : "나의 기록"}</p></div></div>${workLogsTable(state.workLogs)}</section>
-      <section class="panel"><div class="panel-head"><div><h2>직원 구성</h2><p>${staffAccounts.length ? `${staffAccounts.length}명` : "조회 권한 없음"}</p></div></div>${staffAccounts.length ? `<div class="staff-list">${staffAccounts.map((item) => `<div><span class="avatar">${escapeHtml(item.name.slice(0, 1))}</span><div>${entityLink("account", item.account_id, item.name)}<p>${escapeHtml(accountLabel(item))}</p></div>${statusBadge(item.active ? "재직" : "중지", item.active ? "success" : "muted")}</div>`).join("")}</div>` : empty("직원 목록 조회 권한이 없습니다.")}</section>
+      <section class="panel team-staff-panel"><div class="panel-head"><div><h2>직원 구성</h2><p>${staffAccounts.length ? `${staffAccounts.length}명` : "조회 권한 없음"}</p></div></div>${staffAccounts.length ? `<div class="staff-list team-staff-list">${staffAccounts.map((item) => `<div><span class="avatar">${escapeHtml(item.name.slice(0, 1))}</span><div>${entityLink("account", item.account_id, item.name)}<p>${escapeHtml(accountLabel(item))}</p></div>${statusBadge(item.active ? "재직" : "중지", item.active ? "success" : "muted")}</div>`).join("")}</div>` : empty("직원 목록 조회 권한이 없습니다.")}</section>
     </div>`;
 }
 
@@ -2622,16 +2861,36 @@ function lessonLogFilters() {
   const teachers = uniqueBy(state.lessonLogs.map((item) => ({ id: item.teacher_id, name: item.teacher_name || accountName(item.teacher_id) })), "id");
   const students = uniqueBy(state.lessonLogs.map((item) => ({ id: item.student_id, name: item.student_name || studentName(item.student_id) })), "id");
   const subjects = unique(state.lessonLogs.map((item) => item.subject).filter(Boolean)).sort();
-  return `<div class="filter-bar">
+  const open = !isMobileViewport() || hasAdvancedLogFilters();
+  return `<div class="filter-bar lesson-log-filters">
     <form class="search-box" onsubmit="applyLogSearch(event)">${icon("search")}<input name="query" value="${escapeAttr(state.logFilters.query)}" placeholder="수업 내용 검색" /><button type="submit" class="sr-only">검색</button></form>
-    ${state.user.role !== "student" ? `<select aria-label="수강생 필터" onchange="setLogFilter('student', this.value)"><option value="">전체 수강생</option>${students.map((item) => `<option value="${item.id}" ${state.logFilters.student === item.id ? "selected" : ""}>${escapeHtml(item.name)}</option>`).join("")}</select>` : ""}
-    ${["admin", "staff"].includes(state.user.role) ? `<select aria-label="강사 필터" onchange="setLogFilter('teacher', this.value)"><option value="">전체 강사</option>${teachers.map((item) => `<option value="${item.id}" ${state.logFilters.teacher === item.id ? "selected" : ""}>${escapeHtml(item.name)}</option>`).join("")}</select>` : ""}
-    <select aria-label="과목 필터" onchange="setLogFilter('subject', this.value)"><option value="">전체 과목</option>${subjects.map((item) => `<option ${state.logFilters.subject === item ? "selected" : ""}>${escapeHtml(item)}</option>`).join("")}</select>
-    <input aria-label="시작일" type="date" value="${escapeAttr(state.logFilters.from)}" onchange="setLogFilter('from', this.value)" />
-    <input aria-label="종료일" type="date" value="${escapeAttr(state.logFilters.to)}" onchange="setLogFilter('to', this.value)" />
-    <select aria-label="정렬" onchange="setLogFilter('sort', this.value)"><option value="dateDesc" ${state.logFilters.sort === "dateDesc" ? "selected" : ""}>최근 수업순</option><option value="dateAsc" ${state.logFilters.sort === "dateAsc" ? "selected" : ""}>오래된 수업순</option><option value="student" ${state.logFilters.sort === "student" ? "selected" : ""}>수강생순</option><option value="teacher" ${state.logFilters.sort === "teacher" ? "selected" : ""}>강사순</option><option value="subject" ${state.logFilters.sort === "subject" ? "selected" : ""}>과목순</option></select>
-    <button type="button" class="btn ghost small" onclick="resetLogFilters()">${icon("refresh")}초기화</button>
+    <details class="lesson-log-advanced-filters" ${open ? "open" : ""}>
+      <summary><span>필터</span><small>${activeLogFilterCount()}개 적용</small></summary>
+      <div class="advanced-filter-grid">
+        ${state.user.role !== "student" ? `<select aria-label="수강생 필터" onchange="setLogFilter('student', this.value)"><option value="">전체 수강생</option>${students.map((item) => `<option value="${item.id}" ${state.logFilters.student === item.id ? "selected" : ""}>${escapeHtml(item.name)}</option>`).join("")}</select>` : ""}
+        ${["admin", "staff"].includes(state.user.role) ? `<select aria-label="강사 필터" onchange="setLogFilter('teacher', this.value)"><option value="">전체 강사</option>${teachers.map((item) => `<option value="${item.id}" ${state.logFilters.teacher === item.id ? "selected" : ""}>${escapeHtml(item.name)}</option>`).join("")}</select>` : ""}
+        <select aria-label="과목 필터" onchange="setLogFilter('subject', this.value)"><option value="">전체 과목</option>${subjects.map((item) => `<option ${state.logFilters.subject === item ? "selected" : ""}>${escapeHtml(item)}</option>`).join("")}</select>
+        <input aria-label="시작일" type="date" value="${escapeAttr(state.logFilters.from)}" onchange="setLogFilter('from', this.value)" />
+        <input aria-label="종료일" type="date" value="${escapeAttr(state.logFilters.to)}" onchange="setLogFilter('to', this.value)" />
+        <select aria-label="정렬" onchange="setLogFilter('sort', this.value)"><option value="dateDesc" ${state.logFilters.sort === "dateDesc" ? "selected" : ""}>최근 수업순</option><option value="dateAsc" ${state.logFilters.sort === "dateAsc" ? "selected" : ""}>오래된 수업순</option><option value="student" ${state.logFilters.sort === "student" ? "selected" : ""}>수강생순</option><option value="teacher" ${state.logFilters.sort === "teacher" ? "selected" : ""}>강사순</option><option value="subject" ${state.logFilters.sort === "subject" ? "selected" : ""}>과목순</option></select>
+        <button type="button" class="btn ghost small" onclick="resetLogFilters()">${icon("refresh")}초기화</button>
+      </div>
+    </details>
   </div>`;
+}
+
+function hasAdvancedLogFilters() {
+  const filters = state.logFilters;
+  return [filters.teacher, filters.student, filters.subject, filters.from, filters.to].filter(Boolean).length > 0;
+}
+
+function isMobileViewport() {
+  return typeof window !== "undefined" && window.matchMedia("(max-width: 760px)").matches;
+}
+
+function activeLogFilterCount() {
+  const filters = state.logFilters;
+  return [filters.query, filters.teacher, filters.student, filters.subject, filters.from, filters.to].filter(Boolean).length;
 }
 
 function filteredLessonLogs() {
@@ -2687,7 +2946,7 @@ function renderLessonLogComposer() {
 
 function logsTable(logs) {
   if (!logs.length) return empty("조건에 맞는 수업일지가 없습니다.");
-  return `<div class="table-wrap"><table class="journal-table"><thead><tr><th>날짜·회차</th><th>수강생</th><th>강사</th><th>과목</th><th>출결</th><th>수업 내용 요약</th><th>보기</th></tr></thead><tbody>${logs.map((item) => `<tr><td>${escapeHtml(formatDate(item.lesson_date))}<br /><small>${item.lesson_number ? `${item.lesson_number}회차` : "-"}</small></td><td>${entityLink("student", item.student_id, item.student_name || studentName(item.student_id) || "-")}</td><td>${entityLink("account", item.teacher_id, item.teacher_name || accountName(item.teacher_id) || "-")}</td><td>${escapeHtml(item.subject || "-")}</td><td>${statusBadge(item.attendance_status, item.attendance_status === "출석" ? "success" : item.attendance_status === "지각" ? "warning" : "danger")}</td><td class="wrap summary-cell">${escapeHtml(item.lesson_content || "-")}</td><td><button class="icon-button" onclick="viewLog('${item.log_id}')" aria-label="수업일지 보기">${icon("eye")}</button></td></tr>`).join("")}</tbody></table></div>`;
+  return `<div class="table-wrap"><table class="journal-table"><thead><tr><th>날짜·회차</th><th>수강생</th><th>강사</th><th>과목</th><th>출결</th><th>수업 내용 요약</th><th>보기</th></tr></thead><tbody>${logs.map((item) => `<tr><td data-label="날짜·회차">${escapeHtml(formatDate(item.lesson_date))}<br /><small>${item.lesson_number ? `${item.lesson_number}회차` : "-"}</small></td><td data-label="수강생">${entityLink("student", item.student_id, item.student_name || studentName(item.student_id) || "-")}</td><td data-label="강사">${entityLink("account", item.teacher_id, item.teacher_name || accountName(item.teacher_id) || "-")}</td><td data-label="과목">${escapeHtml(item.subject || "-")}</td><td data-label="출결">${statusBadge(item.attendance_status, item.attendance_status === "출석" ? "success" : item.attendance_status === "지각" ? "warning" : "danger")}</td><td data-label="요약" class="wrap summary-cell">${escapeHtml(item.lesson_content || "-")}</td><td data-label="상세"><button class="btn secondary small journal-detail-button" onclick="viewLog('${item.log_id}')">${icon("eye")}자세히</button></td></tr>`).join("")}</tbody></table></div>`;
 }
 
 function renderLogModal() {
@@ -2818,11 +3077,11 @@ function renderProfile() {
   return `
     ${pageHeading("환경 설정", "개인 프로필, 화면 모드와 로그인 비밀번호를 관리합니다.")}
     <div class="profile-grid">
-      <section class="profile-summary">
+      <section class="profile-summary profile-mobile-card">
         <span class="avatar large">${escapeHtml(state.user.name.slice(0, 1))}</span>
         <div><h2>${escapeHtml(state.user.name)}</h2><p>${escapeHtml(accountLabel(state.user))} · ${escapeHtml(state.user.login_id)}</p></div>
       </section>
-      <section class="panel profile-panel">
+      <section class="panel profile-panel profile-settings-panel">
         <div class="panel-head"><div><h2>프로필과 화면 설정</h2><p>강사 프로필과 개인 환경에 반영됩니다.</p></div></div>
         <form class="panel-body form-grid" onsubmit="updateProfile(event)">
           ${state.accountType === "admin" ? `<label class="field"><span>관리자 표시 이름</span><input name="name" value="${escapeAttr(state.user.name || "admin")}" maxlength="60" required /></label>` : ""}
@@ -2836,7 +3095,7 @@ function renderProfile() {
           <div class="form-actions"><button class="btn">${icon("save")}설정 저장</button></div>
         </form>
       </section>
-      <section class="panel profile-panel">
+      <section class="panel profile-panel profile-password-panel">
         <div class="panel-head"><div><h2>비밀번호 변경</h2><p>8자 이상 사용해 주세요.</p></div></div>
         ${state.user.must_change_password ? `<div class="inline-alert">초기 비밀번호를 사용 중입니다. 계속하려면 새 비밀번호로 변경해 주세요.</div>` : ""}
         <form class="panel-body form-grid" onsubmit="changePassword(event)">
@@ -2846,7 +3105,7 @@ function renderProfile() {
           <div class="form-actions"><button class="btn">${icon("save")}비밀번호 변경</button></div>
         </form>
       </section>
-      <section class="panel account-actions">
+      <section class="panel account-actions profile-session-panel">
         <div class="panel-head"><div><h2>로그인 세션</h2><p>공용 기기에서는 사용 후 로그아웃하세요.</p></div></div>
         <div class="panel-body"><button class="btn secondary" onclick="logout()">${icon("logout")}로그아웃</button></div>
       </section>
@@ -2883,17 +3142,17 @@ function logsCompactList(items) {
 
 function enrollmentsTable(items) {
   if (!items.length) return empty("등록된 수강 정보가 없습니다.");
-  return `<div class="table-wrap"><table><thead><tr><th>수강생</th><th>등록 기준</th><th>강사</th><th>기간</th><th>반복 일정</th><th>상태</th></tr></thead><tbody>${items.map((item) => `<tr><td>${entityLink("student", item.student_id, item.student_name || studentName(item.student_id))}</td><td>${escapeHtml(item.subject)}</td><td>${entityLink("account", item.teacher_id, item.teacher_name || accountName(item.teacher_id))}</td><td>${escapeHtml(formatDate(item.start_date))} ~ ${item.end_date ? escapeHtml(formatDate(item.end_date)) : "계속"}</td><td>${DAY_LABELS[Number(item.weekly_day)] || "-"} ${escapeHtml(item.start_time || "")}</td><td>${statusBadge(ENROLLMENT_STATUS_LABELS[item.status] || item.status, item.status === "active" ? "success" : "muted")}</td></tr>`).join("")}</tbody></table></div>`;
+  return `<div class="table-wrap enrollment-table-wrap"><table class="enrollment-table"><thead><tr><th>수강생</th><th>등록 기준</th><th>강사</th><th>기간</th><th>반복 일정</th><th>상태</th></tr></thead><tbody>${items.map((item) => `<tr><td data-label="수강생">${entityLink("student", item.student_id, item.student_name || studentName(item.student_id))}</td><td data-label="등록 기준">${escapeHtml(item.subject)}</td><td data-label="강사">${entityLink("account", item.teacher_id, item.teacher_name || accountName(item.teacher_id))}</td><td data-label="기간">${escapeHtml(formatDate(item.start_date))} ~ ${item.end_date ? escapeHtml(formatDate(item.end_date)) : "계속"}</td><td data-label="반복 일정">${DAY_LABELS[Number(item.weekly_day)] || "-"} ${escapeHtml(item.start_time || "")}</td><td data-label="상태">${statusBadge(ENROLLMENT_STATUS_LABELS[item.status] || item.status, item.status === "active" ? "success" : "muted")}</td></tr>`).join("")}</tbody></table></div>`;
 }
 
 function lessonsTable(items) {
   if (!items.length) return empty("예정된 개별 수업이 없습니다.");
-  return `<div class="table-wrap"><table><thead><tr><th>일시·회차</th><th>수강생</th><th>강사</th><th>과목</th><th>강의실</th><th>상태·보강</th></tr></thead><tbody>${items.map((item) => `<tr onclick="openEntity('lesson','${item.lesson_id}')" class="clickable-row"><td>${escapeHtml(formatDate(item.lesson_date))} ${escapeHtml(item.start_time || "")}<br /><small>${item.lesson_number ? `${item.lesson_number}회차` : "-"}</small></td><td>${entityLink("student", item.student_id, item.student_name || studentName(item.student_id))}</td><td>${entityLink("account", item.teacher_id, item.teacher_name || accountName(item.teacher_id))}</td><td>${escapeHtml(item.subject)}</td><td>${escapeHtml(item.room || "-")}</td><td>${statusBadge(item.status || "예정", ["결석","취소"].includes(item.status) ? "danger" : item.status === "완료" ? "success" : "info")}${item.makeup_date ? `<br /><small>보강 ${escapeHtml(formatDate(item.makeup_date))}</small>` : ""}</td></tr>`).join("")}</tbody></table></div>`;
+  return `<div class="table-wrap lesson-table-wrap"><table class="lesson-table"><thead><tr><th>일시·회차</th><th>수강생</th><th>강사</th><th>과목</th><th>강의실</th><th>상태·보강</th></tr></thead><tbody>${items.map((item) => `<tr onclick="openEntity('lesson','${item.lesson_id}')" class="clickable-row"><td data-label="일시·회차">${escapeHtml(formatDate(item.lesson_date))} ${escapeHtml(item.start_time || "")}<br /><small>${item.lesson_number ? `${item.lesson_number}회차` : "-"}</small></td><td data-label="수강생">${entityLink("student", item.student_id, item.student_name || studentName(item.student_id))}</td><td data-label="강사">${entityLink("account", item.teacher_id, item.teacher_name || accountName(item.teacher_id))}</td><td data-label="과목">${escapeHtml(item.subject)}</td><td data-label="강의실">${escapeHtml(item.room || "-")}</td><td data-label="상태·보강">${statusBadge(item.status || "예정", ["결석","취소"].includes(item.status) ? "danger" : item.status === "완료" ? "success" : "info")}${item.makeup_date ? `<br /><small>보강 ${escapeHtml(formatDate(item.makeup_date))}</small>` : ""}</td></tr>`).join("")}</tbody></table></div>`;
 }
 
 function registrationsTable(items) {
   if (!items.length) return empty("등록 이력이 없습니다.");
-  return `<div class="table-wrap"><table><thead><tr><th>수강생</th><th>등록 기준</th><th>구분</th><th>등록 기간</th><th>금액</th><th>납부 상태</th><th>다음 결제 예정</th></tr></thead><tbody>${items.map((item) => `<tr><td><strong>${escapeHtml(item.student_name || studentName(item.student_id) || state.user.name)}</strong></td><td>${escapeHtml(item.program_name || "-")}</td><td>${escapeHtml(item.registration_type || "-")}</td><td>${escapeHtml(formatDate(item.period_start))} ~ ${item.period_end ? escapeHtml(formatDate(item.period_end)) : "계속"}</td><td>${formatMoney(item.amount)}</td><td>${statusBadge(item.payment_status || "-", item.payment_status === "납부완료" ? "success" : ["미납", "청구예정"].includes(item.payment_status) ? "warning" : "muted")}</td><td><strong>${escapeHtml(formatDate(item.next_due_date))}</strong></td></tr>`).join("")}</tbody></table></div>`;
+  return `<div class="table-wrap registration-table-wrap"><table class="registration-table"><thead><tr><th>수강생</th><th>등록 기준</th><th>구분</th><th>등록 기간</th><th>금액</th><th>납부 상태</th><th>다음 결제 예정</th></tr></thead><tbody>${items.map((item) => `<tr><td data-label="수강생"><strong>${escapeHtml(item.student_name || studentName(item.student_id) || state.user.name)}</strong></td><td data-label="등록 기준">${escapeHtml(item.program_name || "-")}</td><td data-label="구분">${escapeHtml(item.registration_type || "-")}</td><td data-label="등록 기간">${escapeHtml(formatDate(item.period_start))} ~ ${item.period_end ? escapeHtml(formatDate(item.period_end)) : "계속"}</td><td data-label="금액">${formatMoney(item.amount)}</td><td data-label="납부 상태">${statusBadge(item.payment_status || "-", item.payment_status === "납부완료" ? "success" : ["미납", "청구예정"].includes(item.payment_status) ? "warning" : "muted")}</td><td data-label="다음 결제 예정"><strong>${escapeHtml(formatDate(item.next_due_date))}</strong></td></tr>`).join("")}</tbody></table></div>`;
 }
 
 function registrationDueSoon() {
@@ -2910,15 +3169,15 @@ function registrationDueList(items) {
 
 function reservationsTable(items) {
   if (!items.length) return empty("등록된 공간 예약이 없습니다.");
-  return `<div class="table-wrap"><table><thead><tr><th>일시</th><th>공간</th><th>예약자</th><th>목적</th><th>상태</th><th>관리</th></tr></thead><tbody>${items.map((item) => {
+  return `<div class="table-wrap reservation-table-wrap"><table class="reservation-table"><thead><tr><th>일시</th><th>공간</th><th>예약자</th><th>목적</th><th>상태</th><th>관리</th></tr></thead><tbody>${items.map((item) => {
     const canEdit = state.capabilities.manageReservations || item.reserved_by === state.user.account_id;
-    return `<tr><td>${escapeHtml(formatDate(item.reservation_date))}<br /><small>${escapeHtml(item.start_time)} ~ ${escapeHtml(item.end_time)}</small></td><td>${entityLink("room", item.room_id, item.room_name)}<br /><small>${item.room_type === "lesson" ? "레슨실" : "연습실"}</small></td><td>${entityLink("account", item.reserved_by, item.reserved_by_name || "-")}</td><td><button class="entity-link" onclick="openEntity('reservation','${item.reservation_id}')">${escapeHtml(item.purpose || "-")}</button></td><td>${statusBadge(item.status, item.status === "예약" ? "info" : item.status === "사용완료" ? "success" : item.status === "노쇼" ? "danger" : "muted")}</td><td>${canEdit && item.status === "예약" ? `<div class="row-actions"><button class="btn ghost small" onclick="updateReservationStatus('${item.reservation_id}','취소')">취소</button>${state.capabilities.manageReservations ? `<button class="btn secondary small" onclick="updateReservationStatus('${item.reservation_id}','사용완료')">완료</button>` : ""}</div>` : "-"}</td></tr>`;
+    return `<tr><td data-label="일시">${escapeHtml(formatDate(item.reservation_date))}<br /><small>${escapeHtml(item.start_time)} ~ ${escapeHtml(item.end_time)}</small></td><td data-label="공간">${entityLink("room", item.room_id, item.room_name)}<br /><small>${item.room_type === "lesson" ? "레슨실" : "연습실"}</small></td><td data-label="예약자">${entityLink("account", item.reserved_by, item.reserved_by_name || "-")}</td><td data-label="목적"><button class="entity-link" onclick="openEntity('reservation','${item.reservation_id}')">${escapeHtml(item.purpose || "-")}</button></td><td data-label="상태">${statusBadge(item.status, item.status === "예약" ? "info" : item.status === "사용완료" ? "success" : item.status === "노쇼" ? "danger" : "muted")}</td><td data-label="관리">${canEdit && item.status === "예약" ? `<div class="row-actions"><button class="btn ghost small" onclick="updateReservationStatus('${item.reservation_id}','취소')">취소</button>${state.capabilities.manageReservations ? `<button class="btn secondary small" onclick="updateReservationStatus('${item.reservation_id}','사용완료')">완료</button>` : ""}</div>` : "-"}</td></tr>`;
   }).join("")}</tbody></table></div>`;
 }
 
 function workLogsTable(items) {
   if (!items.length) return empty("근태 기록이 없습니다.");
-  return `<div class="table-wrap"><table><thead><tr><th>날짜</th><th>직원</th><th>출근</th><th>퇴근</th><th>근무 시간</th></tr></thead><tbody>${items.map((item) => `<tr><td>${escapeHtml(formatDate(item.work_date))}</td><td><strong>${escapeHtml(item.account_name || state.user.name)}</strong></td><td>${escapeHtml(formatTime(item.clock_in_at))}</td><td>${item.clock_out_at ? escapeHtml(formatTime(item.clock_out_at)) : statusBadge("근무 중", "success")}</td><td>${item.clock_out_at ? durationBetween(item.clock_in_at, item.clock_out_at) : "-"}</td></tr>`).join("")}</tbody></table></div>`;
+  return `<div class="table-wrap work-log-table-wrap"><table class="work-log-table"><thead><tr><th>날짜</th><th>직원</th><th>출근</th><th>퇴근</th><th>근무 시간</th></tr></thead><tbody>${items.map((item) => `<tr><td data-label="날짜">${escapeHtml(formatDate(item.work_date))}</td><td data-label="직원"><strong>${escapeHtml(item.account_name || state.user.name)}</strong></td><td data-label="출근">${escapeHtml(formatTime(item.clock_in_at))}</td><td data-label="퇴근">${item.clock_out_at ? escapeHtml(formatTime(item.clock_out_at)) : statusBadge("근무 중", "success")}</td><td data-label="근무 시간">${item.clock_out_at ? durationBetween(item.clock_in_at, item.clock_out_at) : "-"}</td></tr>`).join("")}</tbody></table></div>`;
 }
 
 function meetingsList(items) {
@@ -3191,6 +3450,7 @@ window.createEnrollment = createEnrollment;
 window.createLesson = createLesson;
 window.createRegistration = createRegistration;
 window.createReservation = createReservation;
+window.returnReservationSchedule = returnReservationSchedule;
 window.updateReservationStatus = updateReservationStatus;
 window.clockWork = clockWork;
 window.createMeeting = createMeeting;
