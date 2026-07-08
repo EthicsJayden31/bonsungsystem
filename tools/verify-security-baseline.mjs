@@ -34,6 +34,9 @@ const nextConfig = readFileSync("next.config.ts", "utf8");
 if (!nextConfig.includes("output: \"export\"")) {
   errors.push("next.config.ts should keep output: \"export\" for the GitHub Pages UI.");
 }
+if (!nextConfig.includes("isGithubPages ? { output: \"export\"")) {
+  errors.push("next.config.ts should enable output: \"export\" only for GITHUB_PAGES=true so Vercel Functions can run.");
+}
 if (!nextConfig.includes("unoptimized: true")) {
   errors.push("next.config.ts should keep images.unoptimized=true to avoid the Next Image Optimization API in this static Pages UI.");
 }

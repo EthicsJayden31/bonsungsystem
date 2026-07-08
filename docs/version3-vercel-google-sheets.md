@@ -6,6 +6,7 @@
 
 - 브라우저 API 기준 주소: `NEXT_PUBLIC_VERSION3_API_BASE_URL=/api/version3`
 - Vercel Function: `api/version3/[...path].js`
+- Vercel builds must use the default `pnpm run build` path. `GITHUB_PAGES=true` / `pnpm run build:pages` is only for the static GitHub Pages UI and will not expose the Version.3 API Function.
 - 재사용 서버 핸들러: `server/version3-core.mjs`, `server/version3-local-server.mjs`
 - 저장소 어댑터: `server/version3-storage.mjs`
 - 저장 방식: `VERSION3_STORAGE_DRIVER=google-sheets`

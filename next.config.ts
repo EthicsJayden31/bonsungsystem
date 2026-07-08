@@ -1,10 +1,11 @@
 import type { NextConfig } from "next";
 
 const isGithubPages = process.env.GITHUB_PAGES === "true";
+const githubPagesExport = isGithubPages ? { output: "export" as const } : {};
 
 const nextConfig: NextConfig = {
-  output: "export",
-  trailingSlash: true,
+  ...githubPagesExport,
+  trailingSlash: isGithubPages,
   images: {
     unoptimized: true
   },

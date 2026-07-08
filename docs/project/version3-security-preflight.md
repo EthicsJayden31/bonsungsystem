@@ -8,7 +8,8 @@ This note captures the immediate security baseline for the public GitHub Pages U
 - React and React DOM are on `19.2.7`.
 - `@next/eslint-plugin-next` and `eslint-config-next` match the Next.js version.
 - PostCSS is overridden to `8.5.16` to avoid the current XSS advisory on older transitive versions.
-- The public UI remains a static export with `images.unoptimized=true`, so it does not expose the Next Image Optimization API.
+- The GitHub Pages UI remains a static export with `images.unoptimized=true`, so it does not expose the Next Image Optimization API.
+- Vercel builds keep Next.js server output enabled unless `GITHUB_PAGES=true`, allowing `/api/version3/*` to run as a Vercel Function.
 - Dependabot is enabled for npm and GitHub Actions updates.
 
 ## Local checks
