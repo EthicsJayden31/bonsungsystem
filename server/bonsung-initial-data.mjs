@@ -1,15 +1,15 @@
-const importedAt = "2026-07-02";
+﻿const importedAt = "2026-07-07";
 
 export const bonsungInitialTeachers = [
   { id: "teacher-kang-eunmi", name: "강은미", major: "Director", role: "Director", team: ["Educational Team", "Performance Team"], workType: "상시", memo: "대표/원장, 교육철학, 전체 운영 방향, 대외 브랜드 대표성" },
-  { id: "teacher-1", name: "황휘현", major: "Head Coach", role: "Head Coach", team: ["Educational Team"], workType: "확인 필요", memo: "수석 강사, 교육 운영 핵심 담당" },
-  { id: "teacher-choi-hyeryeong", name: "최혜령", major: "Head Coach", role: "Head Coach", team: ["Educational Team"], workType: "확인 필요", memo: "수석 강사, 교육 운영 핵심 담당" },
-  { id: "teacher-lee-seonghyeon", name: "이성현", major: "Coach", role: "Coach", team: ["Educational Team"], workType: "확인 필요", memo: "강사" },
-  { id: "teacher-kim-saemi", name: "김새미", major: "Coach", role: "Coach", team: ["Educational Team"], workType: "확인 필요", memo: "강사" },
+  { id: "teacher-1", name: "황휘현", major: "수석 강사", role: "수석 강사", team: ["Educational Team"], workType: "확인 필요", memo: "수석 강사, 교육 운영 핵심 담당" },
+  { id: "teacher-choi-hyeryeong", name: "최혜령", major: "수석 강사", role: "수석 강사", team: ["Educational Team"], workType: "확인 필요", memo: "수석 강사, 교육 운영 핵심 담당" },
+  { id: "teacher-lee-seonghyeon", name: "이성현", major: "강사", role: "강사", team: ["Educational Team"], workType: "확인 필요", memo: "강사" },
+  { id: "teacher-kim-saemi", name: "김새미", major: "강사", role: "강사", team: ["Educational Team"], workType: "확인 필요", memo: "강사" },
   { id: "staff-cho-youngjin", name: "조영진", major: "Student Success", role: "Student Success Manager", team: ["Student Success Team", "Operations Team"], workType: "상시", memo: "학생관리, 상담, 학사관리, 멘토링" },
   { id: "staff-jinho", name: "진호", major: "Operations", role: "Finance & Operations Manager", team: ["Operations Team"], workType: "확인 필요", memo: "재무, 행정, 운영관리" },
   { id: "staff-kim-jaeeun", name: "김재은", major: "Brand", role: "Brand Producer", team: ["Creative Team"], workType: "확인 필요", memo: "브랜드, 콘텐츠, SNS, 제작 관련 업무" },
-  { id: "teacher-unassigned", name: "미정", major: "Unassigned", role: "Coach", team: ["Educational Team"], workType: "확인 필요", memo: "Notion 수강생 DB에서 담당 강사가 아직 정해지지 않은 학생용 임시 배정값" }
+  { id: "teacher-unassigned", name: "미정", major: "미정", role: "강사", team: ["Educational Team"], workType: "확인 필요", memo: "Notion 수강생 DB에서 담당 강사가 아직 정해지지 않은 학생용 임시 배정값" }
 ];
 
 export const bonsungInitialCourses = [
@@ -71,7 +71,7 @@ export const bonsungInitialConsultations = pendingStudents.map(([slug, name], in
   assignedTo: "manager-1",
   assignedToName: "조영진",
   statusUpdatedAt: importedAt,
-  unreadForAccountIds: ["owner-1", "manager-1"]
+  unreadForAccountIds: ["manager-1"]
 }));
 
 export const bonsungInitialConsultationHistory = bonsungInitialConsultations.map((item, index) => ({
@@ -132,15 +132,9 @@ export const bonsungInitialDocumentTasks = [
 ];
 
 const openingScheduleRows = [
-  ["interior-complete", "인테리어 공사 종료", "2026-07-28", "", "높음", ["대표", "운영"], "공사 완료 여부, 수업 가능 상태 확인"],
-  ["homepage-complete", "홈페이지 제작 완료", "2026-08-01", "", "높음", ["대표", "콘텐츠"], "주요 페이지 오픈 여부 확인"],
-  ["sns-start", "SNS 업로드 시작", "2026-08-01", "", "높음", ["대표", "콘텐츠"], "초기 콘텐츠 업로드 일정 공유"],
   ["consulting-start", "신규 수강상담 및 사전등록 시작", "2026-08-01", "", "높음", ["대표", "운영", "강사", "재무"], "상담 프로세스와 등록 양식 준비"],
-  ["academy-ready", "수업 가능 컨디션 원내 정리 완료", "2026-08-15", "", "높음", ["대표", "운영", "강사"], "강의실, 대기공간, 장비 점검"],
-  ["classroom-simulation", "강의실 수업 시뮬레이션", "2026-08-15", "2026-08-17", "높음", ["대표", "운영", "강사"], "동선, 소음, 장비, 시간표 테스트"],
   ["founding-vocal-start", "파운딩멤버 보컬 수업 시작", "2026-08-18", "", "높음", ["대표", "운영", "강사"], "첫 수업 안내, 출결, 피드백 기록"],
-  ["new-student-class-start", "신규 등록자 수업 시작", "2026-09-01", "", "높음", ["대표", "운영", "강사", "재무"], "신규생 시간표, 담당 강사, 결제 상태 확인"],
-  ["precollege-promotion-start", "프리컬리지 과정 홍보 시작", "2026-09-01", "", "보통", ["대표", "콘텐츠", "강사"], "프로그램 소개 자료와 상담 기준 정리"]
+  ["new-student-class-start", "신규 등록자 수업 시작", "2026-09-01", "", "높음", ["대표", "운영", "강사", "재무"], "신규생 시간표, 담당 강사, 결제 상태 확인"]
 ];
 
 export const bonsungInitialCalendarEvents = openingScheduleRows.map(([slug, title, date, endDate, priority, teams, checkpoint]) => {
@@ -164,7 +158,7 @@ export const bonsungInitialCalendarEvents = openingScheduleRows.map(([slug, titl
 });
 
 export const bonsungInitialNotices = [
-  { id: "notice-initial-data", title: "본성 스테이지 초기 운영 데이터 반영", category: "운영공지", author: "강은미", updatedAt: importedAt, body: "직원, 수강생, 프로그램, 개원 일정, 운영 문서 초기 데이터는 Notion '본성뮤직 초기 운영 자료 for Monster Crew'에서 필요한 항목만 선별해 반영했습니다.", targetRoles: ["owner", "manager", "teacher", "student"], pinned: true, active: true },
+  { id: "notice-initial-data", title: "본성 스테이지 초기 운영 데이터 반영", category: "운영공지", author: "강은미", updatedAt: importedAt, body: "직원, 수강생, 프로그램, 공개 개원 일정, 운영 문서 초기 데이터는 Notion '본성뮤직_업무노트 HQ'와 초기 운영 DB에서 필요한 항목만 선별해 반영했습니다.", targetRoles: ["owner", "manager", "teacher", "student"], pinned: true, active: true },
   { id: "notice-student-data-followup", title: "수강생 배정 정보 추가 확인 필요", category: "학생관리", author: "조영진", updatedAt: importedAt, body: "현재 수강생 DB에는 담당 강사, 프로그램, 수업 요일/시간, 보호자 연락처가 비어 있습니다. 실제 운영 전 등록 확정자부터 배정을 완료해야 합니다.", targetRoles: ["owner", "manager", "teacher"], pinned: true, active: true }
 ];
 
@@ -173,5 +167,5 @@ function teamsToRoles(teams) {
   if (teams.includes("대표")) roles.add("owner");
   if (teams.some((team) => ["운영", "재무", "콘텐츠", "공연"].includes(team))) roles.add("manager");
   if (teams.includes("강사")) roles.add("teacher");
-  return Array.from(roles.size ? roles : new Set(["owner", "manager"]));
+  return Array.from(roles.size ? roles : new Set(["manager"]));
 }

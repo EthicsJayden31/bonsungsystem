@@ -3,9 +3,16 @@ const warnings = [];
 
 const nodeEnv = readEnv("NODE_ENV");
 const password = readEnv("VERSION3_LOCAL_SERVER_PASSWORD");
+const ownerPassword = readEnv("VERSION3_OWNER_INITIAL_PASSWORD") || readEnv("VERSION3_ADMIN_INITIAL_PASSWORD");
 const host = readEnv("VERSION3_SERVER_HOST") || "127.0.0.1";
 const allowedOrigins = splitCsv(readEnv("VERSION3_ALLOWED_ORIGINS") || "*");
+const storageDriver = readEnv("VERSION3_STORAGE_DRIVER");
+const databaseUrl = readEnv("VERSION3_DATABASE_URL");
 const dataFile = readEnv("VERSION3_LOCAL_DATA_FILE") || ".version3-local-data.json";
+const googleSheetsSpreadsheetId = readEnv("VERSION3_GOOGLE_SHEETS_SPREADSHEET_ID");
+const googleServiceAccountEmail = readEnv("VERSION3_GOOGLE_SERVICE_ACCOUNT_EMAIL");
+const googlePrivateKey = readEnv("VERSION3_GOOGLE_PRIVATE_KEY");
+const sessionSecret = readEnv("VERSION3_SESSION_SECRET");
 const sessionTtl = readEnv("VERSION3_SESSION_TTL_HOURS") || "12";
 const port = readEnv("PORT") || readEnv("VERSION3_LOCAL_SERVER_PORT") || "4303";
 
@@ -22,6 +29,12 @@ if (!password) {
   if (password.length < 12) {
     errors.push("VERSION3_LOCAL_SERVER_PASSWORD should be at least 12 characters for public deployment.");
   }
+}
+
+if (!ownerPassword) {
+  errors.push("VERSION3_OWNER_INITIAL_PASSWORD must be set.");
+} else if (ownerPassword.length < 12) {
+  errors.push("VERSION3_OWNER_INITIAL_PASSWORD should be at least 12 characters for public deployment.");
 }
 
 if (!["0.0.0.0", "::"].includes(host)) {
@@ -49,8 +62,23 @@ for (const origin of allowedOrigins) {
   }
 }
 
-if (!dataFile || dataFile.toLowerCase() === "memory") {
-  errors.push("VERSION3_LOCAL_DATA_FILE must point to a persistent file, not memory.");
+if (storageDriver && !["postgres", "google-sheets", "file", "memory"].includes(storageDriver)) {
+  errors.push("VERSION3_STORAGE_DRIVER must be one of postgres, google-sheets, file, or memory.");
+}
+
+if (storageDriver === "postgres" || databaseUrl) {
+  if (!databaseUrl) errors.push("VERSION3_DATABASE_URL must be set when VERSION3_STORAGE_DRIVER=postgres.");
+} else if (storageDriver === "google-sheets") {
+  if (!googleSheetsSpreadsheetId) errors.push("VERSION3_GOOGLE_SHEETS_SPREADSHEET_ID must be set when VERSION3_STORAGE_DRIVER=google-sheets.");
+  if (!googleServiceAccountEmail) errors.push("VERSION3_GOOGLE_SERVICE_ACCOUNT_EMAIL must be set when VERSION3_STORAGE_DRIVER=google-sheets.");
+  if (!googlePrivateKey) errors.push("VERSION3_GOOGLE_PRIVATE_KEY must be set when VERSION3_STORAGE_DRIVER=google-sheets.");
+  if (!sessionSecret) {
+    errors.push("VERSION3_SESSION_SECRET must be set when VERSION3_STORAGE_DRIVER=google-sheets.");
+  } else if (sessionSecret.length < 32) {
+    errors.push("VERSION3_SESSION_SECRET should be at least 32 characters for Google Sheets session hashing.");
+  }
+} else if (!dataFile || dataFile.toLowerCase() === "memory") {
+  errors.push("VERSION3_LOCAL_DATA_FILE must point to a persistent file, not memory, unless VERSION3_DATABASE_URL is set.");
 } else if (!dataFile.startsWith("/") && !/^[A-Za-z]:[\\/]/.test(dataFile)) {
   warnings.push("VERSION3_LOCAL_DATA_FILE is relative. Use a host volume path such as /data/version3-data.json for public deployment.");
 }
@@ -88,4 +116,3 @@ function splitCsv(value) {
     .map((item) => item.trim())
     .filter(Boolean);
 }
-

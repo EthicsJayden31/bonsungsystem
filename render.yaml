@@ -20,3 +20,5 @@ services:
         sync: false
       - key: VERSION3_LOCAL_SERVER_PASSWORD
         sync: false
+      - key: VERSION3_OWNER_INITIAL_PASSWORD
+        sync: false

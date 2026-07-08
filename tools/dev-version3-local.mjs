@@ -1,9 +1,11 @@
-import { spawn } from "node:child_process";
+﻿import { spawn } from "node:child_process";
 
 const serverPort = process.env.VERSION3_LOCAL_SERVER_PORT || "4303";
 const nextPort = process.env.VERSION3_NEXT_PORT || "3000";
 const serverUrl = `http://127.0.0.1:${serverPort}`;
 const pnpm = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
+const ownerPassword = process.env.VERSION3_OWNER_INITIAL_PASSWORD || process.env.VERSION3_ADMIN_INITIAL_PASSWORD || "owner-test-123";
+const defaultSeedPassword = process.env.VERSION3_LOCAL_SERVER_PASSWORD || "version3";
 
 const children = [];
 
@@ -14,7 +16,8 @@ start(
   {
     ...process.env,
     VERSION3_LOCAL_SERVER_PORT: serverPort,
-    VERSION3_LOCAL_SERVER_PASSWORD: process.env.VERSION3_LOCAL_SERVER_PASSWORD || "version3"
+    VERSION3_LOCAL_SERVER_PASSWORD: defaultSeedPassword,
+    VERSION3_OWNER_INITIAL_PASSWORD: ownerPassword
   }
 );
 
@@ -31,7 +34,8 @@ start(
 console.log(`Version.3 local mode`);
 console.log(`- UI: http://127.0.0.1:${nextPort}/login/`);
 console.log(`- Server: ${serverUrl}`);
-console.log(`- Seed password: ${process.env.VERSION3_LOCAL_SERVER_PASSWORD || "version3"}`);
+console.log(`- Owner seed password: ${ownerPassword}`);
+console.log(`- Manager/Teacher/Student seed password: ${defaultSeedPassword}`);
 
 process.on("SIGINT", shutdown);
 process.on("SIGTERM", shutdown);

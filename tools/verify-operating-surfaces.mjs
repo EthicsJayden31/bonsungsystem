@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+﻿import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 const root = process.cwd();
@@ -174,19 +174,30 @@ const requiredFiles = [
   "Dockerfile",
   ".dockerignore",
   ".env.production.example",
+  "vercel.json",
   "render.yaml",
   ".github/workflows/version3-server-image.yml",
   ".github/workflows/version3-external-verify.yml",
   "docs/project/version3-production-deploy.md",
   "docs/project/version3-verified-connection.md",
+  "docs/version3-vercel-google-sheets.md",
+  "api/version3/[...path].js",
   "lib/version3-runtime-flags.ts",
   "lib/version3-server-client.ts",
+  "server/version3-core.mjs",
   "server/version3-local-server.mjs",
   "server/bonsung-initial-data.mjs",
+  "tools/setup-version3-google-sheets.mjs",
+  "tools/migrate-version3-file-to-google-sheets.mjs",
+  "tools/verify-version3-google-sheets.mjs",
+  "tools/verify-version3-vercel-api-local.mjs",
   "tools/verify-version3-production-env.mjs",
   "tools/verify-version3-cleanup.mjs",
   "tools/verify-version3-test-mode.mjs",
   "tools/verify-version3-server.mjs",
+  "tools/verify-version3-feature-suite.mjs",
+  "tools/verify-version3-ui-smoke.mjs",
+  "docs/version3-feature-test-report.md",
   "out/index.html",
   "out/login/index.html",
   "out/dashboard/index.html",
@@ -239,9 +250,24 @@ const requiredSourceSignals = [
     label: "Version.3 server client uses a separate base URL, auth login endpoint, and bearer session token"
   },
   {
+    file: "api/version3/[...path].js",
+    includes: ["handleVersion3NodeRequest", "basePath: \"/api/version3\""],
+    label: "Vercel root API Function forwards /api/version3 requests into the shared Version.3 server handler"
+  },
+  {
+    file: "server/version3-core.mjs",
+    includes: ["handleVersion3NodeRequest", "createVersion3LocalHttpServer", "startVersion3LocalServer"],
+    label: "Version.3 core module exposes the shared HTTP handler for local server and Vercel Function usage"
+  },
+  {
     file: "server/version3-local-server.mjs",
-    includes: ["VERSION3_LOCAL_DATA_FILE", "VERSION3_SESSION_TTL_HOURS", "VERSION3_DISABLE_LOCAL_BACKUPS", "VERSION3_SERVER_HOST", "VERSION3_ALLOWED_ORIGINS", "assertServerRuntimeSafe", "persistent file before running a public Version.3 server", "data backups enabled before running a public Version.3 server", "healthReport", "/health", "passwordMinLength", "isValidPassword", "canLoginAccount", "loginFailureWindowMs", "loginFailureLockMs", "maxLoginFailures", "recordLoginFailure", "clearLoginFailures", "login_throttled", "systemActor", "/auth/login", "/auth/logout", "/auth/change-password", "/bootstrap", "/accounts", "/account-history", "/audit-logs", "/data-quality", "/data-export", "/data-import", "/data-backups", "listDataBackups", "backupEntries", "importData", "hydrateImportedAccountPasswords", "replaceDatabase", "keepOnlySession", "/actions/", "dashboardWorkQueue", "createStudent", "createTeacher", "createEnrollment", "createLesson", "updateAttendance", "createLessonLog", "createReservation", "createRegistration", "createTask", "Unsupported Version.3 action", "Student management permission is required", "Enrollment requires a valid teacher", "Lesson note requires an existing lesson", "Attendance requires a valid lesson", "Reservation end time must be after start time", "reference-integrity", "brokenReferences", "backupEnabled", "sanitizeDatabaseExport", "backupPathFor", "hashPassword", "verifyPassword", "migrateAccountPasswords", "isSelfAccountMutation", "invalidateAccountSessions", "createConsultation", "acknowledgeConsultation", "unreadForAccountIds", "Consultation triage permission is required", "findConsultationAssignee", "manageNotices", "saveDatabase", "addAuditLog", "export_data", "import_data"],
+    includes: ["VERSION3_LOCAL_DATA_FILE", "VERSION3_OWNER_INITIAL_PASSWORD", "VERSION3_STORAGE_DRIVER", "VERSION3_DATABASE_URL", "createVersion3StorageAdapter", "hashSessionToken", "migrateAdminInitialPassword", "handleVersion3NodeRequest", "normalizedRequestUrl", "VERSION3_SESSION_TTL_HOURS", "VERSION3_DISABLE_LOCAL_BACKUPS", "VERSION3_SERVER_HOST", "VERSION3_ALLOWED_ORIGINS", "assertServerRuntimeSafe", "persistent file before running a public Version.3 server", "data backups enabled before running a public Version.3 server", "healthReport", "/health", "passwordMinLength", "isValidPassword", "canLoginAccount", "loginFailureWindowMs", "loginFailureLockMs", "maxLoginFailures", "recordLoginFailure", "clearLoginFailures", "login_throttled", "systemActor", "/auth/login", "/auth/logout", "/auth/change-password", "/bootstrap", "/accounts", "/account-history", "/audit-logs", "/data-quality", "/data-export", "/data-import", "/data-backups", "listDataBackups", "backupEntries", "importData", "hydrateImportedAccountPasswords", "replaceDatabase", "keepOnlySession", "/actions/", "dashboardWorkQueue", "createStudent", "createTeacher", "createEnrollment", "createLesson", "updateAttendance", "createLessonLog", "createReservation", "createRegistration", "createTask", "Unsupported Version.3 action", "Student management permission is required", "Enrollment requires a valid teacher", "Lesson note requires an existing lesson", "Attendance requires a valid lesson", "Reservation end time must be after start time", "reference-integrity", "brokenReferences", "backupEnabled", "sanitizeDatabaseExport", "hashPassword", "verifyPassword", "migrateAccountPasswords", "isSelfAccountMutation", "invalidateAccountSessions", "createConsultation", "acknowledgeConsultation", "unreadForAccountIds", "Consultation triage permission is required", "findConsultationAssignee", "manageNotices", "saveDatabase", "addAuditLog", "export_data", "import_data"],
     label: "local Version.3 server implements the separate-server operating contract"
+  },
+  {
+    file: "server/version3-storage.mjs",
+    includes: ["createVersion3StorageAdapter", "VERSION3_DATABASE_URL is required", "VERSION3_STORAGE_DRIVER=postgres", "google-sheets", "GoogleSheetsStorageAdapter", "VERSION3_GOOGLE_SHEETS_SPREADSHEET_ID", "VERSION3_GOOGLE_SERVICE_ACCOUNT_EMAIL", "VERSION3_GOOGLE_PRIVATE_KEY", "VERSION3_SESSION_SECRET", "_version3_state", "_version3_sessions", "hashSessionToken", "createHmac", "create table if not exists version3_state", "create table if not exists version3_sessions", "token_hash", "account_id", "expires_at", "set statement_timeout = '10s'", "for update", "on conflict (id) do nothing", "backupPathFor", "VERSION3_DATABASE_POOL_MAX"],
+    label: "Version.3 storage adapter preserves file mode and adds PostgreSQL plus Google Sheets storage with hashed server sessions"
   },
   {
     file: ".gitignore",
@@ -250,7 +276,7 @@ const requiredSourceSignals = [
   },
   {
     file: ".env.production.example",
-    includes: ["NODE_ENV=production", "VERSION3_SERVER_HOST=0.0.0.0", "VERSION3_LOCAL_SERVER_PASSWORD=replace-with-a-long-temporary-password", "VERSION3_ALLOWED_ORIGINS=https://ethicsjayden31.github.io", "VERSION3_LOCAL_DATA_FILE=/data/version3-data.json"],
+    includes: ["NODE_ENV=production", "VERSION3_SERVER_HOST=0.0.0.0", "VERSION3_LOCAL_SERVER_PASSWORD=replace-with-a-long-temporary-password", "VERSION3_OWNER_INITIAL_PASSWORD=replace-with-owner-initial-password", "VERSION3_ALLOWED_ORIGINS=https://ethicsjayden31.github.io", "VERSION3_LOCAL_DATA_FILE=/data/version3-data.json", "VERSION3_STORAGE_DRIVER=postgres", "VERSION3_DATABASE_URL=postgres://user:password@host:5432/database", "NEXT_PUBLIC_VERSION3_API_BASE_URL=/api/version3", "VERSION3_STORAGE_DRIVER=google-sheets", "VERSION3_GOOGLE_SHEETS_SPREADSHEET_ID=<spreadsheet-id>", "VERSION3_SESSION_SECRET=<long-random-secret>"],
     label: "production environment example separates public server settings from local development defaults"
   },
   {
@@ -260,12 +286,22 @@ const requiredSourceSignals = [
   },
   {
     file: "tools/verify-version3-production-env.mjs",
-    includes: ["NODE_ENV", "VERSION3_LOCAL_SERVER_PASSWORD", "VERSION3_ALLOWED_ORIGINS", "VERSION3_LOCAL_DATA_FILE", "VERSION3_SESSION_TTL_HOURS", "Version.3 production server environment verified", "must not use the local default value", "must not be *", "must point to a persistent file"],
+    includes: ["NODE_ENV", "VERSION3_LOCAL_SERVER_PASSWORD", "VERSION3_OWNER_INITIAL_PASSWORD", "VERSION3_ALLOWED_ORIGINS", "VERSION3_LOCAL_DATA_FILE", "VERSION3_DATABASE_URL", "VERSION3_STORAGE_DRIVER", "VERSION3_GOOGLE_SHEETS_SPREADSHEET_ID", "VERSION3_GOOGLE_SERVICE_ACCOUNT_EMAIL", "VERSION3_GOOGLE_PRIVATE_KEY", "VERSION3_SESSION_SECRET", "VERSION3_SESSION_TTL_HOURS", "Version.3 production server environment verified", "must not use the local default value", "must not be *", "must point to a persistent file"],
     label: "production environment verifier blocks unsafe public server settings"
   },
   {
+    file: "package.json",
+    includes: ["setup:version3-google-sheets", "migrate:version3-google-sheets", "verify:version3-google-sheets", "verify:version3-vercel-api"],
+    label: "package scripts expose Google Sheets setup, migration, and Vercel API verification commands"
+  },
+  {
+    file: "docs/version3-vercel-google-sheets.md",
+    includes: ["api/version3/[...path].js", "NEXT_PUBLIC_VERSION3_API_BASE_URL=/api/version3", "VERSION3_STORAGE_DRIVER=google-sheets", "_version3_state", "_version3_sessions", "VERSION3_SESSION_SECRET", "setup:version3-google-sheets", "migrate:version3-google-sheets", "verify:version3-google-sheets", "verify:version3-vercel-api", "Google Sheets API", "Vercel"],
+    label: "Vercel and Google Sheets guide documents setup, security, migration, and verification"
+  },
+  {
     file: "docs/project/version3-production-deploy.md",
-    includes: [".env.production.example", "verify:version3-production-env", "VERSION3_API_BASE_URL", "verify:version3-release", "verify:version3-server", "Build Version.3 Server Image", "Verify External Version.3 Server", "ghcr.io/ethicsjayden31/bonsung-version3-server", "/data/version3-data.json", "/data-backups", "Apps Script"],
+    includes: [".env.production.example", "verify:version3-production-env", "VERSION3_OWNER_INITIAL_PASSWORD", "VERSION3_API_BASE_URL", "verify:version3-release", "verify:version3-server", "migrate:version3-file-to-db", "verify:version3-opening-workflow", "Build Version.3 Server Image", "Verify External Version.3 Server", "ghcr.io/ethicsjayden31/bonsung-version3-server", "/data/version3-data.json", "/data-backups", "Apps Script"],
     label: "production deployment checklist explains external server setup and verification gates"
   },
   {
@@ -274,14 +310,19 @@ const requiredSourceSignals = [
     label: "verified connection note explains how a checked external server URL becomes the public UI server"
   },
   {
+    file: "vercel.json",
+    includes: ["/api/version3/:path*", "/api/version3/[...path]"],
+    label: "Vercel rewrites all nested Version.3 API paths into the root API Function"
+  },
+  {
     file: "Dockerfile",
     includes: ["node:22-alpine", "NODE_ENV=production", "VERSION3_SERVER_HOST=0.0.0.0", "VERSION3_LOCAL_DATA_FILE=/data/version3-data.json", "server/bonsung-initial-data.mjs", "HEALTHCHECK", "/health", "CMD [\"node\", \"server/version3-local-server.mjs\"]"],
     label: "Docker package runs the Version.3 server as a deployable separate service"
   },
   {
     file: "public/version3-offline-inspection.html",
-    includes: ["본성 스테이지 임시 점검용 HTML", "서버 설정 없이 사용하는 점검판", "Version.3 테스트모드 열기", "./version3-test/", "localStorage", "실제 Next.js 시스템", "bonsung_version3_test_data_v1", "bonsung1"],
-    label: "temporary inspection HTML routes operators into the official Version.3 test mode"
+    includes: ["본성 스테이지 임시 점검용 HTML", "GitHub Pages 기준 임시 점검판", "Version.3 테스트모드 열기", "./version3-test/", "localStorage", "GitHub Pages 공개 주소", "실제 Next.js 시스템", "bonsung_version3_test_data_v1", "bonsung1"],
+    label: "temporary inspection HTML routes GitHub Pages operators into the official Version.3 test mode"
   },
   {
     file: "app/version3-test/page.tsx",
@@ -315,12 +356,12 @@ const requiredSourceSignals = [
   },
   {
     file: "render.yaml",
-    includes: ["bonsung-version3-server", "env: docker", "healthCheckPath: /health", "mountPath: /data", "VERSION3_ALLOWED_ORIGINS", "sync: false", "VERSION3_LOCAL_SERVER_PASSWORD"],
+    includes: ["bonsung-version3-server", "env: docker", "healthCheckPath: /health", "mountPath: /data", "VERSION3_ALLOWED_ORIGINS", "sync: false", "VERSION3_LOCAL_SERVER_PASSWORD", "VERSION3_OWNER_INITIAL_PASSWORD"],
     label: "Render blueprint keeps runtime data on a disk and requires secret environment values"
   },
   {
     file: ".github/workflows/version3-server-image.yml",
-    includes: ["Build Version.3 Server Image", "workflow_dispatch", "ghcr.io/ethicsjayden31/bonsung-version3-server", "docker/login-action@v3", "docker/metadata-action@v5", "docker/build-push-action@v6", "Dockerfile", "VERSION3_LOCAL_DATA_FILE: /data/version3-data.json", "node tools/verify-version3-production-env.mjs"],
+    includes: ["Build Version.3 Server Image", "workflow_dispatch", "ghcr.io/ethicsjayden31/bonsung-version3-server", "docker/login-action@v3", "docker/metadata-action@v5", "docker/build-push-action@v6", "Dockerfile", "server/version3-storage.mjs", "VERSION3_LOCAL_DATA_FILE: /data/version3-data.json", "VERSION3_OWNER_INITIAL_PASSWORD", "node tools/verify-version3-production-env.mjs"],
     label: "Version.3 server image workflow builds a deployable container for external hosts"
   },
   {
@@ -330,8 +371,18 @@ const requiredSourceSignals = [
   },
   {
     file: "tools/verify-version3-server.mjs",
-    includes: ["VERSION3_SERVER_VERIFY_BASE_URL", "VERSION3_LOCAL_DATA_FILE", "Version.3 server verification passed", "/health", "assertPublicStartupGuard", "Public Version.3 server startup must reject the default seed password", "External Version.3 server must use persistent storage", "External Version.3 server must keep data backups enabled", "External Version.3 server must restrict CORS to official UI origins", "Public Version.3 server startup must reject memory-only storage", "Public Version.3 server startup must reject disabled data backups", "/auth/login", "/auth/logout", "/auth/change-password", "mustChangePassword", "/bootstrap", "/accounts", "/account-history", "/audit-logs", "/data-export", "/data-import", "/data-backups", "Only owner accounts must be allowed to import Version.3 data", "Only owner accounts must be allowed to list Version.3 data backups", "must expose backup metadata without full filesystem paths", "must restore the exported student count", "import_data", "/actions/createStudent", "/actions/createTeacher", "/actions/createEnrollment", "/actions/createLesson", "/actions/updateAttendance", "/actions/createLessonLog", "/actions/createReservation", "/actions/createRegistration", "/actions/createTask", "Unknown Version.3 actions must fail", "Teacher accounts must not create students", "createEnrollment must reject invalid teacher references", "updateAttendance must reject orphan attendance", "createLessonLog must reject notes that are not linked to an existing lesson", "createReservation must reject end times before start times", "createNotice must require both title and body", "reference-integrity", "brokenReferences", "backupEnabled", "must not expose account passwords", "must store account passwords as scrypt hashes", "Repeated invalid login attempts must be temporarily throttled", "login_throttled", "security audit entries", "must reject short initial passwords", "must reject duplicate login IDs", "must reject missing linked students", "Invited student accounts must be able to sign in", "Invited account first login must activate the account", "must reject short temporary passwords", "must not pause their own account", "must use profile settings", "must not edit their own permissions", "Password reset must invalidate existing sessions", "Permission changes must invalidate existing sessions", "export_data", "/actions/createConsultation", "/actions/acknowledgeConsultation", "unreadForAccountIds", "Student accounts must not be allowed to triage consultation requests", "Consultation assignee must not be a student account", "Student bootstrap must not expose payment records", "Student bootstrap must not expose enrollment/registration operations", "/data-quality"],
+    includes: ["VERSION3_SERVER_VERIFY_BASE_URL", "VERSION3_OWNER_INITIAL_PASSWORD", "owner-test-123", "VERSION3_LOCAL_DATA_FILE", "Version.3 server verification passed", "/health", "assertPublicStartupGuard", "Public startup guard must reject the default server password", "/auth/login", "/bootstrap", "/accounts", "/account-requests", "/data-export", "/data-import", "/data-backups", "Owner login must return role=owner", "Manager login must return role=manager", "Teacher login must return role=teacher", "Student login must return role=student", "Manager accounts must be able to reset passwords", "Manager accounts must be able to review account requests", "Manager must not directly create accounts", "Only owner accounts must import Version.3 data", "Only owner accounts must be allowed to list Version.3 backups", "/actions/createStudent", "/actions/createLesson", "/actions/createLessonLog", "/actions/createReservation", "/actions/createRegistration", "/actions/createConsultation", "/actions/updateConsultationStatus", "Student bootstrap must not expose payment records", "Student bootstrap must not expose enrollment operations", "Manager password reset must invalidate existing teacher sessions", "export_data", "reset_password"],
     label: "Version.3 server verifier checks local or external server contract endpoints"
+  },
+  {
+    file: "tools/verify-version3-feature-suite.mjs",
+    includes: ["context = {", "qa-owner", "qa-manager", "qa-teacher", "qa-student", "exerciseFeatureSuite", "Student bootstrap must not expose lesson-note internal memo", "Teacher student payload must not expose phone or memo", "VERSION3_DATABASE_URL not provided", "base44/config.jsonc not found"],
+    label: "Version.3 feature suite verifies synthetic academy workflows, storage modes, and role privacy"
+  },
+  {
+    file: "tools/verify-version3-ui-smoke.mjs",
+    includes: ["PLAYWRIGHT_NODE_MODULE_DIR", "Version.3 UI smoke verification passed", "desktopViewport", "mobileViewport", "assertBadLogin", "assertRoleLinks", "assertServerFailureFallback", "bonsung_server_session_token"],
+    label: "Version.3 UI smoke verifier checks browser login, role menus, mobile overflow, and server-failure fallback"
   },
   {
     file: "tools/verify-version3-release.mjs",
@@ -340,7 +391,7 @@ const requiredSourceSignals = [
   },
   {
     file: "tools/dev-version3-local.mjs",
-    includes: ["NEXT_PUBLIC_VERSION3_API_BASE_URL", "server/version3-local-server.mjs", "http://127.0.0.1:${serverPort}", "http://127.0.0.1:${nextPort}/login/"],
+    includes: ["NEXT_PUBLIC_VERSION3_API_BASE_URL", "VERSION3_OWNER_INITIAL_PASSWORD", "Owner seed password", "server/version3-local-server.mjs", "http://127.0.0.1:${serverPort}", "http://127.0.0.1:${nextPort}/login/"],
     label: "Version.3 local dev mode starts the separate server and Next UI together"
   },
   {

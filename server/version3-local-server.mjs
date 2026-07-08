@@ -1,7 +1,6 @@
-import { createServer } from "node:http";
+﻿import { createServer } from "node:http";
 import { randomUUID, scryptSync, timingSafeEqual } from "node:crypto";
-import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, statSync, writeFileSync } from "node:fs";
-import { basename, dirname, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import {
   bonsungInitialCalendarEvents,
   bonsungInitialConsultationHistory,
@@ -13,14 +12,24 @@ import {
   bonsungInitialStudents,
   bonsungInitialTeachers
 } from "./bonsung-initial-data.mjs";
+import { createVersion3StorageAdapter, hashSessionToken } from "./version3-storage.mjs";
 
 const port = Number(process.env.VERSION3_LOCAL_SERVER_PORT || process.env.PORT || 4303);
 const host = (process.env.VERSION3_SERVER_HOST || "127.0.0.1").trim() || "127.0.0.1";
 const testPassword = process.env.VERSION3_LOCAL_SERVER_PASSWORD || "version3";
+const adminInitialPassword = process.env.VERSION3_OWNER_INITIAL_PASSWORD || process.env.VERSION3_ADMIN_INITIAL_PASSWORD || testPassword;
+const adminCredentialVersion = "2026-07-08-owner-canonical";
 const dataFileSetting = (process.env.VERSION3_LOCAL_DATA_FILE || ".version3-local-data.json").trim();
-const persistenceEnabled = dataFileSetting !== "" && dataFileSetting.toLowerCase() !== "memory";
-const dataFilePath = persistenceEnabled ? resolve(process.cwd(), dataFileSetting) : "";
-const backupEnabled = persistenceEnabled && process.env.VERSION3_DISABLE_LOCAL_BACKUPS !== "true";
+const storage = await createVersion3StorageAdapter({
+  driver: process.env.VERSION3_STORAGE_DRIVER,
+  databaseUrl: process.env.VERSION3_DATABASE_URL,
+  dataFileSetting,
+  backupEnabled: process.env.VERSION3_DISABLE_LOCAL_BACKUPS !== "true"
+});
+const persistenceEnabled = storage.persistenceEnabled;
+const dataFilePath = storage.dataFilePath;
+const backupEnabled = storage.backupEnabled;
+const storageSessionsEnabled = storage.mode === "postgres" || storage.mode === "google-sheets";
 const sessionTtlHours = Math.max(1, Number(process.env.VERSION3_SESSION_TTL_HOURS || 12));
 const allowedOrigins = (process.env.VERSION3_ALLOWED_ORIGINS || "*")
   .split(",")
@@ -33,47 +42,52 @@ const maxLoginFailures = 5;
 
 const permissionSets = {
   owner: {
-    manageAccounts: true, viewAccounts: true, manageOperations: true, manageNotices: true, managePermissions: true,
+    manageAccounts: true, resetPasswords: true, viewAccounts: true, manageOperations: true, manageNotices: true, managePermissions: true,
     manageMeetings: true, manageCalendar: true, viewPayments: true, clockWork: true, viewStudents: true,
     manageStudents: true, viewLessonLogs: true, writeLessonLogs: true, viewReservations: true, manageReservations: true,
     reserveLessonRoom: true, reservePracticeRoom: true, viewTeam: true, viewMeetings: true, viewCalendar: true,
     reviewAccountRequests: true, managePublicSettings: true
   },
   manager: {
-    manageAccounts: false, viewAccounts: true, manageOperations: true, manageNotices: true, managePermissions: false,
+    manageAccounts: false, resetPasswords: true, viewAccounts: true, manageOperations: true, manageNotices: true, managePermissions: false,
     manageMeetings: true, manageCalendar: true, viewPayments: true, clockWork: true, viewStudents: true,
     manageStudents: true, viewLessonLogs: true, writeLessonLogs: true, viewReservations: true, manageReservations: true,
     reserveLessonRoom: true, reservePracticeRoom: true, viewTeam: true, viewMeetings: true, viewCalendar: true,
-    reviewAccountRequests: false, managePublicSettings: false
+    reviewAccountRequests: true, managePublicSettings: false
   },
   teacher: {
-    manageAccounts: false, viewAccounts: false, manageOperations: false, manageNotices: false, managePermissions: false,
+    manageAccounts: false, resetPasswords: false, viewAccounts: false, manageOperations: false, manageNotices: false, managePermissions: false,
     manageMeetings: false, manageCalendar: false, viewPayments: false, clockWork: true, viewStudents: true,
     manageStudents: false, viewLessonLogs: true, writeLessonLogs: true, viewReservations: true, manageReservations: false,
     reserveLessonRoom: true, reservePracticeRoom: true, viewTeam: true, viewMeetings: true, viewCalendar: true,
     reviewAccountRequests: false, managePublicSettings: false
   },
   student: {
-    manageAccounts: false, viewAccounts: false, manageOperations: false, manageNotices: false, managePermissions: false,
-    manageMeetings: false, manageCalendar: false, viewPayments: false, clockWork: false, viewStudents: false,
+    manageAccounts: false, resetPasswords: false, viewAccounts: false, manageOperations: false, manageNotices: false, managePermissions: false,
+    manageMeetings: false, manageCalendar: false, viewPayments: false, clockWork: false, viewStudents: true,
     manageStudents: false, viewLessonLogs: true, writeLessonLogs: false, viewReservations: true, manageReservations: false,
     reserveLessonRoom: false, reservePracticeRoom: true, viewTeam: false, viewMeetings: false, viewCalendar: true,
     reviewAccountRequests: false, managePublicSettings: false
   }
 };
 
+const accountRoles = ["owner", "manager", "teacher", "student"];
+const requestableRoles = ["manager", "teacher", "student"];
+const allRoleTargets = ["owner", "manager", "teacher", "student"];
+
 assertServerRuntimeSafe();
 
-const db = loadDatabase();
+const db = await loadDatabase();
 const sessions = new Map();
 const loginAttempts = new Map();
+let pendingSave = Promise.resolve();
 
-const server = createServer(async (request, response) => {
+export async function handleVersion3NodeRequest(request, response, options = {}) {
   try {
     setCors(request, response);
     if (request.method === "OPTIONS") return send(response, 204, "");
 
-    const url = new URL(request.url || "/", `http://${request.headers.host || `127.0.0.1:${port}`}`);
+    const url = normalizedRequestUrl(request, options);
     const body = await readJson(request);
 
     if (request.method === "GET" && url.pathname === "/health") {
@@ -85,42 +99,67 @@ const server = createServer(async (request, response) => {
     }
 
     if (request.method === "POST" && url.pathname === "/auth/login") {
-      return login(response, body);
+      return await login(response, body);
     }
 
-    const account = authenticate(request);
+    const account = await authenticate(request);
     if (!account) return sendJson(response, 401, { ok: false, error: "Version.3 server session is required." });
 
-    if (request.method === "POST" && url.pathname === "/auth/logout") return logout(response, request, account);
-    if (request.method === "POST" && url.pathname === "/auth/change-password") return changePassword(response, request, account, body);
+    if (request.method === "POST" && url.pathname === "/auth/logout") return await logout(response, request, account);
+    if (request.method === "POST" && url.pathname === "/auth/change-password") return await changePassword(response, request, account, body);
     if (request.method === "GET" && url.pathname === "/bootstrap") return sendJson(response, 200, { ok: true, data: bootstrapFor(account) });
-    if (request.method === "GET" && url.pathname === "/accounts") return requirePermission(response, account, "viewAccounts", () => sendJson(response, 200, { ok: true, data: publicAccounts() }));
-    if (request.method === "GET" && url.pathname === "/account-requests") return requirePermission(response, account, "reviewAccountRequests", () => sendJson(response, 200, { ok: true, data: publicAccountRequests() }));
-    if (request.method === "GET" && url.pathname === "/account-history") return requirePermission(response, account, "viewAccounts", () => sendJson(response, 200, { ok: true, data: db.accountHistory }));
-    if (request.method === "GET" && url.pathname === "/audit-logs") return requirePermission(response, account, "manageOperations", () => sendJson(response, 200, { ok: true, data: db.auditLogs || [] }));
-    if (request.method === "GET" && url.pathname === "/data-quality") return requirePermission(response, account, "manageOperations", () => sendJson(response, 200, { ok: true, data: dataQualityReport() }));
-    if (request.method === "GET" && url.pathname === "/data-export") return requirePermission(response, account, "manageOperations", () => exportData(response, account));
-    if (request.method === "GET" && url.pathname === "/data-backups") return requireOwner(response, account, () => listDataBackups(response));
-    if (request.method === "POST" && url.pathname === "/data-import") return requireOwner(response, account, () => importData(response, request, account, body));
-    if (request.method === "POST" && url.pathname === "/accounts") return requirePermission(response, account, "manageAccounts", () => createAccount(response, account, body));
+    if (request.method === "GET" && url.pathname === "/accounts") return await requirePermission(response, account, "viewAccounts", () => sendJson(response, 200, { ok: true, data: publicAccounts() }));
+    if (request.method === "GET" && url.pathname === "/account-requests") return await requirePermission(response, account, "reviewAccountRequests", () => sendJson(response, 200, { ok: true, data: publicAccountRequests() }));
+    if (request.method === "GET" && url.pathname === "/account-history") return await requirePermission(response, account, "viewAccounts", () => sendJson(response, 200, { ok: true, data: db.accountHistory }));
+    if (request.method === "GET" && url.pathname === "/audit-logs") return await requirePermission(response, account, "manageOperations", () => sendJson(response, 200, { ok: true, data: db.auditLogs || [] }));
+    if (request.method === "GET" && url.pathname === "/data-quality") return await requirePermission(response, account, "manageOperations", () => sendJson(response, 200, { ok: true, data: dataQualityReport() }));
+    if (request.method === "GET" && url.pathname === "/data-export") return await requirePermission(response, account, "manageOperations", () => exportData(response, account));
+    if (request.method === "GET" && url.pathname === "/data-backups") return await requireAdmin(response, account, () => listDataBackups(response));
+    if (request.method === "POST" && url.pathname === "/data-import") return await requireAdmin(response, account, () => importData(response, request, account, body));
+    if (request.method === "POST" && url.pathname === "/accounts") return await requirePermission(response, account, "manageAccounts", () => createAccount(response, account, body));
     if (request.method === "POST" && url.pathname.startsWith("/actions/")) return handleAction(response, account, url.pathname.slice("/actions/".length), body);
-    if (request.method === "PATCH" && /^\/accounts\/[^/]+\/status$/.test(url.pathname)) return requirePermission(response, account, "manageAccounts", () => updateAccountStatus(response, account, url.pathname.split("/")[2], body));
-    if (request.method === "PATCH" && /^\/accounts\/[^/]+\/password$/.test(url.pathname)) return requirePermission(response, account, "manageAccounts", () => resetAccountPassword(response, account, url.pathname.split("/")[2], body));
-    if (request.method === "PATCH" && /^\/accounts\/[^/]+\/permissions$/.test(url.pathname)) return requirePermission(response, account, "managePermissions", () => updateAccountPermissions(response, account, url.pathname.split("/")[2], body));
-    if (request.method === "PATCH" && /^\/account-requests\/[^/]+\/review$/.test(url.pathname)) return requirePermission(response, account, "reviewAccountRequests", () => reviewAccountRequest(response, account, url.pathname.split("/")[2], body));
+    if (request.method === "PATCH" && /^\/accounts\/[^/]+\/status$/.test(url.pathname)) return await requirePermission(response, account, "manageAccounts", () => updateAccountStatus(response, account, url.pathname.split("/")[2], body));
+    if (request.method === "PATCH" && /^\/accounts\/[^/]+\/password$/.test(url.pathname)) return await requirePermission(response, account, "resetPasswords", () => resetAccountPassword(response, account, url.pathname.split("/")[2], body));
+    if (request.method === "PATCH" && /^\/accounts\/[^/]+\/permissions$/.test(url.pathname)) return await requirePermission(response, account, "managePermissions", () => updateAccountPermissions(response, account, url.pathname.split("/")[2], body));
+    if (request.method === "PATCH" && /^\/account-requests\/[^/]+\/review$/.test(url.pathname)) return await requirePermission(response, account, "reviewAccountRequests", () => reviewAccountRequest(response, account, url.pathname.split("/")[2], body));
 
     return sendJson(response, 404, { ok: false, error: `Unknown Version.3 endpoint: ${url.pathname}` });
   } catch (error) {
-    return sendJson(response, 500, { ok: false, error: error instanceof Error ? error.message : String(error) });
+    const statusCode = Number(error?.statusCode || error?.status || 500);
+    return sendJson(response, statusCode >= 400 && statusCode < 600 ? statusCode : 500, { ok: false, error: error instanceof Error ? error.message : String(error) });
   }
-});
+}
 
-server.listen(port, host, () => {
-  console.log(`Version.3 server listening on http://${host}:${port}`);
-  if (persistenceEnabled) console.log(`Version.3 local data file: ${dataFilePath}`);
-});
+export function createVersion3LocalHttpServer() {
+  return createServer((request, response) => handleVersion3NodeRequest(request, response));
+}
 
-function login(response, body) {
+export function startVersion3LocalServer() {
+  const server = createVersion3LocalHttpServer();
+  server.listen(port, host, () => {
+    console.log(`Version.3 server listening on http://${host}:${port}`);
+    console.log(`Version.3 storage driver: ${storage.mode}`);
+    if (persistenceEnabled && storage.mode === "file") console.log(`Version.3 local data file: ${dataFilePath}`);
+  });
+  return server;
+}
+
+if (isDirectExecution()) startVersion3LocalServer();
+
+function normalizedRequestUrl(request, options = {}) {
+  const url = new URL(request.url || "/", `http://${request.headers.host || `127.0.0.1:${port}`}`);
+  const basePath = stringValue(options.basePath).replace(/\/+$/, "");
+  if (basePath && (url.pathname === basePath || url.pathname.startsWith(`${basePath}/`))) {
+    url.pathname = url.pathname.slice(basePath.length) || "/";
+  }
+  return url;
+}
+
+function isDirectExecution() {
+  return Boolean(process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href);
+}
+
+async function login(response, body) {
   const loginId = stringValue(body.loginId).toLowerCase();
   const password = stringValue(body.password);
   const throttle = loginThrottle(loginId);
@@ -136,7 +175,7 @@ function login(response, body) {
 
   const token = `v3-local-${randomUUID()}`;
   const expiresAt = new Date(Date.now() + sessionTtlHours * 60 * 60 * 1000).toISOString();
-  sessions.set(token, { accountId: account.id, expiresAt });
+  await createSession(token, { accountId: account.id, expiresAt });
   clearLoginFailures(loginId);
   if (account.status === "invited") {
     account.status = "active";
@@ -147,24 +186,25 @@ function login(response, body) {
   return sendJson(response, 200, { ok: true, data: { token, expiresAt, user: serverUser(account, expiresAt) } });
 }
 
-function authenticate(request) {
-  const session = sessions.get(readBearerToken(request));
+async function authenticate(request) {
+  const token = readBearerToken(request);
+  const session = await readSession(token);
   if (!session) return null;
   if (new Date(session.expiresAt).getTime() <= Date.now()) {
-    sessions.delete(readBearerToken(request));
+    await deleteSession(token);
     return null;
   }
   return db.accounts.find((account) => account.id === session.accountId && account.status === "active") || null;
 }
 
-function logout(response, request, account) {
-  sessions.delete(readBearerToken(request));
+async function logout(response, request, account) {
+  await deleteSession(readBearerToken(request));
   addAuditLog(account, "logout", "session", account.id, account.name);
   saveDatabase();
   return sendJson(response, 200, { ok: true, data: true });
 }
 
-function changePassword(response, request, account, body) {
+async function changePassword(response, request, account, body) {
   const currentPassword = stringValue(body.currentPassword);
   const newPassword = stringValue(body.newPassword);
   if (!verifyPassword(currentPassword, account.password)) return sendJson(response, 403, { ok: false, error: "Current password does not match." });
@@ -173,16 +213,33 @@ function changePassword(response, request, account, body) {
 
   account.password = hashPassword(newPassword);
   account.mustChangePassword = false;
-  const invalidatedSessions = invalidateAccountSessions(account.id, readBearerToken(request));
+  const invalidatedSessions = await invalidateAccountSessions(account.id, readBearerToken(request));
   addAuditLog(account, "change_password", "account", account.id, account.name, { invalidatedSessions });
   saveDatabase();
-  const session = sessions.get(readBearerToken(request));
+  const session = await readSession(readBearerToken(request));
   return sendJson(response, 200, { ok: true, data: { user: serverUser(account, session?.expiresAt || "") } });
 }
 
 function readBearerToken(request) {
   const header = request.headers.authorization || "";
   return header.startsWith("Bearer ") ? header.slice("Bearer ".length) : "";
+}
+
+async function createSession(token, session) {
+  sessions.set(token, session);
+  if (storageSessionsEnabled) await storage.createSession(hashSessionToken(token), session);
+}
+
+async function readSession(token) {
+  if (!token) return null;
+  if (storageSessionsEnabled) return storage.readSession(hashSessionToken(token));
+  return sessions.get(token) || null;
+}
+
+async function deleteSession(token) {
+  if (!token) return 0;
+  sessions.delete(token);
+  return storageSessionsEnabled ? storage.deleteSession(hashSessionToken(token)) : 1;
 }
 
 function bootstrapFor(account) {
@@ -208,15 +265,15 @@ function bootstrapFor(account) {
 
   return {
     teachers: account.permissions.viewTeam ? db.teachers : [],
-    students: account.permissions.viewStudents ? students : [],
-    guardians: account.permissions.viewStudents ? db.guardians.filter((guardian) => studentIds.has(guardian.studentId)) : [],
+    students: account.permissions.viewStudents ? visibleStudents(account, students) : [],
+    guardians: account.permissions.viewStudents ? visibleGuardians(account, db.guardians.filter((guardian) => studentIds.has(guardian.studentId))) : [],
     consultations,
     consultationHistory: db.consultationHistory.filter((item) => consultations.some((consultation) => consultation.id === item.consultationId)),
     courses: db.courses,
     enrollments: account.role === "student" ? [] : db.enrollments.filter((item) => studentIds.size === 0 || studentIds.has(item.studentId) || account.role === "owner" || account.role === "manager"),
     lessons,
     attendance: account.permissions.viewLessonLogs ? db.attendance.filter((item) => lessonIds.has(item.lessonId) || studentIds.has(item.studentId)) : [],
-    lessonNotes: account.permissions.viewLessonLogs ? db.lessonNotes.filter((item) => lessonIds.has(item.lessonId) || studentIds.has(item.studentId)) : [],
+    lessonNotes: visibleLessonNotes(account, lessonIds, studentIds),
     rooms: account.permissions.viewReservations ? db.rooms : [],
     reservations: account.permissions.viewReservations ? db.reservations.filter((item) => account.role !== "student" || item.studentId === studentId) : [],
     payments: account.permissions.viewPayments ? db.payments.filter((item) => account.role !== "student" || item.studentId === studentId) : [],
@@ -303,8 +360,8 @@ function createAccountRequest(response, body) {
   const input = body.request || body.accountRequest || body;
   const loginId = stringValue(input.loginId).toLowerCase();
   const name = stringValue(input.name);
-  const requestedRole = stringValue(input.requestedRole || input.role || "student");
-  if (!["manager", "teacher", "student"].includes(requestedRole)) return sendJson(response, 400, { ok: false, error: "Unsupported requested role." });
+  const requestedRole = normalizeServerRole(input.requestedRole || input.role || "student");
+  if (!requestableRoles.includes(requestedRole)) return sendJson(response, 400, { ok: false, error: "Unsupported requested role." });
   if (!loginId || !name) return sendJson(response, 400, { ok: false, error: "Account request requires name and loginId." });
   if (db.accounts.some((account) => account.loginId.toLowerCase() === loginId)) return sendJson(response, 409, { ok: false, error: "Account loginId already exists." });
   if ((db.accountRequests || []).some((request) => request.loginId.toLowerCase() === loginId && request.status === "대기")) return sendJson(response, 409, { ok: false, error: "Account request already exists." });
@@ -356,7 +413,7 @@ function reviewAccountRequest(response, actor, requestId, body) {
     return sendJson(response, 200, { ok: true, data: request });
   }
 
-  const role = stringValue(review.role || request.requestedRole);
+  const role = normalizeServerRole(review.role || request.requestedRole);
   const linkedStudentId = stringValue(review.linkedStudentId || request.linkedStudentId);
   const initialPassword = stringValue(review.initialPassword || body.initialPassword);
   if (!isValidPassword(initialPassword)) return sendJson(response, 400, { ok: false, error: `Initial password must be at least ${passwordMinLength} characters.` });
@@ -399,12 +456,12 @@ function reviewAccountRequest(response, actor, requestId, body) {
 
 function createAccount(response, actor, body) {
   const input = body.account || body;
-  const role = stringValue(input.role);
+  const role = normalizeServerRole(input.role);
   const loginId = stringValue(input.loginId).toLowerCase();
   const name = stringValue(input.name);
   const initialPassword = stringValue(input.initialPassword);
   const linkedStudentId = stringValue(input.linkedStudentId || input.linked_student_id);
-  if (!["owner", "manager", "teacher", "student"].includes(role)) return sendJson(response, 400, { ok: false, error: "Unsupported role." });
+  if (!accountRoles.includes(role)) return sendJson(response, 400, { ok: false, error: "Unsupported role." });
   if (!loginId) return sendJson(response, 400, { ok: false, error: "Account loginId is required." });
   if (!name) return sendJson(response, 400, { ok: false, error: "Account name is required." });
   if (db.accounts.some((account) => account.loginId.toLowerCase() === loginId)) return sendJson(response, 409, { ok: false, error: "Account loginId already exists." });
@@ -424,8 +481,8 @@ function createAccount(response, actor, body) {
     role,
     email: stringValue(input.email),
     phone: stringValue(input.phone),
-    linkedStudentId,
-    linkedStudentName: db.students.find((student) => student.id === linkedStudentId)?.name || "",
+    linkedStudentId: role === "student" ? linkedStudentId : "",
+    linkedStudentName: role === "student" ? db.students.find((student) => student.id === linkedStudentId)?.name || "" : "",
     status: "invited",
     mustChangePassword: true,
     permissions: permissionsFor(role),
@@ -440,18 +497,18 @@ function createAccount(response, actor, body) {
   return sendJson(response, 200, { ok: true, data: publicAccount });
 }
 
-function updateAccountStatus(response, actor, accountId, body) {
+async function updateAccountStatus(response, actor, accountId, body) {
   const account = findAccount(response, accountId);
   if (!account) return;
   if (isSelfAccountMutation(response, actor, account)) return;
   account.status = body.active === false ? "paused" : "active";
-  const invalidatedSessions = invalidateAccountSessions(account.id);
+  const invalidatedSessions = await invalidateAccountSessions(account.id);
   addAccountHistory(actor, account, account.status === "paused" ? "pause_account" : "activate_account", null, null, { invalidatedSessions });
   saveDatabase();
   return sendJson(response, 200, { ok: true, data: true });
 }
 
-function resetAccountPassword(response, actor, accountId, body) {
+async function resetAccountPassword(response, actor, accountId, body) {
   const account = findAccount(response, accountId);
   if (!account) return;
   if (isSelfAccountMutation(response, actor, account)) return;
@@ -459,19 +516,19 @@ function resetAccountPassword(response, actor, accountId, body) {
   if (!isValidPassword(password)) return sendJson(response, 400, { ok: false, error: `Temporary password must be at least ${passwordMinLength} characters.` });
   account.password = hashPassword(password);
   account.mustChangePassword = true;
-  const invalidatedSessions = invalidateAccountSessions(account.id);
+  const invalidatedSessions = await invalidateAccountSessions(account.id);
   addAccountHistory(actor, account, "reset_password", null, null, { invalidatedSessions });
   saveDatabase();
   return sendJson(response, 200, { ok: true, data: true });
 }
 
-function updateAccountPermissions(response, actor, accountId, body) {
+async function updateAccountPermissions(response, actor, accountId, body) {
   const account = findAccount(response, accountId);
   if (!account) return;
   if (isSelfAccountMutation(response, actor, account)) return;
   const beforePermissions = { ...account.permissions };
   account.permissions = { ...permissionsFor(account.role), ...(body.permissions || {}) };
-  const invalidatedSessions = invalidateAccountSessions(account.id);
+  const invalidatedSessions = await invalidateAccountSessions(account.id);
   addAccountHistory(actor, account, "update_permissions", beforePermissions, account.permissions, { invalidatedSessions });
   saveDatabase();
   return sendJson(response, 200, { ok: true, data: true });
@@ -918,7 +975,7 @@ function handleAction(response, account, action, body) {
     const input = body.calendarEvent || body.event || body;
     const title = stringValue(input.title);
     if (!title) return sendJson(response, 400, { ok: false, error: "Calendar event title is required." });
-    const targetRoles = stringList(input.targetRoles || input.target_roles || "owner,manager,teacher,student").filter((role) => ["owner", "manager", "teacher", "student"].includes(role));
+    const targetRoles = normalizeRoleList(input.targetRoles || input.target_roles);
     const event = {
       id: `calendar-${randomUUID()}`,
       calendar_event_id: "",
@@ -926,8 +983,8 @@ function handleAction(response, account, action, body) {
       date: stringValue(input.date || new Date().toISOString().slice(0, 10)),
       startTime: stringValue(input.startTime || input.start_time),
       start_time: stringValue(input.startTime || input.start_time),
-      targetRoles: targetRoles.length ? targetRoles : ["owner", "manager", "teacher", "student"],
-      target_roles: (targetRoles.length ? targetRoles : ["owner", "manager", "teacher", "student"]).join(","),
+      targetRoles: targetRoles.length ? targetRoles : allRoleTargets,
+      target_roles: (targetRoles.length ? targetRoles : allRoleTargets).join(","),
       createdBy: account.id,
       created_by: account.id,
       memo: stringValue(input.memo)
@@ -974,7 +1031,7 @@ function handleAction(response, account, action, body) {
       assignedTo: "manager-1",
       assignedToName: "조영진",
       statusUpdatedAt: new Date().toISOString(),
-      unreadForAccountIds: notificationAccountIds(["owner", "manager"], account.id)
+      unreadForAccountIds: notificationAccountIds(["manager"], account.id)
     };
     if (!consultation.goal && !consultation.memo) return sendJson(response, 400, { ok: false, error: "Consultation request requires a message." });
     if (account.role === "student" && !findStudentByValue(account.linkedStudentId)) return sendJson(response, 400, { ok: false, error: "Student consultation requires a linked student record." });
@@ -1030,7 +1087,7 @@ function handleAction(response, account, action, body) {
     if (!nextStatus) return sendJson(response, 400, { ok: false, error: "Unsupported consultation status." });
     const nextAssignee = Object.prototype.hasOwnProperty.call(body, "assignedTo") ? stringValue(body.assignedTo) : consultation.assignedTo;
     const assignee = nextAssignee ? findConsultationAssignee(nextAssignee) : null;
-    if (nextAssignee && !assignee) return sendJson(response, 400, { ok: false, error: "Consultation assignee must be an owner, manager, or teacher account." });
+    if (nextAssignee && !assignee) return sendJson(response, 400, { ok: false, error: "Consultation assignee must be a manager or teacher account." });
     consultation.status = nextStatus;
     consultation.assignedTo = nextAssignee;
     consultation.assignedToName = assignee?.name || "";
@@ -1064,13 +1121,13 @@ function handleAction(response, account, action, body) {
       category: stringValue(input.category || "공지"),
       author: account.name,
       body: stringValue(input.body),
-      targetRoles: Array.isArray(input.targetRoles) ? input.targetRoles : ["owner", "manager", "teacher", "student"],
+      targetRoles: normalizeRoleList(input.targetRoles || input.target_roles),
       pinned: Boolean(input.pinned),
       active: true,
       updatedAt: new Date().toISOString()
     };
     if (!notice.title || !notice.body) return sendJson(response, 400, { ok: false, error: "Notice title and body are required." });
-    notice.targetRoles = notice.targetRoles.filter((role) => ["owner", "manager", "teacher", "student"].includes(role));
+    notice.targetRoles = normalizeRoleList(notice.targetRoles);
     if (!notice.targetRoles.length) return sendJson(response, 400, { ok: false, error: "Notice requires at least one valid target role." });
     db.notices.unshift(notice);
     addAuditLog(account, "create_notice", "notice", notice.id, notice.title, {
@@ -1133,7 +1190,8 @@ function healthReport() {
     checkedAt: new Date().toISOString(),
     persistence: {
       enabled: persistenceEnabled,
-      backupEnabled
+      backupEnabled,
+      driver: storage.mode
     },
     cors: {
       restricted: !allowedOrigins.includes("*")
@@ -1153,7 +1211,8 @@ function dataExport(account) {
     persistence: {
       enabled: persistenceEnabled,
       backupEnabled,
-      dataFile: persistenceEnabled ? dataFilePath : "memory"
+      storageDriver: storage.mode,
+      dataFile: storage.mode === "file" ? dataFilePath : storage.mode
     },
     data: sanitizeDatabaseExport(db)
   };
@@ -1169,19 +1228,37 @@ function exportData(response, account) {
   return sendJson(response, 200, { ok: true, data: dataExport(account) });
 }
 
-function listDataBackups(response) {
+async function listDataBackups(response) {
   return sendJson(response, 200, {
     ok: true,
     data: {
       backupEnabled,
       persistenceEnabled,
-      dataFile: persistenceEnabled ? basename(dataFilePath) : "memory",
-      backups: backupEntries()
+      storageDriver: storage.mode,
+      dataFile: storage.mode === "file" ? dataFilePath : storage.mode,
+      backups: await backupEntries()
     }
   });
 }
 
-function importData(response, request, account, body) {
+function visibleStudents(account, students) {
+  if (account.role !== "teacher") return students;
+  return students.map(({ phone, birthDate, birth_date, memo, ...student }) => student);
+}
+
+function visibleGuardians(account, guardians) {
+  if (account.role !== "teacher") return guardians;
+  return guardians.map(({ phone, memo, ...guardian }) => guardian);
+}
+
+function visibleLessonNotes(account, lessonIds, studentIds) {
+  if (!account.permissions.viewLessonLogs) return [];
+  const notes = db.lessonNotes.filter((item) => lessonIds.has(item.lessonId) || studentIds.has(item.studentId));
+  if (account.role !== "student") return notes;
+  return notes.map(({ internalMemo, internal_memo, ...note }) => note);
+}
+
+async function importData(response, request, account, body) {
   const payload = body.export || body;
   if (payload.schema !== "bonsung-version3-local-v1") return sendJson(response, 400, { ok: false, error: "Unsupported Version.3 import schema." });
   if (!payload.data || typeof payload.data !== "object") return sendJson(response, 400, { ok: false, error: "Version.3 import data is required." });
@@ -1198,7 +1275,7 @@ function importData(response, request, account, body) {
     temporaryPasswordApplied: passwordResult.temporaryPasswordApplied
   });
   saveDatabase();
-  keepOnlySession(readBearerToken(request), account.id);
+  await keepOnlySession(readBearerToken(request), account.id);
   return sendJson(response, 200, {
     ok: true,
     data: {
@@ -1222,21 +1299,8 @@ function sanitizeDatabaseExport(snapshot) {
   };
 }
 
-function backupEntries() {
-  if (!persistenceEnabled || !backupEnabled || !existsSync(dirname(dataFilePath))) return [];
-  const directory = dirname(dataFilePath);
-  const prefix = `${basename(dataFilePath)}.`;
-  return readdirSync(directory)
-    .filter((name) => name.startsWith(prefix) && name.endsWith(".bak"))
-    .map((name) => {
-      const stats = statSync(resolve(directory, name));
-      return {
-        name,
-        sizeBytes: stats.size,
-        createdAt: stats.mtime.toISOString()
-      };
-    })
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+async function backupEntries() {
+  return storage.listBackups();
 }
 
 function hydrateImportedAccountPasswords(accounts, temporaryPassword) {
@@ -1274,7 +1338,7 @@ function requirePermission(response, account, key, callback) {
   return callback();
 }
 
-function requireOwner(response, account, callback) {
+function requireAdmin(response, account, callback) {
   if (account.role !== "owner") return sendJson(response, 403, { ok: false, error: "Owner permission is required." });
   return callback();
 }
@@ -1324,7 +1388,7 @@ function clearLoginFailures(loginId) {
   loginAttempts.delete(loginId);
 }
 
-function invalidateAccountSessions(accountId, exceptToken = "") {
+async function invalidateAccountSessions(accountId, exceptToken = "") {
   let count = 0;
   for (const [token, session] of sessions.entries()) {
     if (session.accountId === accountId && token !== exceptToken) {
@@ -1332,13 +1396,17 @@ function invalidateAccountSessions(accountId, exceptToken = "") {
       count += 1;
     }
   }
+  if (storageSessionsEnabled) {
+    count += await storage.deleteAccountSessions(accountId, exceptToken ? hashSessionToken(exceptToken) : "");
+  }
   return count;
 }
 
-function keepOnlySession(activeToken, accountId) {
+async function keepOnlySession(activeToken, accountId) {
   for (const [token, session] of sessions.entries()) {
     if (token !== activeToken || session.accountId !== accountId) sessions.delete(token);
   }
+  if (storageSessionsEnabled) await storage.keepOnlySession(hashSessionToken(activeToken), accountId);
 }
 
 function hashPassword(password) {
@@ -1395,7 +1463,7 @@ function normalizeServerEnrollmentStatus(value) {
 }
 
 function findConsultationAssignee(accountId) {
-  const account = db.accounts.find((item) => item.id === accountId && item.status === "active" && ["owner", "manager", "teacher"].includes(item.role));
+  const account = db.accounts.find((item) => item.id === accountId && item.status === "active" && ["manager", "teacher"].includes(item.role));
   if (account) return account;
   const teacher = db.teachers.find((item) => item.id === accountId);
   return teacher ? { id: teacher.id, name: teacher.name } : null;
@@ -1458,7 +1526,7 @@ function notificationAccountIds(roles, excludeAccountId = "") {
 function unreadAfterConsultationUpdate(consultation, actorId, assignedTo) {
   const unreadIds = new Set(Array.isArray(consultation.unreadForAccountIds) ? consultation.unreadForAccountIds : []);
   unreadIds.delete(actorId);
-  const targetAccount = db.accounts.find((item) => item.id === assignedTo && item.status === "active" && ["owner", "manager", "teacher"].includes(item.role));
+  const targetAccount = db.accounts.find((item) => item.id === assignedTo && item.status === "active" && ["manager", "teacher"].includes(item.role));
   if (targetAccount && targetAccount.id !== actorId) unreadIds.add(targetAccount.id);
   return Array.from(unreadIds);
 }
@@ -1518,13 +1586,16 @@ function assertServerRuntimeSafe() {
   if (testPassword === "version3") {
     throw new Error("Set VERSION3_LOCAL_SERVER_PASSWORD to a non-default value before running a public Version.3 server.");
   }
+  if (!process.env.VERSION3_OWNER_INITIAL_PASSWORD && !process.env.VERSION3_ADMIN_INITIAL_PASSWORD) {
+    throw new Error("Set VERSION3_OWNER_INITIAL_PASSWORD before running a public Version.3 server.");
+  }
   if (allowedOrigins.includes("*")) {
     throw new Error("Set VERSION3_ALLOWED_ORIGINS to the official Version.3 UI origin before running a public Version.3 server.");
   }
   if (!persistenceEnabled) {
     throw new Error("Set VERSION3_LOCAL_DATA_FILE to a persistent file before running a public Version.3 server.");
   }
-  if (!backupEnabled) {
+  if (storage.mode === "file" && !backupEnabled) {
     throw new Error("Keep Version.3 data backups enabled before running a public Version.3 server.");
   }
 }
@@ -1544,20 +1615,44 @@ function serverUser(account, sessionExpiresAt = "") {
 }
 
 function permissionsFor(role) {
-  return { ...(permissionSets[role] || permissionSets.manager) };
+  const normalizedRole = normalizeServerRole(role);
+  return { ...(permissionSets[normalizedRole] || permissionSets.manager) };
 }
 
-function loadDatabase() {
+function normalizeServerRole(value, fallback = "manager") {
+  const role = stringValue(value).toLowerCase();
+  if (role === "owner" || role === "admin" || role === "system") return "owner";
+  if (role === "manager" || role === "staff") return "manager";
+  if (role === "teacher" || role === "coach") return "teacher";
+  if (role === "student" || role === "artist") return "student";
+  return fallback;
+}
+
+function normalizeRoleList(value) {
+  const roles = stringList(value).map((role) => normalizeServerRole(role, "")).filter((role) => allRoleTargets.includes(role));
+  return roles.length ? Array.from(new Set(roles)) : [...allRoleTargets];
+}
+
+async function loadDatabase() {
   const seed = createSeedData();
-  if (!persistenceEnabled) return seed;
-  if (!existsSync(dataFilePath)) {
-    saveDatabaseSnapshot(seed);
+  if (!persistenceEnabled) {
+    migrateAdminInitialPassword(seed);
+    return seed;
+  }
+  const stored = await storage.loadState();
+  if (!stored) {
+    migrateAdminInitialPassword(seed);
+    await storage.saveState(seed);
     return seed;
   }
 
-  const parsed = JSON.parse(readFileSync(dataFilePath, "utf8"));
-  const migrated = migrateDatabase(seed, parsed);
-  if (migrateAccountPasswords(migrated)) saveDatabaseSnapshot(migrated);
+  const migrated = migrateDatabase(seed, stored);
+  const needsMigrationSave = Boolean(migrated.__needsMigrationSave);
+  delete migrated.__needsMigrationSave;
+  const passwordMigrationChanged = migrateAccountPasswords(migrated);
+  const adminPasswordMigrationChanged = migrateAdminInitialPassword(migrated);
+  const notionSeedMigrationChanged = migrateNotionHqSeedData(migrated);
+  if (passwordMigrationChanged || adminPasswordMigrationChanged || notionSeedMigrationChanged || needsMigrationSave) await storage.saveState(migrated);
   return migrated;
 }
 
@@ -1569,7 +1664,74 @@ function migrateDatabase(seed, stored) {
   migrated.auditLogs = Array.isArray(migrated.auditLogs) ? migrated.auditLogs : [];
   migrated.accountHistory = Array.isArray(migrated.accountHistory) ? migrated.accountHistory : [];
   migrated.consultationHistory = Array.isArray(migrated.consultationHistory) ? migrated.consultationHistory : [];
+  if (migrateRoleValues(migrated)) migrated.__needsMigrationSave = true;
   return migrated;
+}
+
+
+function migrateRoleValues(snapshot) {
+  let changed = false;
+  for (const account of snapshot.accounts || []) {
+    const previousRole = account.role;
+    account.role = normalizeServerRole(account.role);
+    if (account.role !== previousRole) changed = true;
+    const nextPermissions = { ...permissionsFor(account.role), ...(account.permissions && typeof account.permissions === "object" ? account.permissions : {}) };
+    if (account.role === "manager") {
+      nextPermissions.manageAccounts = false;
+      nextPermissions.managePermissions = false;
+      nextPermissions.managePublicSettings = false;
+      nextPermissions.reviewAccountRequests = true;
+      nextPermissions.resetPasswords = true;
+    }
+    if (account.role === "owner") Object.assign(nextPermissions, permissionsFor("owner"));
+    if (account.role === "teacher") Object.assign(nextPermissions, permissionsFor("teacher"));
+    if (account.role === "student") Object.assign(nextPermissions, permissionsFor("student"));
+    if (JSON.stringify(account.permissions || {}) !== JSON.stringify(nextPermissions)) changed = true;
+    account.permissions = nextPermissions;
+  }
+  for (const request of snapshot.accountRequests || []) {
+    const previousRole = request.requestedRole;
+    request.requestedRole = normalizeServerRole(request.requestedRole, "student");
+    if (request.requestedRole !== previousRole) changed = true;
+  }
+  for (const notice of snapshot.notices || []) {
+    const previous = JSON.stringify(notice.targetRoles || notice.target_roles || []);
+    notice.targetRoles = normalizeRoleList(notice.targetRoles || notice.target_roles);
+    notice.target_roles = notice.targetRoles.join(",");
+    if (JSON.stringify(notice.targetRoles) !== previous) changed = true;
+  }
+  for (const event of snapshot.calendarEvents || []) {
+    const previous = JSON.stringify(event.targetRoles || event.target_roles || []);
+    event.targetRoles = normalizeRoleList(event.targetRoles || event.target_roles);
+    event.target_roles = event.targetRoles.join(",");
+    if (JSON.stringify(event.targetRoles) !== previous) changed = true;
+  }
+  return changed;
+}
+
+function migrateNotionHqSeedData(snapshot) {
+  let changed = false;
+  const currentCourses = Array.isArray(snapshot.courses) ? snapshot.courses : [];
+  const previousCourses = JSON.stringify(currentCourses);
+  const seedCourseIds = new Set(bonsungInitialCourses.map((course) => course.id));
+  snapshot.courses = [
+    ...bonsungInitialCourses.map((course) => ({ ...course })),
+    ...currentCourses.filter((course) => !seedCourseIds.has(course.id))
+  ];
+  if (JSON.stringify(snapshot.courses) !== previousCourses) changed = true;
+
+  const currentCalendarEvents = Array.isArray(snapshot.calendarEvents) ? snapshot.calendarEvents : [];
+  const previousCalendarEvents = JSON.stringify(currentCalendarEvents);
+  const customCalendarEvents = currentCalendarEvents.filter((event) => {
+    const id = stringValue(event.id || event.calendar_event_id);
+    return !id.startsWith("calendar-opening-");
+  });
+  snapshot.calendarEvents = [
+    ...bonsungInitialCalendarEvents.map((event) => ({ ...event })),
+    ...customCalendarEvents
+  ];
+  if (JSON.stringify(snapshot.calendarEvents) !== previousCalendarEvents) changed = true;
+  return changed;
 }
 
 function migrateAccountPasswords(snapshot) {
@@ -1586,30 +1748,29 @@ function migrateAccountPasswords(snapshot) {
   return changed;
 }
 
-function saveDatabase() {
-  if (!persistenceEnabled) return;
-  saveDatabaseSnapshot(db);
-}
-
-function saveDatabaseSnapshot(snapshot) {
-  mkdirSync(dirname(dataFilePath), { recursive: true });
-  if (backupEnabled && existsSync(dataFilePath)) {
-    copyFileSync(dataFilePath, backupPathFor(dataFilePath));
+function migrateAdminInitialPassword(snapshot) {
+  if (snapshot.adminCredentialVersion === adminCredentialVersion) return false;
+  const adminAccount = (snapshot.accounts || []).find((account) => account.loginId === "owner" || account.loginId === "admin" || account.id === "admin-1");
+  if (!adminAccount) {
+    snapshot.adminCredentialVersion = adminCredentialVersion;
+    return true;
   }
-  const tempPath = `${dataFilePath}.${process.pid}.tmp`;
-  writeFileSync(tempPath, JSON.stringify(snapshot, null, 2), "utf8");
-  renameSync(tempPath, dataFilePath);
+  adminAccount.password = hashPassword(adminInitialPassword);
+  adminAccount.mustChangePassword = false;
+  snapshot.adminCredentialVersion = adminCredentialVersion;
+  return true;
 }
 
-function backupPathFor(path) {
-  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-  return `${path}.${stamp}.bak`;
+function saveDatabase() {
+  if (!persistenceEnabled) return Promise.resolve();
+  pendingSave = pendingSave.catch(() => undefined).then(() => storage.saveState(db));
+  return pendingSave;
 }
 
 function createSeedData() {
   const accounts = [
-    createSeedAccount("owner-1", "owner", "강은미", "owner", ""),
-    createSeedAccount("manager-1", "manager", "조영진", "manager", ""),
+    createSeedAccount("admin-1", "owner", "시스템 관리자", "owner", "", "", adminInitialPassword),
+    createSeedAccount("manager-1", "manager", "강은미", "manager", ""),
     createSeedAccount("teacher-1", "teacher", "황휘현", "teacher", ""),
     createSeedAccount("student-1-account", "student", "장윤호", "student", "student-jang-yunho", "장윤호")
   ];
@@ -1617,13 +1778,13 @@ function createSeedData() {
   return {
     accounts,
     accountHistory: [
-      { id: "account-history-1", accountId: "manager-1", accountName: "조영진", actorId: "owner-1", actorName: "강은미", action: "create_account", role: "manager", occurredAt: "2026-07-01T09:10:00+09:00" }
+      { id: "account-history-1", accountId: "manager-1", accountName: "강은미", actorId: "admin-1", actorName: "시스템 관리자", action: "create_account", role: "manager", occurredAt: "2026-07-01T09:10:00+09:00" }
     ],
     accountRequests: [
       { id: "account-request-1", loginId: "kimtaeji", name: "(신) 김태지", requestedRole: "student", email: "", phone: "", linkedStudentId: "student-kim-taeji-new", message: "Notion 수강생 DB에서 등록 상태가 확인 필요인 신규 수강생입니다. 계정 생성 전 상담/등록 확정 여부 확인이 필요합니다.", status: "대기", reviewedBy: "", reviewedByName: "", reviewedAt: "", reviewMemo: "", createdAccountId: "", createdAt: "2026-07-02T10:10:00+09:00", updatedAt: "2026-07-02T10:10:00+09:00" }
     ],
     auditLogs: [
-      { id: "audit-1", actorId: "owner-1", actorName: "강은미", action: "create_account", targetType: "account", targetId: "manager-1", targetName: "조영진", metadata: { role: "manager" }, createdAt: "2026-07-01T09:10:00+09:00" }
+      { id: "audit-1", actorId: "admin-1", actorName: "시스템 관리자", action: "create_account", targetType: "account", targetId: "manager-1", targetName: "강은미", metadata: { role: "manager" }, createdAt: "2026-07-01T09:10:00+09:00" }
     ],
     teachers: [
       ...bonsungInitialTeachers
@@ -1666,10 +1827,10 @@ function createSeedData() {
       ...bonsungInitialDocumentTasks
     ],
     workLogs: [
-      { id: "work-log-1", work_log_id: "work-log-1", accountId: "manager-1", account_id: "manager-1", accountName: "조영진", account_name: "조영진", workDate: "2026-07-01", work_date: "2026-07-01", clockInAt: "2026-07-01T09:05:00+09:00", clock_in_at: "2026-07-01T09:05:00+09:00", clockOutAt: "", clock_out_at: "", memo: "초기 운영 준비" }
+      { id: "work-log-1", work_log_id: "work-log-1", accountId: "manager-1", account_id: "manager-1", accountName: "강은미", account_name: "강은미", workDate: "2026-07-01", work_date: "2026-07-01", clockInAt: "2026-07-01T09:05:00+09:00", clock_in_at: "2026-07-01T09:05:00+09:00", clockOutAt: "", clock_out_at: "", memo: "초기 운영 준비" }
     ],
     meetings: [
-      { id: "meeting-1", meeting_id: "meeting-1", title: "초기 운영 데이터 점검 회의", startsAt: "2026-08-01T10:00:00+09:00", starts_at: "2026-08-01T10:00:00+09:00", participantIds: ["owner-1", "manager-1", "teacher-1"], participant_ids: "owner-1,manager-1,teacher-1", createdBy: "manager-1", created_by: "manager-1", status: "예정", memo: "수강생 배정, 상담 흐름, 결제 확인 항목 점검" }
+      { id: "meeting-1", meeting_id: "meeting-1", title: "초기 운영 데이터 점검 회의", startsAt: "2026-08-01T10:00:00+09:00", starts_at: "2026-08-01T10:00:00+09:00", participantIds: ["manager-1", "teacher-1"], participant_ids: "manager-1,teacher-1", createdBy: "manager-1", created_by: "manager-1", status: "예정", memo: "수강생 배정, 상담 흐름, 결제 확인 항목 점검" }
     ],
     calendarEvents: [
       ...bonsungInitialCalendarEvents
@@ -1679,7 +1840,7 @@ function createSeedData() {
       academyPhone: "",
       reservationGuide: "공간 예약은 정각부터 1시간 단위로 신청합니다.",
       updatedAt: "2026-07-01T00:00:00+09:00",
-      updatedBy: "owner-1"
+      updatedBy: "admin-1"
     },
     notices: [
       ...bonsungInitialNotices
@@ -1687,7 +1848,7 @@ function createSeedData() {
   };
 }
 
-function createSeedAccount(id, loginId, name, role, linkedStudentId, linkedStudentName = "") {
+function createSeedAccount(id, loginId, name, role, linkedStudentId, linkedStudentName = "", password = testPassword) {
   return {
     id,
     loginId,
@@ -1702,7 +1863,7 @@ function createSeedAccount(id, loginId, name, role, linkedStudentId, linkedStude
     permissions: permissionsFor(role),
     lastLoginAt: "",
     createdAt: "2026-07-01T00:00:00+09:00",
-    password: hashPassword(testPassword)
+    password: hashPassword(password)
   };
 }
 
@@ -1765,9 +1926,17 @@ function setCors(request, response) {
   response.setHeader("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS");
 }
 
-function sendJson(response, status, payload) {
-  response.writeHead(status, { "Content-Type": "application/json; charset=utf-8" });
-  response.end(JSON.stringify(payload));
+async function sendJson(response, status, payload) {
+  try {
+    await pendingSave;
+    if (response.writableEnded) return;
+    response.writeHead(status, { "Content-Type": "application/json; charset=utf-8" });
+    response.end(JSON.stringify(payload));
+  } catch (error) {
+    if (response.writableEnded) return;
+    response.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
+    response.end(JSON.stringify({ ok: false, error: error instanceof Error ? error.message : String(error) }));
+  }
 }
 
 function send(response, status, body) {

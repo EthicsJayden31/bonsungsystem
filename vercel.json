@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/version3/:path*",
+      "destination": "/api/version3/[...path]"
+    }
+  ]
+}
