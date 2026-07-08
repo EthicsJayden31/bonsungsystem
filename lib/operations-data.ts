@@ -48,7 +48,7 @@ import {
 } from "@/lib/demo-data";
 import { normalizeRole, type Role } from "@/lib/auth-shared";
 import { canAccessVersion3Area, hasVersion3Permission, type AccessUser } from "@/lib/access-policy";
-import { APPS_SCRIPT_ENDPOINT, APPS_SCRIPT_SESSION_TOKEN_KEY } from "@/lib/apps-script-client";
+import { APPS_SCRIPT_ENDPOINT, APPS_SCRIPT_REQUEST_TIMEOUT_MS, APPS_SCRIPT_SESSION_TOKEN_KEY } from "@/lib/apps-script-client";
 import { useCurrentUser } from "@/lib/use-current-user";
 import { VERSION3_TEST_DATA_CHANGE_EVENT, hasVersion3TestSession, readVersion3TestData, runVersion3TestAction } from "@/lib/version3-test-mode";
 import { normalizeConsultationStatus, type Version3AuditLog, type Version3DashboardWorkItem, type Version3DashboardWorkPriority, type Version3DashboardWorkTone } from "@/lib/version3-server-contract";
@@ -611,8 +611,12 @@ function qualityCheckTitle(id: string) {
 }
 
 async function callAppsScript<T>(action: string, token: string, payload: Record<string, unknown> = {}) {
+  if (!APPS_SCRIPT_ENDPOINT.trim()) {
+    throw new Error("Apps Script Web App URL이 설정되지 않았습니다.");
+  }
+
   const controller = new AbortController();
-  const timeout = window.setTimeout(() => controller.abort(), 15000);
+  const timeout = window.setTimeout(() => controller.abort(), APPS_SCRIPT_REQUEST_TIMEOUT_MS);
 
   try {
     const response = await fetch(APPS_SCRIPT_ENDPOINT, {

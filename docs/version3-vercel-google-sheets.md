@@ -1,127 +1,48 @@
-# Version.3 Vercel API + Google Sheets 운영 가이드
+# Version.3 Vercel API + Google Sheets 직접 연동 보류 문서
 
-이 문서는 본성 스테이지 Version.3를 Vercel API Route에서 실행하고,
-운영 상태 저장소로 Google Sheets를 사용하는 절차를 정리합니다.
+이 문서는 Vercel API Route가 Google Sheets API를 직접 호출하는 이전 후보안을 보존하기 위한 보류 문서입니다. 현재 파일럿의 기본 목표는 이 경로가 아닙니다.
 
-## 구성
+## 보류 사유
 
-- 브라우저 API 기준 주소: `NEXT_PUBLIC_VERSION3_API_BASE_URL=/api/version3`
-- Vercel API Route: `api/version3/[...path].js`
-- 공통 서버 핸들러: `server/version3-core.mjs`, `server/version3-local-server.mjs`
-- 저장소 어댑터: `server/version3-storage.mjs`
-- 저장 방식: `VERSION3_STORAGE_DRIVER=google-sheets`
+- Vercel Function에서 Google 서비스 계정 키를 직접 관리해야 합니다.
+- 서비스 계정 이메일, private key, 세션 비밀값이 모두 맞아야 하므로 시연 전 준비 부담이 큽니다.
+- 현재 파일럿은 빠른 확인과 운영자 조정을 위해 `Vercel UI -> Google Apps Script Web App -> Google Sheets` 구조를 사용합니다.
+- 이 경로는 향후 별도 서버나 안전한 API 계층으로 전환할 때 비교 후보로만 남깁니다.
 
-Vercel 배포는 기본 `pnpm run build`를 사용해야 합니다. `GITHUB_PAGES=true`
-또는 `pnpm run build:pages`는 정적 GitHub Pages UI 전용이며, Version.3 API
-Function을 노출하지 않습니다.
+## 보존된 코드 위치
 
-## Google Sheets 저장 구조
+- `api/version3/[...path].js`
+- `server/version3-storage.mjs`
+- `tools/setup-version3-google-sheets.mjs`
+- `tools/migrate-version3-file-to-google-sheets.mjs`
+- `tools/verify-version3-google-sheets.mjs`
+- `tools/verify-version3-vercel-api-local.mjs`
 
-정본 상태는 `_version3_state` 탭의 2행에 저장됩니다.
+## 사용하지 않는 환경변수
 
-| state_id | revision | updated_at | data_json |
-| --- | --- | --- | --- |
-| main | 증가 숫자 | ISO 시간 | Version.3 전체 JSON |
-
-세션은 `_version3_sessions` 탭에 저장됩니다.
-
-| token_hash | account_id | expires_at | created_at | last_seen_at | revoked_at |
-| --- | --- | --- | --- | --- | --- |
-
-클라이언트 토큰 원문은 저장하지 않고, `VERSION3_SESSION_SECRET` 기반 해시만 저장합니다.
-
-운영자가 확인하기 쉬운 미러 탭도 함께 유지됩니다.
-
-- `students`
-- `teachers`
-- `lessons`
-- `attendance`
-- `lesson_notes`
-- `consultations`
-- `payments`
-- `reservations`
-- `accounts_public`
-- `audit_logs`
-
-## Vercel 환경변수
-
-아래 값은 Vercel Project Settings의 Environment Variables에만 넣습니다.
-서비스 계정 키, 세션 비밀값, 초기 비밀번호는 저장소에 커밋하지 않습니다.
+현재 Apps Script 파일럿에서는 아래 값을 Vercel 운영 환경에 넣지 않습니다.
 
 ```env
 NEXT_PUBLIC_VERSION3_API_BASE_URL=/api/version3
 VERSION3_STORAGE_DRIVER=google-sheets
 VERSION3_GOOGLE_SHEETS_SPREADSHEET_ID=<spreadsheet-id>
 VERSION3_GOOGLE_SERVICE_ACCOUNT_JSON=<service-account-json>
-VERSION3_SESSION_SECRET=<long-random-secret>
-VERSION3_ALLOWED_ORIGINS=https://<your-vercel-domain>
-VERSION3_SESSION_TTL_HOURS=12
-VERSION3_OWNER_INITIAL_PASSWORD=<strong-owner-password>
-VERSION3_LOCAL_SERVER_PASSWORD=<strong-seed-password>
-```
-
-`VERSION3_GOOGLE_SERVICE_ACCOUNT_JSON` 대신 아래 두 값을 분리해서 넣을 수도 있습니다.
-
-```env
 VERSION3_GOOGLE_SERVICE_ACCOUNT_EMAIL=<service-account-email>
 VERSION3_GOOGLE_PRIVATE_KEY=<private-key-with-escaped-newlines>
+VERSION3_SESSION_SECRET=<long-random-secret>
 ```
 
-## Google Cloud 및 Sheets 설정
+특히 실제 스프레드시트 ID, 서비스 계정 JSON, private key는 이 문서와 저장소에 기록하지 않습니다.
 
-1. Google Cloud 프로젝트에서 Google Sheets API를 활성화합니다.
-2. 서비스 계정을 만들고 JSON 키를 발급합니다.
-3. 서비스 계정 이메일을 `본성뮤직 인트라넷 운영 DB v2` 스프레드시트에 편집자로 공유합니다.
-4. JSON 키 전체를 Vercel의 `VERSION3_GOOGLE_SERVICE_ACCOUNT_JSON`에 넣습니다.
-5. 분리 입력을 쓰는 경우 JSON 키의 `client_email`은
-   `VERSION3_GOOGLE_SERVICE_ACCOUNT_EMAIL`, `private_key`는 `\n` 이스케이프 형태로
-   `VERSION3_GOOGLE_PRIVATE_KEY`에 넣습니다.
-6. 스프레드시트 ID를 `VERSION3_GOOGLE_SHEETS_SPREADSHEET_ID`에 넣습니다.
+## 재개 조건
 
-현재 대상 스프레드시트 ID:
+이 후보를 다시 검토하려면 다음 조건을 먼저 만족해야 합니다.
 
-```text
-1z0bjYPxOZQu7G6tRuDzRt2FXzQvDz9i2ZS7AP9QWqpA
-```
+- Vercel 환경변수 관리 권한과 키 회전 절차가 정해져 있어야 합니다.
+- `/api/version3/health`가 설정 누락 없이 통과해야 합니다.
+- 세션 토큰 저장, 감사 로그, 권한 필터링이 Apps Script 파일럿과 같은 수준으로 검증되어야 합니다.
+- 운영 Google Sheet와 Preview Sheet를 분리하는 정책이 확정되어야 합니다.
 
-## 명령
+## 현재 기준
 
-```powershell
-pnpm run setup:version3-google-sheets -- --dry-run
-pnpm run setup:version3-google-sheets
-pnpm run migrate:version3-google-sheets -- --file=.version3-local-data.json
-pnpm run verify:version3-google-sheets
-pnpm run verify:version3-vercel-api
-```
-
-기존 Google Sheets 상태를 덮어써야 할 때만 `--force`를 붙입니다.
-
-```powershell
-pnpm run migrate:version3-google-sheets -- --file=.version3-local-data.json --force
-```
-
-## 배포 확인
-
-1. Vercel에서 GitHub 저장소가 연결되어 있는지 확인합니다.
-2. Build Command는 기본 `pnpm run build`를 사용합니다.
-3. Preview와 Production 환경변수에 동일한 필수 키가 들어 있는지 확인합니다.
-4. `/api/version3/health`가 `ok: true`를 반환하는지 확인합니다.
-5. `admin` 계정으로 로그인한 뒤 `/bootstrap`, 계정 목록, 데이터 품질 화면을 확인합니다.
-
-## 보안 기준
-
-- `NEXT_PUBLIC_*` 외의 값은 브라우저 번들에 노출하지 않습니다.
-- Google 서비스 계정 키, 세션 비밀값, 초기 비밀번호는 커밋하지 않습니다.
-- `_version3_sessions`에는 토큰 원문이 아니라 `token_hash`만 저장합니다.
-- `VERSION3_ALLOWED_ORIGINS`는 실제 Vercel 도메인만 허용하고 `*`를 쓰지 않습니다.
-- 서비스 계정에는 필요한 스프레드시트 편집 권한만 부여합니다.
-- Preview와 Production은 가능하면 별도 스프레드시트를 사용합니다.
-
-## 현재 남은 설정
-
-Vercel 배포가 Google Sheets API를 직접 읽으려면 아래 둘 중 하나가 반드시 필요합니다.
-
-- `VERSION3_GOOGLE_SERVICE_ACCOUNT_JSON`
-- 또는 `VERSION3_GOOGLE_SERVICE_ACCOUNT_EMAIL` + `VERSION3_GOOGLE_PRIVATE_KEY`
-
-이 값이 없으면 `/api/version3/health`는 `version3_api_setup_required`와 함께 503을 반환합니다.
+현재 파일럿 기준 문서는 [version3-apps-script-pilot.md](./version3-apps-script-pilot.md)입니다.

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { students } from "@/lib/demo-data";
-import { APPS_SCRIPT_ENDPOINT, APPS_SCRIPT_SESSION_TOKEN_KEY, APPS_SCRIPT_USER_KEY } from "@/lib/apps-script-client";
+import { APPS_SCRIPT_ENDPOINT, APPS_SCRIPT_REQUEST_TIMEOUT_MS, APPS_SCRIPT_SESSION_TOKEN_KEY, APPS_SCRIPT_USER_KEY } from "@/lib/apps-script-client";
 import { normalizeRole, type Role } from "@/lib/auth-shared";
 import { PREVIEW_ACCOUNT_DRAFTS_KEY, PREVIEW_ACCOUNT_HISTORY_KEY } from "@/lib/client-session";
 import {
@@ -577,8 +577,12 @@ function mapServerAccountHistory(item: AccountRecord): Version3AccountHistory {
 }
 
 async function callAppsScript<T>(action: string, token: string, payload: Record<string, unknown> = {}) {
+  if (!APPS_SCRIPT_ENDPOINT.trim()) {
+    throw new Error("Apps Script Web App URL이 설정되지 않았습니다.");
+  }
+
   const controller = new AbortController();
-  const timeout = window.setTimeout(() => controller.abort(), 15000);
+  const timeout = window.setTimeout(() => controller.abort(), APPS_SCRIPT_REQUEST_TIMEOUT_MS);
 
   try {
     const response = await fetch(APPS_SCRIPT_ENDPOINT, {

@@ -1,6 +1,5 @@
-export const APPS_SCRIPT_ENDPOINT =
-  process.env.NEXT_PUBLIC_APPS_SCRIPT_ENDPOINT ||
-  "https://script.google.com/macros/s/AKfycbzHS-pShTZaY32eZ7X6muatT6Hv0hXUf89dUaQtCaH4gQNcxmdsfZ1X30izje9siAHWVQ/exec";
+export const APPS_SCRIPT_ENDPOINT = process.env.NEXT_PUBLIC_APPS_SCRIPT_ENDPOINT || "";
+export const APPS_SCRIPT_REQUEST_TIMEOUT_MS = 45000;
 
 export const APPS_SCRIPT_SESSION_TOKEN_KEY = "bonsung_session_token";
 export const APPS_SCRIPT_USER_KEY = "bonsung_current_user";
@@ -18,6 +17,8 @@ export type AppsScriptUser = {
   email?: string;
   role?: string;
   linked_student_id?: string;
+  mustChangePassword?: boolean;
+  must_change_password?: boolean;
   permissions?: Record<string, boolean>;
 };
 
@@ -31,8 +32,12 @@ export async function loginWithAppsScript(loginId: string, password: string): Pr
 }
 
 export async function callAppsScript<T>(action: string, payload: Record<string, unknown> = {}): Promise<T> {
+  if (!APPS_SCRIPT_ENDPOINT.trim()) {
+    throw new Error("Apps Script Web App URL이 설정되지 않았습니다.");
+  }
+
   const controller = new AbortController();
-  const timeout = window.setTimeout(() => controller.abort(), 15000);
+  const timeout = window.setTimeout(() => controller.abort(), APPS_SCRIPT_REQUEST_TIMEOUT_MS);
 
   try {
     const response = await fetch(APPS_SCRIPT_ENDPOINT, {

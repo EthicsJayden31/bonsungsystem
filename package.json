@@ -23,6 +23,7 @@
     "migrate:version3-google-sheets": "node tools/migrate-version3-file-to-google-sheets.mjs",
     "verify:version3-google-sheets": "node tools/verify-version3-google-sheets.mjs",
     "verify:version3-vercel-api": "node tools/verify-version3-vercel-api-local.mjs",
+    "prepare:version3-apps-script-sheets": "node tools/prepare-version3-apps-script-sheets.mjs",
     "migrate:version3-file-to-db": "node tools/migrate-version3-file-to-db.mjs",
     "server:version3": "node server/version3-local-server.mjs",
     "start": "next start",

@@ -9,6 +9,7 @@ import { canAccessVersion3Area } from "@/lib/access-policy";
 import { normalizeRole, type CurrentUser, type Role } from "@/lib/auth-shared";
 import {
   APPS_SCRIPT_ENDPOINT,
+  APPS_SCRIPT_REQUEST_TIMEOUT_MS,
   APPS_SCRIPT_SESSION_TOKEN_KEY,
   APPS_SCRIPT_USER_KEY,
   type AppsScriptUser
@@ -33,6 +34,8 @@ type NavGroup = {
   helper: string;
   items: NavItem[];
 };
+
+type DataConnectionStatus = "disconnected" | "unstable" | "connected";
 
 const SIDEBAR_GROUP_STORAGE_KEY = "bonsung_sidebar_groups_v1";
 
@@ -191,6 +194,93 @@ function saveSidebarGroupState(nextGroups: Record<string, boolean>) {
   window.localStorage.setItem(SIDEBAR_GROUP_STORAGE_KEY, JSON.stringify(nextGroups));
 }
 
+function useAppsScriptConnectionStatus(): DataConnectionStatus {
+  const [status, setStatus] = useState<DataConnectionStatus>("disconnected");
+
+  useEffect(() => {
+    let active = true;
+    let timer: number | undefined;
+
+    async function check() {
+      if (!ENABLE_APPS_SCRIPT_TRANSITION || !APPS_SCRIPT_ENDPOINT.trim()) {
+        if (active) setStatus("disconnected");
+        return;
+      }
+
+      const token = window.localStorage.getItem(APPS_SCRIPT_SESSION_TOKEN_KEY) || "";
+      if (!token) {
+        if (active) setStatus("disconnected");
+        return;
+      }
+
+      if (active) setStatus((current) => (current === "connected" ? "connected" : "unstable"));
+
+      try {
+        const health = await postAppsScriptStatus<{ missingTabs?: unknown[] }>({ action: "health" });
+        if (!health.ok || (Array.isArray(health.data?.missingTabs) && health.data.missingTabs.length > 0)) {
+          if (active) setStatus("unstable");
+          return;
+        }
+
+        const bootstrap = await postAppsScriptStatus<Record<string, unknown>>({ action: "bootstrap", token });
+        const reflected = Boolean(
+          bootstrap.ok &&
+          bootstrap.data &&
+          (Array.isArray(bootstrap.data.students) || Array.isArray(bootstrap.data.lessons) || Array.isArray(bootstrap.data.notices))
+        );
+        if (active) setStatus(reflected ? "connected" : "unstable");
+      } catch (error) {
+        const statusCode = error instanceof AppsScriptStatusError ? error.status : 0;
+        if (active) setStatus(statusCode === 401 || statusCode === 403 ? "disconnected" : "unstable");
+      } finally {
+        if (active) timer = window.setTimeout(check, 60000);
+      }
+    }
+
+    check();
+    window.addEventListener(SESSION_CHANGE_EVENT, check);
+    return () => {
+      active = false;
+      if (timer) window.clearTimeout(timer);
+      window.removeEventListener(SESSION_CHANGE_EVENT, check);
+    };
+  }, []);
+
+  return status;
+}
+
+type AppsScriptStatusResult<T> = {
+  ok: boolean;
+  data?: T;
+  error?: string;
+};
+
+class AppsScriptStatusError extends Error {
+  status: number;
+
+  constructor(status: number) {
+    super(`Apps Script status check failed (${status})`);
+    this.status = status;
+  }
+}
+
+async function postAppsScriptStatus<T>(body: Record<string, unknown>): Promise<AppsScriptStatusResult<T>> {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), APPS_SCRIPT_REQUEST_TIMEOUT_MS);
+  try {
+    const response = await fetch(APPS_SCRIPT_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(body),
+      signal: controller.signal
+    });
+    if (!response.ok) throw new AppsScriptStatusError(response.status);
+    return await response.json() as AppsScriptStatusResult<T>;
+  } finally {
+    window.clearTimeout(timeout);
+  }
+}
+
 export function AppShell({ children, area = "dashboard" }: { children: ReactNode; area?: string }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -201,6 +291,7 @@ export function AppShell({ children, area = "dashboard" }: { children: ReactNode
   const [menuQuery, setMenuQuery] = useState("");
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(() => readSidebarGroupState());
   const [testing, setTesting] = useState(false);
+  const connectionStatus = useAppsScriptConnectionStatus();
 
   useEffect(() => {
     const syncTestingState = () => setTesting(hasVersion3TestSession());
@@ -272,7 +363,7 @@ export function AppShell({ children, area = "dashboard" }: { children: ReactNode
     <div className={`min-h-screen bg-canvas lg:h-screen lg:overflow-hidden ${compact ? "text-[95%]" : ""}`}>
       <aside className="fixed inset-y-0 left-0 hidden h-screen w-72 flex-col border-r border-line bg-white px-5 py-5 lg:flex">
         <div className="shrink-0">
-          <BrandBlock />
+          <BrandBlock connectionStatus={connectionStatus} />
           <SidebarAccountBadge user={user} />
           <SidebarMenuSearch query={menuQuery} onChange={setMenuQuery} />
         </div>
@@ -329,7 +420,7 @@ export function AppShell({ children, area = "dashboard" }: { children: ReactNode
           </div>
         </header>
 
-        <MobileAppHeader current={current} user={user} onMenu={() => setMenuOpen(true)} onLogout={logout} />
+        <MobileAppHeader current={current} user={user} connectionStatus={connectionStatus} onMenu={() => setMenuOpen(true)} onLogout={logout} />
         <MobileHomeStrip groups={visibleGroups} currentArea={area} mode={preferences.mobileMenu} role={user.role} />
         <main className={`mx-auto max-w-7xl px-4 pb-[calc(7.5rem+env(safe-area-inset-bottom))] pt-4 lg:pb-8 ${compact ? "sm:py-5" : "sm:py-8"}`}>{children}</main>
       </div>
@@ -609,11 +700,13 @@ function MobileMenuSheet({
 function MobileAppHeader({
   current,
   user,
+  connectionStatus,
   onMenu,
   onLogout
 }: {
   current: { title: string; description: string; action: string };
   user: CurrentUser;
+  connectionStatus: DataConnectionStatus;
   onMenu: () => void;
   onLogout: () => void;
 }) {
@@ -622,6 +715,7 @@ function MobileAppHeader({
       <div className="flex items-center justify-between gap-3">
         <Link className="flex min-w-0 items-center gap-2.5" href="/dashboard" aria-label="홈으로 이동">
           <BrandSeal size={40} />
+          <ConnectionLightDot status={connectionStatus} />
           <div className="min-w-0">
             <p className="truncate text-[11px] font-extrabold uppercase tracking-[0.14em] text-brand">Bonsung Music</p>
             <h1 className="truncate text-xl font-extrabold tracking-tight text-ink">{current.title}</h1>
@@ -652,16 +746,16 @@ function getSessionUser(role: Role): CurrentUser | null {
 
   const serverToken = window.localStorage.getItem(VERSION3_SERVER_SESSION_TOKEN_KEY);
   if (serverToken) {
-    const serverUser = sessionUserFromJson(role, window.localStorage.getItem(VERSION3_SERVER_USER_KEY), "server");
+    const serverUser = sessionUserFromJson(role, window.localStorage.getItem(VERSION3_SERVER_USER_KEY));
     if (serverUser) return serverUser;
   }
 
   if (!ENABLE_APPS_SCRIPT_TRANSITION || !window.localStorage.getItem(APPS_SCRIPT_SESSION_TOKEN_KEY)) return null;
 
-  return sessionUserFromJson(role, window.localStorage.getItem(APPS_SCRIPT_USER_KEY), "apps-script");
+  return sessionUserFromJson(role, window.localStorage.getItem(APPS_SCRIPT_USER_KEY));
 }
 
-function sessionUserFromJson(role: Role, value: string | null, source: "server" | "apps-script"): CurrentUser | null {
+function sessionUserFromJson(role: Role, value: string | null): CurrentUser | null {
   try {
     const user = JSON.parse(value || "null") as (AppsScriptUser & Version3ServerUser) | null;
     if (!user) return null;
@@ -673,7 +767,7 @@ function sessionUserFromJson(role: Role, value: string | null, source: "server" 
       email: user.email || "",
       role: normalizedRole,
       linkedStudentId: user.linkedStudentId || user.linked_student_id || "",
-      mustChangePassword: source === "server" ? Boolean(user.mustChangePassword || user.must_change_password) : false,
+      mustChangePassword: Boolean(user.mustChangePassword || user.must_change_password),
       sessionExpiresAt: user.sessionExpiresAt || user.session_expires_at || "",
       permissions: user.permissions || {}
     };
@@ -734,15 +828,38 @@ function SidebarAccountBadge({ user }: { user: CurrentUser }) {
   );
 }
 
-function BrandBlock({ compact = false }: { compact?: boolean }) {
+function BrandBlock({ compact = false, connectionStatus = "disconnected" }: { compact?: boolean; connectionStatus?: DataConnectionStatus }) {
   return (
     <Link href="/dashboard" className={`flex items-center gap-3 ${compact ? "" : "border-b border-line pb-5"}`}>
       <BrandSeal size={compact ? 44 : 52} />
+      <ConnectionLightDot status={connectionStatus} />
       <div>
         <p className="text-lg font-extrabold tracking-tight text-brand">본성뮤직</p>
         <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted">Music Academy</p>
       </div>
     </Link>
+  );
+}
+
+function ConnectionLightDot({ status }: { status: DataConnectionStatus }) {
+  const copy = {
+    disconnected: "데이터 연동 안 됨",
+    unstable: "데이터 연동 불안정",
+    connected: "데이터 연동 완료 및 반영중"
+  } satisfies Record<DataConnectionStatus, string>;
+  const className = {
+    disconnected: "bg-red-500 shadow-[0_0_0_3px_rgba(239,68,68,0.14)]",
+    unstable: "animate-pulse bg-orange-400 shadow-[0_0_0_3px_rgba(251,146,60,0.18)]",
+    connected: "bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.16)]"
+  } satisfies Record<DataConnectionStatus, string>;
+
+  return (
+    <span
+      aria-label={copy[status]}
+      className={`h-2.5 w-2.5 shrink-0 rounded-full ${className[status]}`}
+      role="status"
+      title={copy[status]}
+    />
   );
 }
 

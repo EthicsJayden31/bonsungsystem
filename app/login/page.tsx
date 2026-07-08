@@ -30,9 +30,9 @@ export default function LoginPage() {
     setLiveLoginError("");
     try {
       clearClientSession();
-      if (isVersion3ServerConfigured()) {
-        const result = await loginWithVersion3Server(loginId, password);
-        setServerSession(result.token, result.user);
+      if (ENABLE_APPS_SCRIPT_TRANSITION) {
+        const result = await loginWithAppsScript(loginId, password);
+        setLiveSession(result.token, result.user);
         if (!isNextRole(result.user.role)) {
           window.localStorage.removeItem(PREVIEW_ROLE_KEY);
           setLiveLoginError("Version.3에서 사용할 수 있는 계정 종류가 아닙니다.");
@@ -43,9 +43,9 @@ export default function LoginPage() {
         return;
       }
 
-      if (ENABLE_APPS_SCRIPT_TRANSITION) {
-        const result = await loginWithAppsScript(loginId, password);
-        setLiveSession(result.token, result.user);
+      if (isVersion3ServerConfigured()) {
+        const result = await loginWithVersion3Server(loginId, password);
+        setServerSession(result.token, result.user);
         if (!isNextRole(result.user.role)) {
           window.localStorage.removeItem(PREVIEW_ROLE_KEY);
           if (ENABLE_LEGACY_PREVIEW) {
@@ -56,7 +56,7 @@ export default function LoginPage() {
           return;
         }
 
-        router.replace(readPreferences().startPage);
+        router.replace(result.user.mustChangePassword || result.user.must_change_password ? "/profile-settings?forcePasswordChange=1" : readPreferences().startPage);
         return;
       }
 
