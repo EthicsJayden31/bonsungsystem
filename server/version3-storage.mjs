@@ -274,9 +274,15 @@ class GoogleSheetsStorageAdapter extends MemoryStorageAdapter {
 
   constructor(options = {}) {
     super();
+    const serviceAccount = googleServiceAccountCredentials({
+      serviceAccountEmail: options.googleServiceAccountEmail,
+      privateKey: options.googlePrivateKey,
+      serviceAccountJson: options.googleServiceAccountJson,
+      serviceAccountJsonFile: options.googleServiceAccountJsonFile
+    });
     this.spreadsheetId = stringEnv(options.googleSheetsSpreadsheetId || process.env.VERSION3_GOOGLE_SHEETS_SPREADSHEET_ID);
-    this.serviceAccountEmail = stringEnv(options.googleServiceAccountEmail || process.env.VERSION3_GOOGLE_SERVICE_ACCOUNT_EMAIL);
-    this.privateKey = restorePrivateKey(options.googlePrivateKey || process.env.VERSION3_GOOGLE_PRIVATE_KEY);
+    this.serviceAccountEmail = serviceAccount.serviceAccountEmail;
+    this.privateKey = serviceAccount.privateKey;
     this.stateSheet = stringEnv(options.stateSheet || process.env.VERSION3_GOOGLE_SHEETS_STATE_SHEET || "_version3_state");
     this.sessionsSheet = stringEnv(options.sessionsSheet || process.env.VERSION3_GOOGLE_SHEETS_SESSIONS_SHEET || "_version3_sessions");
     this.writeMirrors = process.env.VERSION3_GOOGLE_SHEETS_WRITE_MIRRORS !== "false";
@@ -531,8 +537,8 @@ export function googleSheetsSetupSummary() {
     requiredEnv: [
       "VERSION3_STORAGE_DRIVER=google-sheets",
       "VERSION3_GOOGLE_SHEETS_SPREADSHEET_ID",
-      "VERSION3_GOOGLE_SERVICE_ACCOUNT_EMAIL",
-      "VERSION3_GOOGLE_PRIVATE_KEY",
+      "VERSION3_GOOGLE_SERVICE_ACCOUNT_JSON or VERSION3_GOOGLE_SERVICE_ACCOUNT_EMAIL",
+      "VERSION3_GOOGLE_SERVICE_ACCOUNT_JSON or VERSION3_GOOGLE_PRIVATE_KEY",
       "VERSION3_SESSION_SECRET"
     ],
     requiredTabs: ["_version3_state", "_version3_sessions", ...mirrorSheetNames()],
@@ -541,13 +547,70 @@ export function googleSheetsSetupSummary() {
   };
 }
 
+export function googleServiceAccountCredentials(values = {}) {
+  const inlineJson = parseGoogleServiceAccountJson(
+    values.serviceAccountJson || process.env.VERSION3_GOOGLE_SERVICE_ACCOUNT_JSON,
+    "VERSION3_GOOGLE_SERVICE_ACCOUNT_JSON"
+  );
+  const fileJson = parseGoogleServiceAccountJsonFile(
+    values.serviceAccountJsonFile || process.env.VERSION3_GOOGLE_SERVICE_ACCOUNT_JSON_FILE
+  );
+
+  return {
+    serviceAccountEmail: stringEnv(
+      values.serviceAccountEmail ||
+      process.env.VERSION3_GOOGLE_SERVICE_ACCOUNT_EMAIL ||
+      inlineJson.client_email ||
+      fileJson.client_email
+    ),
+    privateKey: restorePrivateKey(
+      values.privateKey ||
+      process.env.VERSION3_GOOGLE_PRIVATE_KEY ||
+      inlineJson.private_key ||
+      fileJson.private_key
+    )
+  };
+}
+
 export function missingGoogleSheetsEnv(values = {}) {
   const missing = [];
+  const serviceAccount = googleServiceAccountCredentials({
+    serviceAccountEmail: values.serviceAccountEmail,
+    privateKey: values.privateKey,
+    serviceAccountJson: values.serviceAccountJson,
+    serviceAccountJsonFile: values.serviceAccountJsonFile
+  });
   if (!stringEnv(values.spreadsheetId || process.env.VERSION3_GOOGLE_SHEETS_SPREADSHEET_ID)) missing.push("VERSION3_GOOGLE_SHEETS_SPREADSHEET_ID");
-  if (!stringEnv(values.serviceAccountEmail || process.env.VERSION3_GOOGLE_SERVICE_ACCOUNT_EMAIL)) missing.push("VERSION3_GOOGLE_SERVICE_ACCOUNT_EMAIL");
-  if (!restorePrivateKey(values.privateKey || process.env.VERSION3_GOOGLE_PRIVATE_KEY)) missing.push("VERSION3_GOOGLE_PRIVATE_KEY");
+  if (!serviceAccount.serviceAccountEmail) missing.push("VERSION3_GOOGLE_SERVICE_ACCOUNT_EMAIL or VERSION3_GOOGLE_SERVICE_ACCOUNT_JSON");
+  if (!serviceAccount.privateKey) missing.push("VERSION3_GOOGLE_PRIVATE_KEY or VERSION3_GOOGLE_SERVICE_ACCOUNT_JSON");
   if (!stringEnv(process.env.VERSION3_SESSION_SECRET)) missing.push("VERSION3_SESSION_SECRET");
   return missing;
+}
+
+function parseGoogleServiceAccountJsonFile(value) {
+  const file = stringEnv(value);
+  if (!file) return {};
+  try {
+    return parseGoogleServiceAccountJson(readFileSync(resolve(file), "utf8"), "VERSION3_GOOGLE_SERVICE_ACCOUNT_JSON_FILE");
+  } catch (error) {
+    if (String(error?.message || "").includes("service account JSON")) throw error;
+    throw new Error(`Google Sheets service account JSON file in VERSION3_GOOGLE_SERVICE_ACCOUNT_JSON_FILE could not be read.`);
+  }
+}
+
+function parseGoogleServiceAccountJson(value, source) {
+  const raw = stringEnv(value);
+  if (!raw) return {};
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error(`Google Sheets service account JSON in ${source} must be valid JSON.`);
+  }
+  return {
+    client_email: stringEnv(parsed.client_email),
+    private_key: restorePrivateKey(parsed.private_key)
+  };
 }
 
 function backupPathFor(path) {

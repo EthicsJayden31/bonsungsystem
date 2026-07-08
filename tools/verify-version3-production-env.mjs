@@ -1,3 +1,5 @@
+import { googleServiceAccountCredentials } from "../server/version3-storage.mjs";
+
 const errors = [];
 const warnings = [];
 
@@ -12,6 +14,8 @@ const dataFile = readEnv("VERSION3_LOCAL_DATA_FILE") || ".version3-local-data.js
 const googleSheetsSpreadsheetId = readEnv("VERSION3_GOOGLE_SHEETS_SPREADSHEET_ID");
 const googleServiceAccountEmail = readEnv("VERSION3_GOOGLE_SERVICE_ACCOUNT_EMAIL");
 const googlePrivateKey = readEnv("VERSION3_GOOGLE_PRIVATE_KEY");
+const googleServiceAccountJson = readEnv("VERSION3_GOOGLE_SERVICE_ACCOUNT_JSON");
+const googleServiceAccountJsonFile = readEnv("VERSION3_GOOGLE_SERVICE_ACCOUNT_JSON_FILE");
 const sessionSecret = readEnv("VERSION3_SESSION_SECRET");
 const sessionTtl = readEnv("VERSION3_SESSION_TTL_HOURS") || "12";
 const port = readEnv("PORT") || readEnv("VERSION3_LOCAL_SERVER_PORT") || "4303";
@@ -69,9 +73,21 @@ if (storageDriver && !["postgres", "google-sheets", "file", "memory"].includes(s
 if (storageDriver === "postgres" || databaseUrl) {
   if (!databaseUrl) errors.push("VERSION3_DATABASE_URL must be set when VERSION3_STORAGE_DRIVER=postgres.");
 } else if (storageDriver === "google-sheets") {
+  let googleServiceAccount = { serviceAccountEmail: "", privateKey: "" };
+  try {
+    googleServiceAccount = googleServiceAccountCredentials({
+      serviceAccountEmail: googleServiceAccountEmail,
+      privateKey: googlePrivateKey,
+      serviceAccountJson: googleServiceAccountJson,
+      serviceAccountJsonFile: googleServiceAccountJsonFile
+    });
+  } catch (error) {
+    errors.push(error?.message || "Google Sheets service account JSON is invalid.");
+  }
+
   if (!googleSheetsSpreadsheetId) errors.push("VERSION3_GOOGLE_SHEETS_SPREADSHEET_ID must be set when VERSION3_STORAGE_DRIVER=google-sheets.");
-  if (!googleServiceAccountEmail) errors.push("VERSION3_GOOGLE_SERVICE_ACCOUNT_EMAIL must be set when VERSION3_STORAGE_DRIVER=google-sheets.");
-  if (!googlePrivateKey) errors.push("VERSION3_GOOGLE_PRIVATE_KEY must be set when VERSION3_STORAGE_DRIVER=google-sheets.");
+  if (!googleServiceAccount.serviceAccountEmail) errors.push("VERSION3_GOOGLE_SERVICE_ACCOUNT_EMAIL or VERSION3_GOOGLE_SERVICE_ACCOUNT_JSON must be set when VERSION3_STORAGE_DRIVER=google-sheets.");
+  if (!googleServiceAccount.privateKey) errors.push("VERSION3_GOOGLE_PRIVATE_KEY or VERSION3_GOOGLE_SERVICE_ACCOUNT_JSON must be set when VERSION3_STORAGE_DRIVER=google-sheets.");
   if (!sessionSecret) {
     errors.push("VERSION3_SESSION_SECRET must be set when VERSION3_STORAGE_DRIVER=google-sheets.");
   } else if (sessionSecret.length < 32) {

@@ -39,6 +39,7 @@ function isSetupRequiredError(message) {
     "Set VERSION3_ALLOWED_ORIGINS",
     "Set VERSION3_LOCAL_DATA_FILE",
     "Keep Version.3 data backups enabled",
+    "Google Sheets service account JSON",
     "VERSION3_DATABASE_URL is required"
   ].some((pattern) => message.includes(pattern));
 }
