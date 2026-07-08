@@ -4,5 +4,11 @@
       "source": "/api/version3/:path*",
       "destination": "/api/version3/[...path]"
     }
+  ],
+  "crons": [
+    {
+      "path": "/api/version3/sync/apps-script",
+      "schedule": "* * * * *"
+    }
   ]
 }

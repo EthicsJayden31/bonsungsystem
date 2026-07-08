@@ -46,3 +46,15 @@ VERSION3_SESSION_SECRET=<long-random-secret>
 ## 현재 기준
 
 현재 파일럿 기준 문서는 [version3-apps-script-pilot.md](./version3-apps-script-pilot.md)입니다.
+## Preserved implementation references
+
+The held Vercel + Google Sheets path stores server state in `_version3_state`
+and hashed sessions in `_version3_sessions`. The preserved setup and
+verification commands are:
+
+```powershell
+pnpm run setup:version3-google-sheets
+pnpm run migrate:version3-google-sheets
+pnpm run verify:version3-google-sheets
+pnpm run verify:version3-vercel-api
+```

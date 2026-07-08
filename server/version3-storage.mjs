@@ -40,6 +40,7 @@ class MemoryStorageAdapter {
   persistenceEnabled = false;
   backupEnabled = false;
   dataFilePath = "";
+  supportsSyncOutbox = false;
 
   async loadState() {
     return null;
@@ -71,6 +72,35 @@ class MemoryStorageAdapter {
 
   async keepOnlySession() {
     return 0;
+  }
+
+  async markSyncPending() {
+    return { supported: false, storageMode: this.mode };
+  }
+
+  async syncStatus() {
+    return {
+      supported: false,
+      storageMode: this.mode,
+      pending: false,
+      pendingRevision: 0,
+      lastSyncedRevision: 0,
+      syncingRevision: 0,
+      leaseUntil: "",
+      lastEnqueuedAt: "",
+      lastAttemptAt: "",
+      lastSuccessAt: "",
+      lastError: "",
+      failedAttempts: 0
+    };
+  }
+
+  async claimPendingSync() {
+    return null;
+  }
+
+  async completePendingSync() {
+    return;
   }
 }
 
@@ -130,6 +160,7 @@ class PostgresStorageAdapter extends MemoryStorageAdapter {
   persistenceEnabled = true;
   backupEnabled = true;
   dataFilePath = "postgres://version3_state";
+  supportsSyncOutbox = true;
 
   constructor(databaseUrl) {
     super();
@@ -166,6 +197,21 @@ class PostgresStorageAdapter extends MemoryStorageAdapter {
       `);
       await client.query("create index if not exists version3_sessions_account_idx on version3_sessions (account_id)");
       await client.query("create index if not exists version3_sessions_expires_idx on version3_sessions (expires_at)");
+      await client.query(`
+        create table if not exists version3_sync_state (
+          id text primary key,
+          pending_revision bigint not null default 0,
+          last_synced_revision bigint not null default 0,
+          syncing_revision bigint,
+          lease_until timestamptz,
+          last_enqueued_at timestamptz,
+          last_attempt_at timestamptz,
+          last_success_at timestamptz,
+          last_error text,
+          failed_attempts integer not null default 0,
+          updated_at timestamptz not null default now()
+        )
+      `);
     });
   }
 
@@ -254,6 +300,177 @@ class PostgresStorageAdapter extends MemoryStorageAdapter {
         [activeTokenHash, accountId]
       );
       return result.rowCount || 0;
+    });
+  }
+
+  async markSyncPending(reason = "database-save") {
+    return this.withClient(async (client) => {
+      await client.query("set statement_timeout = '10s'");
+      await client.query(
+        `
+          insert into version3_sync_state (id, pending_revision, last_enqueued_at, last_error, updated_at)
+          values ('main', 0, now(), null, now())
+          on conflict (id) do nothing
+        `
+      );
+      const result = await client.query(
+        `
+          update version3_sync_state
+          set pending_revision = greatest(
+                pending_revision,
+                coalesce((select revision from version3_state where id = 'main'), pending_revision)
+              ),
+              last_enqueued_at = now(),
+              last_error = case when failed_attempts = 0 then null else last_error end,
+              updated_at = now()
+          where id = 'main'
+          returning pending_revision, last_synced_revision
+        `
+      );
+      const row = result.rows[0] || {};
+      return {
+        supported: true,
+        storageMode: this.mode,
+        pendingRevision: Number(row.pending_revision || 0),
+        lastSyncedRevision: Number(row.last_synced_revision || 0)
+      };
+    });
+  }
+
+  async syncStatus() {
+    return this.withClient(async (client) => {
+      await client.query("set statement_timeout = '10s'");
+      await client.query(
+        `
+          insert into version3_sync_state (id, pending_revision, last_synced_revision, updated_at)
+          values ('main', 0, 0, now())
+          on conflict (id) do nothing
+        `
+      );
+      const result = await client.query(
+        `
+          select
+            coalesce((select revision from version3_state where id = 'main'), 0) as local_revision,
+            pending_revision,
+            last_synced_revision,
+            syncing_revision,
+            lease_until,
+            last_enqueued_at,
+            last_attempt_at,
+            last_success_at,
+            last_error,
+            failed_attempts
+          from version3_sync_state
+          where id = 'main'
+        `
+      );
+      return postgresSyncStatus(this.mode, result.rows[0] || {});
+    });
+  }
+
+  async claimPendingSync({ force = false, leaseSeconds = 90 } = {}) {
+    return this.withClient(async (client) => {
+      await client.query("begin");
+      try {
+        await client.query("set local statement_timeout = '10s'");
+        await client.query(
+          `
+            insert into version3_sync_state (id, pending_revision, last_synced_revision, updated_at)
+            values ('main', 0, 0, now())
+            on conflict (id) do nothing
+          `
+        );
+        const result = await client.query(
+          `
+            select
+              s.data,
+              s.revision as local_revision,
+              q.pending_revision,
+              q.last_synced_revision,
+              q.syncing_revision,
+              q.lease_until,
+              q.failed_attempts
+            from version3_state s
+            cross join version3_sync_state q
+            where s.id = 'main' and q.id = 'main'
+            for update
+          `
+        );
+        const row = result.rows[0];
+        if (!row) {
+          await client.query("commit");
+          return null;
+        }
+
+        const localRevision = Number(row.local_revision || 0);
+        const pendingRevision = Math.max(Number(row.pending_revision || 0), localRevision);
+        const lastSyncedRevision = Number(row.last_synced_revision || 0);
+        const leaseActive = row.lease_until && new Date(row.lease_until).getTime() > Date.now();
+        if (!force && (pendingRevision <= lastSyncedRevision || leaseActive)) {
+          await client.query("commit");
+          return null;
+        }
+
+        await client.query(
+          `
+            update version3_sync_state
+            set pending_revision = $1,
+                syncing_revision = $2,
+                lease_until = now() + ($3 || ' seconds')::interval,
+                last_attempt_at = now(),
+                updated_at = now()
+            where id = 'main'
+          `,
+          [pendingRevision, localRevision, String(Math.max(30, Number(leaseSeconds || 90)))]
+        );
+        await client.query("commit");
+        return {
+          revision: localRevision,
+          pendingRevision,
+          lastSyncedRevision,
+          snapshot: row.data
+        };
+      } catch (error) {
+        await client.query("rollback");
+        throw error;
+      }
+    });
+  }
+
+  async completePendingSync(revision, result = {}) {
+    const targetRevision = Number(revision || 0);
+    await this.withClient(async (client) => {
+      await client.query("set statement_timeout = '10s'");
+      if (result.ok) {
+        await client.query(
+          `
+            update version3_sync_state
+            set last_synced_revision = greatest(last_synced_revision, $1),
+                syncing_revision = null,
+                lease_until = null,
+                last_success_at = now(),
+                last_error = null,
+                failed_attempts = 0,
+                updated_at = now()
+            where id = 'main'
+          `,
+          [targetRevision]
+        );
+        return;
+      }
+
+      await client.query(
+        `
+          update version3_sync_state
+          set syncing_revision = null,
+              lease_until = null,
+              last_error = $2,
+              failed_attempts = failed_attempts + 1,
+              updated_at = now()
+          where id = 'main' and ($1 = 0 or syncing_revision = $1 or syncing_revision is null)
+        `,
+        [targetRevision, String(result.error || "Apps Script sync failed.").slice(0, 2000)]
+      );
     });
   }
 
@@ -671,6 +888,29 @@ function upsertSessionRow(rows, session) {
   const nextRows = rows.filter((row) => row[0] !== session.tokenHash);
   nextRows.unshift([session.tokenHash, session.accountId, session.expiresAt, session.createdAt, session.lastSeenAt, session.revokedAt]);
   return nextRows;
+}
+
+function postgresSyncStatus(storageMode, row = {}) {
+  const localRevision = Number(row.local_revision || 0);
+  const pendingRevision = Math.max(Number(row.pending_revision || 0), localRevision);
+  const lastSyncedRevision = Number(row.last_synced_revision || 0);
+  const leaseUntil = row.lease_until ? new Date(row.lease_until).toISOString() : "";
+  const syncingRevision = Number(row.syncing_revision || 0);
+  return {
+    supported: true,
+    storageMode,
+    pending: pendingRevision > lastSyncedRevision,
+    localRevision,
+    pendingRevision,
+    lastSyncedRevision,
+    syncingRevision,
+    leaseUntil,
+    lastEnqueuedAt: row.last_enqueued_at ? new Date(row.last_enqueued_at).toISOString() : "",
+    lastAttemptAt: row.last_attempt_at ? new Date(row.last_attempt_at).toISOString() : "",
+    lastSuccessAt: row.last_success_at ? new Date(row.last_success_at).toISOString() : "",
+    lastError: row.last_error || "",
+    failedAttempts: Number(row.failed_attempts || 0)
+  };
 }
 
 async function retryRevisionRead() {

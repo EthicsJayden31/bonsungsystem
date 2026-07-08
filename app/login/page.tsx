@@ -8,7 +8,7 @@ import { loginWithAppsScript } from "@/lib/apps-script-client";
 import { clearClientSession, isNextRole, PREVIEW_ROLE_KEY, redirectToAppPath, setLiveSession, setServerSession } from "@/lib/client-session";
 import { readPreferences } from "@/lib/preferences";
 import { isVersion3ServerConfigured, loginWithVersion3Server } from "@/lib/version3-server-client";
-import { ENABLE_APPS_SCRIPT_TRANSITION, ENABLE_LEGACY_PREVIEW } from "@/lib/version3-runtime-flags";
+import { ENABLE_APPS_SCRIPT_TRANSITION, ENABLE_BUFFERED_APPS_SCRIPT_SYNC, ENABLE_LEGACY_PREVIEW } from "@/lib/version3-runtime-flags";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -30,6 +30,28 @@ export default function LoginPage() {
     setLiveLoginError("");
     try {
       clearClientSession();
+      if (ENABLE_BUFFERED_APPS_SCRIPT_SYNC && isVersion3ServerConfigured()) {
+        try {
+          const result = await loginWithVersion3Server(loginId, password);
+          setServerSession(result.token, result.user);
+          if (!isNextRole(result.user.role)) {
+            window.localStorage.removeItem(PREVIEW_ROLE_KEY);
+            if (ENABLE_LEGACY_PREVIEW) {
+              redirectToAppPath("/legacy-preview/");
+              return;
+            }
+            setLiveLoginError("Version.3에서 사용할 수 없는 계정 종류입니다.");
+            return;
+          }
+
+          router.replace(result.user.mustChangePassword || result.user.must_change_password ? "/profile-settings?forcePasswordChange=1" : readPreferences().startPage);
+          return;
+        } catch (bufferedLoginError) {
+          if (!ENABLE_APPS_SCRIPT_TRANSITION) throw bufferedLoginError;
+          console.warn("Version.3 buffered login failed; falling back to Apps Script transition login.", bufferedLoginError);
+        }
+      }
+
       if (ENABLE_APPS_SCRIPT_TRANSITION) {
         const result = await loginWithAppsScript(loginId, password);
         setLiveSession(result.token, result.user);

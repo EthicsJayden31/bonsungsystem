@@ -226,12 +226,12 @@ const requiredSourceSignals = [
   },
   {
     file: "app/login/page.tsx",
-    includes: ["ENABLE_APPS_SCRIPT_TRANSITION", "ENABLE_LEGACY_PREVIEW", "isVersion3ServerConfigured", "loginWithVersion3Server", "setServerSession", "loginWithAppsScript", "readPreferences().startPage", "flex", "flex-col", "placeholder=\"ID\"", "placeholder=\"PW\"", "LOGIN", "※계정 요청 및 패스워드 초기화는 매니저에게 문의 바랍니다.", "@Bonsungmusicacademy Alrights Reserved", "bonsung-logo-seal.png"],
+    includes: ["ENABLE_APPS_SCRIPT_TRANSITION", "ENABLE_BUFFERED_APPS_SCRIPT_SYNC", "ENABLE_LEGACY_PREVIEW", "isVersion3ServerConfigured", "loginWithVersion3Server", "setServerSession", "loginWithAppsScript", "readPreferences().startPage", "flex", "flex-col", "placeholder=\"ID\"", "placeholder=\"PW\"", "LOGIN", "※계정 요청 및 패스워드 초기화는 매니저에게 문의 바랍니다.", "@Bonsungmusicacademy Alrights Reserved", "bonsung-logo-seal.png"],
     label: "login page keeps the real login surface minimal while retaining Version.3 server login and transition gates"
   },
   {
     file: "lib/version3-runtime-flags.ts",
-    includes: ["NEXT_PUBLIC_ENABLE_APPS_SCRIPT_TRANSITION", "NEXT_PUBLIC_ENABLE_LEGACY_PREVIEW", "NEXT_PUBLIC_ENABLE_PREVIEW_LOGIN"],
+    includes: ["NEXT_PUBLIC_ENABLE_APPS_SCRIPT_TRANSITION", "NEXT_PUBLIC_ENABLE_BUFFERED_APPS_SCRIPT_SYNC", "NEXT_PUBLIC_ENABLE_LEGACY_PREVIEW", "NEXT_PUBLIC_ENABLE_PREVIEW_LOGIN"],
     label: "runtime flags keep transition-only paths out of default operation"
   },
   {
@@ -261,13 +261,18 @@ const requiredSourceSignals = [
   },
   {
     file: "server/version3-local-server.mjs",
-    includes: ["VERSION3_LOCAL_DATA_FILE", "VERSION3_OWNER_INITIAL_PASSWORD", "VERSION3_STORAGE_DRIVER", "VERSION3_DATABASE_URL", "createVersion3StorageAdapter", "hashSessionToken", "migrateAdminInitialPassword", "handleVersion3NodeRequest", "normalizedRequestUrl", "VERSION3_SESSION_TTL_HOURS", "VERSION3_DISABLE_LOCAL_BACKUPS", "VERSION3_SERVER_HOST", "VERSION3_ALLOWED_ORIGINS", "assertServerRuntimeSafe", "persistent file before running a public Version.3 server", "data backups enabled before running a public Version.3 server", "healthReport", "/health", "passwordMinLength", "isValidPassword", "canLoginAccount", "loginFailureWindowMs", "loginFailureLockMs", "maxLoginFailures", "recordLoginFailure", "clearLoginFailures", "login_throttled", "systemActor", "/auth/login", "/auth/logout", "/auth/change-password", "/bootstrap", "/accounts", "/account-history", "/audit-logs", "/data-quality", "/data-export", "/data-import", "/data-backups", "listDataBackups", "backupEntries", "importData", "hydrateImportedAccountPasswords", "replaceDatabase", "keepOnlySession", "/actions/", "dashboardWorkQueue", "createStudent", "createTeacher", "createEnrollment", "createLesson", "updateAttendance", "createLessonLog", "createReservation", "createRegistration", "createTask", "Unsupported Version.3 action", "Student management permission is required", "Enrollment requires a valid teacher", "Lesson note requires an existing lesson", "Attendance requires a valid lesson", "Reservation end time must be after start time", "reference-integrity", "brokenReferences", "backupEnabled", "sanitizeDatabaseExport", "hashPassword", "verifyPassword", "migrateAccountPasswords", "isSelfAccountMutation", "invalidateAccountSessions", "createConsultation", "acknowledgeConsultation", "unreadForAccountIds", "Consultation triage permission is required", "findConsultationAssignee", "manageNotices", "saveDatabase", "addAuditLog", "export_data", "import_data"],
+    includes: ["VERSION3_LOCAL_DATA_FILE", "VERSION3_OWNER_INITIAL_PASSWORD", "VERSION3_STORAGE_DRIVER", "VERSION3_DATABASE_URL", "createVersion3StorageAdapter", "hashSessionToken", "migrateAdminInitialPassword", "handleVersion3NodeRequest", "normalizedRequestUrl", "VERSION3_SESSION_TTL_HOURS", "VERSION3_DISABLE_LOCAL_BACKUPS", "VERSION3_SERVER_HOST", "VERSION3_ALLOWED_ORIGINS", "assertServerRuntimeSafe", "persistent file before running a public Version.3 server", "data backups enabled before running a public Version.3 server", "healthReport", "/health", "/sync/apps-script", "/sync/status", "runAppsScriptOutboxSync", "markAppsScriptSyncPending", "passwordMinLength", "isValidPassword", "canLoginAccount", "loginFailureWindowMs", "loginFailureLockMs", "maxLoginFailures", "recordLoginFailure", "clearLoginFailures", "login_throttled", "systemActor", "/auth/login", "/auth/logout", "/auth/change-password", "/bootstrap", "/accounts", "/account-history", "/audit-logs", "/data-quality", "/data-export", "/data-import", "/data-backups", "listDataBackups", "backupEntries", "importData", "hydrateImportedAccountPasswords", "replaceDatabase", "keepOnlySession", "/actions/", "dashboardWorkQueue", "createStudent", "createTeacher", "createEnrollment", "createLesson", "updateAttendance", "createLessonLog", "createReservation", "createRegistration", "createTask", "Unsupported Version.3 action", "Student management permission is required", "Enrollment requires a valid teacher", "Lesson note requires an existing lesson", "Attendance requires a valid lesson", "Reservation end time must be after start time", "reference-integrity", "brokenReferences", "backupEnabled", "sanitizeDatabaseExport", "hashPassword", "verifyPassword", "migrateAccountPasswords", "isSelfAccountMutation", "invalidateAccountSessions", "createConsultation", "acknowledgeConsultation", "unreadForAccountIds", "Consultation triage permission is required", "findConsultationAssignee", "manageNotices", "saveDatabase", "addAuditLog", "export_data", "import_data"],
     label: "local Version.3 server implements the separate-server operating contract"
   },
   {
     file: "server/version3-storage.mjs",
-    includes: ["createVersion3StorageAdapter", "VERSION3_DATABASE_URL is required", "VERSION3_STORAGE_DRIVER=postgres", "google-sheets", "GoogleSheetsStorageAdapter", "VERSION3_GOOGLE_SHEETS_SPREADSHEET_ID", "VERSION3_GOOGLE_SERVICE_ACCOUNT_EMAIL", "VERSION3_GOOGLE_PRIVATE_KEY", "VERSION3_SESSION_SECRET", "_version3_state", "_version3_sessions", "hashSessionToken", "createHmac", "create table if not exists version3_state", "create table if not exists version3_sessions", "token_hash", "account_id", "expires_at", "set statement_timeout = '10s'", "for update", "on conflict (id) do nothing", "backupPathFor", "VERSION3_DATABASE_POOL_MAX"],
+    includes: ["createVersion3StorageAdapter", "VERSION3_DATABASE_URL is required", "VERSION3_STORAGE_DRIVER=postgres", "google-sheets", "GoogleSheetsStorageAdapter", "VERSION3_GOOGLE_SHEETS_SPREADSHEET_ID", "VERSION3_GOOGLE_SERVICE_ACCOUNT_EMAIL", "VERSION3_GOOGLE_PRIVATE_KEY", "VERSION3_SESSION_SECRET", "_version3_state", "_version3_sessions", "hashSessionToken", "createHmac", "create table if not exists version3_state", "create table if not exists version3_sessions", "create table if not exists version3_sync_state", "markSyncPending", "claimPendingSync", "completePendingSync", "token_hash", "account_id", "expires_at", "set statement_timeout = '10s'", "for update", "on conflict (id) do nothing", "backupPathFor", "VERSION3_DATABASE_POOL_MAX"],
     label: "Version.3 storage adapter preserves file mode and adds PostgreSQL plus Google Sheets storage with hashed server sessions"
+  },
+  {
+    file: "server/version3-apps-script-sync.mjs",
+    includes: ["VERSION3_APPS_SCRIPT_SYNC_ENABLED", "VERSION3_APPS_SCRIPT_SYNC_PASSWORD", "dataImport", "includeAccounts", "VERSION3_APPS_SCRIPT_SYNC_ACCOUNTS", "markAppsScriptSyncPending", "runAppsScriptOutboxSync", "version3SnapshotToAppsScriptTables"],
+    label: "Apps Script sync bridge maps the durable Version.3 snapshot to Apps Script dataImport tables"
   },
   {
     file: ".gitignore",
@@ -276,7 +281,7 @@ const requiredSourceSignals = [
   },
   {
     file: ".env.production.example",
-    includes: ["NODE_ENV=production", "VERSION3_SERVER_HOST=0.0.0.0", "VERSION3_LOCAL_SERVER_PASSWORD=replace-with-a-long-temporary-password", "VERSION3_OWNER_INITIAL_PASSWORD=replace-with-owner-initial-password", "VERSION3_ALLOWED_ORIGINS=https://ethicsjayden31.github.io", "VERSION3_LOCAL_DATA_FILE=/data/version3-data.json", "VERSION3_STORAGE_DRIVER=postgres", "VERSION3_DATABASE_URL=postgres://user:password@host:5432/database", "NEXT_PUBLIC_VERSION3_API_BASE_URL=/api/version3", "VERSION3_STORAGE_DRIVER=google-sheets", "VERSION3_GOOGLE_SHEETS_SPREADSHEET_ID=<spreadsheet-id>", "VERSION3_SESSION_SECRET=<long-random-secret>"],
+    includes: ["NODE_ENV=production", "VERSION3_SERVER_HOST=0.0.0.0", "VERSION3_LOCAL_SERVER_PASSWORD=replace-with-a-long-temporary-password", "VERSION3_OWNER_INITIAL_PASSWORD=replace-with-owner-initial-password", "VERSION3_ALLOWED_ORIGINS=https://ethicsjayden31.github.io", "VERSION3_LOCAL_DATA_FILE=/data/version3-data.json", "VERSION3_STORAGE_DRIVER=postgres", "VERSION3_DATABASE_URL=postgres://user:password@host:5432/database", "NEXT_PUBLIC_VERSION3_API_BASE_URL=/api/version3", "NEXT_PUBLIC_ENABLE_BUFFERED_APPS_SCRIPT_SYNC=true", "VERSION3_APPS_SCRIPT_SYNC_ENABLED=true", "VERSION3_APPS_SCRIPT_SYNC_PASSWORD=<apps-script-admin-password>", "CRON_SECRET=<long-random-cron-secret>", "VERSION3_STORAGE_DRIVER=google-sheets", "VERSION3_GOOGLE_SHEETS_SPREADSHEET_ID=<spreadsheet-id>", "VERSION3_SESSION_SECRET=<long-random-secret>"],
     label: "production environment example separates public server settings from local development defaults"
   },
   {
@@ -300,6 +305,11 @@ const requiredSourceSignals = [
     label: "Vercel and Google Sheets guide documents setup, security, migration, and verification"
   },
   {
+    file: "docs/version3-buffered-apps-script-sync.md",
+    includes: ["Version.3 Vercel Buffer -> Apps Script Sync", "NEXT_PUBLIC_ENABLE_BUFFERED_APPS_SCRIPT_SYNC=true", "VERSION3_STORAGE_DRIVER=postgres", "VERSION3_APPS_SCRIPT_SYNC_PASSWORD", "CRON_SECRET", "/api/version3/sync/apps-script", "* * * * *", "VERSION3_APPS_SCRIPT_SYNC_ACCOUNTS=false"],
+    label: "buffered Apps Script sync guide documents the Vercel outbox, cron, and required secrets"
+  },
+  {
     file: "docs/project/version3-production-deploy.md",
     includes: [".env.production.example", "verify:version3-production-env", "VERSION3_OWNER_INITIAL_PASSWORD", "VERSION3_API_BASE_URL", "verify:version3-release", "verify:version3-server", "migrate:version3-file-to-db", "verify:version3-opening-workflow", "Build Version.3 Server Image", "Verify External Version.3 Server", "ghcr.io/ethicsjayden31/bonsung-version3-server", "/data/version3-data.json", "/data-backups", "Apps Script"],
     label: "production deployment checklist explains external server setup and verification gates"
@@ -311,7 +321,7 @@ const requiredSourceSignals = [
   },
   {
     file: "vercel.json",
-    includes: ["/api/version3/:path*", "/api/version3/[...path]"],
+    includes: ["/api/version3/:path*", "/api/version3/[...path]", "/api/version3/sync/apps-script", "* * * * *"],
     label: "Vercel rewrites all nested Version.3 API paths into the root API Function"
   },
   {
@@ -436,7 +446,7 @@ const requiredSourceSignals = [
   },
   {
     file: "components/layout/app-shell.tsx",
-    includes: ["ENABLE_LEGACY_PREVIEW", "ENABLE_APPS_SCRIPT_TRANSITION", "ENABLE_PREVIEW_LOGIN", "getSessionUser(role) ?? (ENABLE_PREVIEW_LOGIN ? previewUsers[role] : null)", "MobileAppHeader", "MobileBottomTabs", "MobileMenuSheet", "SidebarGroup", "SidebarMenuSearch", "filterSidebarGroups", "SIDEBAR_GROUP_STORAGE_KEY", "expandedGroups", "usePreferences", "preferences.mobileMenu", "preferences.density", "VERSION3_SERVER_SESSION_TOKEN_KEY", "logoutVersion3Server", "mustChangePassword", "/profile-settings?forcePasswordChange=1", "Operations", "Academy Roster", "Classes & Rooms", "Administration", "Current Role", "My Today", "Learning", "My Settings", "강사", "개인화 설정", "bonsung-logo-seal.png"],
+    includes: ["ENABLE_LEGACY_PREVIEW", "ENABLE_APPS_SCRIPT_TRANSITION", "ENABLE_BUFFERED_APPS_SCRIPT_SYNC", "ENABLE_PREVIEW_LOGIN", "callVersion3Server<BufferedSyncStatus>(\"/sync/status\")", "getSessionUser(role) ?? (ENABLE_PREVIEW_LOGIN ? previewUsers[role] : null)", "MobileAppHeader", "MobileBottomTabs", "MobileMenuSheet", "SidebarGroup", "SidebarMenuSearch", "filterSidebarGroups", "SIDEBAR_GROUP_STORAGE_KEY", "expandedGroups", "usePreferences", "preferences.mobileMenu", "preferences.density", "VERSION3_SERVER_SESSION_TOKEN_KEY", "logoutVersion3Server", "mustChangePassword", "/profile-settings?forcePasswordChange=1", "Operations", "Academy Roster", "Classes & Rooms", "Administration", "Current Role", "My Today", "Learning", "My Settings", "강사", "개인화 설정", "bonsung-logo-seal.png"],
     label: "Next UI exposes app-like navigation with collapsible desktop menu groups and gates legacy/App Script transition paths"
   },
   {

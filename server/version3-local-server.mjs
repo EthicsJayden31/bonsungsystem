@@ -12,6 +12,7 @@ import {
   bonsungInitialStudents,
   bonsungInitialTeachers
 } from "./bonsung-initial-data.mjs";
+import { appsScriptSyncStatus, markAppsScriptSyncPending, runAppsScriptOutboxSync } from "./version3-apps-script-sync.mjs";
 import { createVersion3StorageAdapter, hashSessionToken } from "./version3-storage.mjs";
 
 const port = Number(process.env.VERSION3_LOCAL_SERVER_PORT || process.env.PORT || 4303);
@@ -94,6 +95,10 @@ export async function handleVersion3NodeRequest(request, response, options = {})
       return sendJson(response, 200, { ok: true, data: healthReport() });
     }
 
+    if ((request.method === "GET" || request.method === "POST") && url.pathname === "/sync/apps-script") {
+      return syncAppsScript(response, request, body, url);
+    }
+
     if (request.method === "POST" && url.pathname === "/account-requests") {
       return createAccountRequest(response, body);
     }
@@ -113,6 +118,7 @@ export async function handleVersion3NodeRequest(request, response, options = {})
     if (request.method === "GET" && url.pathname === "/account-history") return await requirePermission(response, account, "viewAccounts", () => sendJson(response, 200, { ok: true, data: db.accountHistory }));
     if (request.method === "GET" && url.pathname === "/audit-logs") return await requirePermission(response, account, "manageOperations", () => sendJson(response, 200, { ok: true, data: db.auditLogs || [] }));
     if (request.method === "GET" && url.pathname === "/data-quality") return await requirePermission(response, account, "manageOperations", () => sendJson(response, 200, { ok: true, data: dataQualityReport() }));
+    if (request.method === "GET" && url.pathname === "/sync/status") return await requirePermission(response, account, "manageOperations", async () => sendJson(response, 200, { ok: true, data: await syncStatusReport() }));
     if (request.method === "GET" && url.pathname === "/data-export") return await requirePermission(response, account, "manageOperations", () => exportData(response, account));
     if (request.method === "GET" && url.pathname === "/data-backups") return await requireAdmin(response, account, () => listDataBackups(response));
     if (request.method === "POST" && url.pathname === "/data-import") return await requireAdmin(response, account, () => importData(response, request, account, body));
@@ -1193,10 +1199,33 @@ function healthReport() {
       backupEnabled,
       driver: storage.mode
     },
+    sync: {
+      appsScriptBuffered: Boolean(process.env.NEXT_PUBLIC_ENABLE_BUFFERED_APPS_SCRIPT_SYNC === "true"),
+      appsScriptSyncEnabled: Boolean(process.env.VERSION3_APPS_SCRIPT_SYNC_ENABLED === "true"),
+      outboxSupported: Boolean(storage.supportsSyncOutbox)
+    },
     cors: {
       restricted: !allowedOrigins.includes("*")
     }
   };
+}
+
+async function syncStatusReport() {
+  return appsScriptSyncStatus(storage);
+}
+
+async function syncAppsScript(response, request, body, url) {
+  const secret = stringValue(process.env.CRON_SECRET || process.env.VERSION3_CRON_SECRET);
+  const syncEnabled = ["1", "true", "yes", "on"].includes(stringValue(process.env.VERSION3_APPS_SCRIPT_SYNC_ENABLED).toLowerCase());
+  if (syncEnabled && !secret && process.env.NODE_ENV === "production") {
+    return sendJson(response, 503, { ok: false, error: "CRON_SECRET is required for Apps Script sync in production." });
+  }
+  if (syncEnabled && secret && readBearerToken(request) !== secret) {
+    return sendJson(response, 401, { ok: false, error: "Unauthorized Apps Script sync request." });
+  }
+
+  const result = await runAppsScriptOutboxSync(storage, { force: Boolean(body.force || url.searchParams.get("force") === "true") });
+  return sendJson(response, 200, { ok: true, data: result });
 }
 
 function dataExport(account) {
@@ -1763,7 +1792,12 @@ function migrateAdminInitialPassword(snapshot) {
 
 function saveDatabase() {
   if (!persistenceEnabled) return Promise.resolve();
-  pendingSave = pendingSave.catch(() => undefined).then(() => storage.saveState(db));
+  pendingSave = pendingSave.catch(() => undefined).then(async () => {
+    await storage.saveState(db);
+    await markAppsScriptSyncPending(storage).catch((error) => {
+      console.warn(`Version.3 Apps Script sync marker failed: ${error instanceof Error ? error.message : String(error)}`);
+    });
+  });
   return pendingSave;
 }
 

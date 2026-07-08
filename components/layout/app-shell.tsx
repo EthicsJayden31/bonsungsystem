@@ -18,8 +18,8 @@ import { clearClientSession, PREVIEW_ROLE_KEY, SESSION_CHANGE_EVENT } from "@/li
 import { usePreferences } from "@/lib/preferences";
 import { usePreviewRole } from "@/lib/use-preview-role";
 import { hasVersion3TestSession, version3TestCurrentUser } from "@/lib/version3-test-mode";
-import { logoutVersion3Server, VERSION3_SERVER_SESSION_TOKEN_KEY, VERSION3_SERVER_USER_KEY, type Version3ServerUser } from "@/lib/version3-server-client";
-import { ENABLE_APPS_SCRIPT_TRANSITION, ENABLE_LEGACY_PREVIEW, ENABLE_PREVIEW_LOGIN } from "@/lib/version3-runtime-flags";
+import { callVersion3Server, hasVersion3ServerSession, logoutVersion3Server, VERSION3_SERVER_SESSION_TOKEN_KEY, VERSION3_SERVER_USER_KEY, type Version3ServerUser } from "@/lib/version3-server-client";
+import { ENABLE_APPS_SCRIPT_TRANSITION, ENABLE_BUFFERED_APPS_SCRIPT_SYNC, ENABLE_LEGACY_PREVIEW, ENABLE_PREVIEW_LOGIN } from "@/lib/version3-runtime-flags";
 
 type NavItem = {
   href: string;
@@ -36,6 +36,17 @@ type NavGroup = {
 };
 
 type DataConnectionStatus = "disconnected" | "unstable" | "connected";
+
+type BufferedSyncStatus = {
+  enabled?: boolean;
+  configured?: boolean;
+  status?: "disabled" | "disconnected" | "unstable" | "pending" | "connected";
+  outbox?: {
+    pending?: boolean;
+    lastError?: string;
+    failedAttempts?: number;
+  };
+};
 
 const SIDEBAR_GROUP_STORAGE_KEY = "bonsung_sidebar_groups_v1";
 
@@ -202,6 +213,22 @@ function useAppsScriptConnectionStatus(): DataConnectionStatus {
     let timer: number | undefined;
 
     async function check() {
+      if (ENABLE_BUFFERED_APPS_SCRIPT_SYNC && hasVersion3ServerSession()) {
+        if (active) setStatus((current) => (current === "connected" ? "connected" : "unstable"));
+
+        try {
+          const sync = await callVersion3Server<BufferedSyncStatus>("/sync/status");
+          const connected = Boolean(sync.enabled && sync.configured && sync.status === "connected" && !sync.outbox?.lastError);
+          const unstable = Boolean(sync.enabled && sync.configured && (sync.status === "pending" || sync.status === "unstable" || sync.outbox?.pending || sync.outbox?.lastError || sync.outbox?.failedAttempts));
+          if (active) setStatus(connected ? "connected" : unstable ? "unstable" : "disconnected");
+        } catch {
+          if (active) setStatus("unstable");
+        } finally {
+          if (active) timer = window.setTimeout(check, 60000);
+        }
+        return;
+      }
+
       if (!ENABLE_APPS_SCRIPT_TRANSITION || !APPS_SCRIPT_ENDPOINT.trim()) {
         if (active) setStatus("disconnected");
         return;
