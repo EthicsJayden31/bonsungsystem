@@ -7,5 +7,6 @@
 .stage-local-data.json
 .bonsung-stage-data*.bak
 *.bak
+artifacts
 .next
 node_modules

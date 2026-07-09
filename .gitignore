@@ -13,4 +13,5 @@ dist
 stage-data.json
 stage-data.json.*.tmp
 *.bak
+artifacts/
 tmp-*.log
