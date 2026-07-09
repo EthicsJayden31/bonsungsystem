@@ -1611,6 +1611,7 @@ function systemActor() {
 function assertServerRuntimeSafe() {
   const publicHost = !["127.0.0.1", "localhost", "::1"].includes(host);
   const productionMode = process.env.NODE_ENV === "production" || publicHost;
+  const runningOnVercel = process.env.VERCEL === "1" || process.env.VERCEL === "true";
   if (!productionMode) return;
   if (testPassword === "bonsung1") {
     throw new Error("Set BONSUNG_LOCAL_SERVER_PASSWORD to a non-default value before running a public 본성 스테이지 server.");
@@ -1620,6 +1621,9 @@ function assertServerRuntimeSafe() {
   }
   if (allowedOrigins.includes("*")) {
     throw new Error("Set BONSUNG_ALLOWED_ORIGINS to the official 본성 스테이지 UI origin before running a public 본성 스테이지 server.");
+  }
+  if (runningOnVercel && !["postgres", "google-sheets"].includes(storage.mode)) {
+    throw new Error("Set BONSUNG_STORAGE_DRIVER=google-sheets or postgres before running 본성 스테이지 on Vercel.");
   }
   if (!persistenceEnabled) {
     throw new Error("Set BONSUNG_LOCAL_DATA_FILE to a persistent file before running a public 본성 스테이지 server.");

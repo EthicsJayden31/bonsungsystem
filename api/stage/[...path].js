@@ -6,6 +6,7 @@ module.exports = async function handler(request, response) {
   } catch (error) {
     const message = String(error?.message || "본성 스테이지 API startup failed.");
     const setupRequired = isSetupRequiredError(message);
+    console.error("[bonsung-stage-api] startup failed", { setupRequired, message });
     response.statusCode = setupRequired ? 503 : 500;
     response.setHeader("Content-Type", "application/json; charset=utf-8");
     response.setHeader("Cache-Control", "no-store");
@@ -37,6 +38,7 @@ function isSetupRequiredError(message) {
     "Set BONSUNG_LOCAL_SERVER_PASSWORD",
     "Set BONSUNG_ADMIN_INITIAL_PASSWORD",
     "Set BONSUNG_ALLOWED_ORIGINS",
+    "Set BONSUNG_STORAGE_DRIVER",
     "Set BONSUNG_LOCAL_DATA_FILE",
     "Keep 본성 스테이지 data backups enabled",
     "Google Sheets service account JSON",
