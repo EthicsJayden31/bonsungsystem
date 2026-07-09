@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { AppShell } from "@/components/layout/app-shell";
 import { ResourcePage } from "@/components/layout/resource-page";
@@ -6,10 +6,10 @@ import { Badge } from "@/components/ui/badge";
 import { hasVersion3Permission } from "@/lib/access-policy";
 import { studentName, useOperationAction, useOperationsData } from "@/lib/operations-data";
 import { useCurrentUser } from "@/lib/use-current-user";
-import { usePreviewRole } from "@/lib/use-preview-role";
+import { useCurrentRole } from "@/lib/use-current-role";
 
 export default function AttendancePage() {
-  const role = usePreviewRole();
+  const role = useCurrentRole();
   const user = useCurrentUser();
   const { data, source } = useOperationsData(role);
   const saveAction = useOperationAction();
@@ -19,7 +19,7 @@ export default function AttendancePage() {
     <AppShell area="attendance">
       <ResourcePage
         title="출결 관리"
-        description={source === "server" || source === "test" ? "Version.3 서버의 출결 데이터를 표시합니다." : source === "live" ? "전환 세션의 수업/레슨노트 데이터에서 출결 상태를 계산해 표시합니다." : source === "fallback" ? "출결 데이터를 불러오지 못했습니다. 서버 연결과 권한을 확인해야 합니다." : "Preview 데이터로 출결 화면을 점검합니다."}
+        description={source === "server" ? "Version.3 서버의 출결 데이터를 표시합니다." : source === "live" ? "전환 세션의 수업/레슨노트 데이터에서 출결 상태를 계산해 표시합니다." : source === "fallback" ? "출결 데이터를 불러오지 못했습니다. 서버 연결과 권한을 확인해야 합니다." : "출결 데이터를 확인하고 있습니다."}
         headers={["학생", "출결 상태", "보강 필요", "메모"]}
         rows={data.attendance.map((item) => [
           studentName(data, item.studentId),

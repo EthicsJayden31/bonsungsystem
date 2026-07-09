@@ -1,45 +1,18 @@
-# 프로젝트 운영 기준
+# 프로젝트 운영 메모
 
-이 폴더는 본성뮤직 인트라넷을 앞으로 개발할 때 필요한 최소 운영 기준을 보관합니다.
+본성 스테이지 Version.3의 기준 운영 표면은 공식 Next.js UI와 Version.3 API입니다. 테스트 전용 프리뷰 앱, localStorage 더미 운영 데이터, 이전 역할명은 새 작업의 기준으로 사용하지 않습니다.
 
-## 기준 브랜치
+## 현재 기준
 
-- 배포 기준: `codex/v1-intranet`
-- 작업 브랜치: `codex/` 접두사 사용
-- 공개 URL: `https://ethicsjayden31.github.io/bonsungsystem/`
+1. UI는 `app/`의 공식 화면만 사용합니다.
+2. 데이터 저장은 Version.3 API가 담당합니다.
+3. 저장소는 Google Sheets 어댑터, PostgreSQL + Apps Script 동기화, 또는 외부 서버의 지속 파일 저장소 중 하나를 사용합니다.
+4. 역할명은 `admin`, `manager`, `coach`, `artist`로 통일합니다.
+5. 배포 전 `typecheck`, `lint`, `verify:version3-server`, `verify:version3-cleanup`, `build`를 확인합니다.
 
-## 작업 원칙
+## 작업 시 주의
 
-1. 먼저 `codex/v1-intranet` 기준 worktree에서 작업 중인지 확인합니다.
-2. 기능 구현 전 `docs/project/operating-surfaces.md`를 확인합니다.
-3. Version.3 공식 화면과 별도 서버 계약을 우선 구현합니다. `pages-preview/`와 `google-apps-script/`는 전환 보조 경로이며 기본 운영 경로로 되돌리지 않습니다.
-4. 계정 권한과 개인정보 변경은 대표, 매니저, 강사, 수강생 흐름을 각각 검증합니다.
-5. 모바일 390px와 320px 화면도 완료 기준에 포함합니다.
-
-## 관련 문서
-
-- `docs/project/operating-surfaces.md`: Version.3 화면, 서버 계약, 운영 표면 기준
-- `docs/project/external-server-candidates.md`: Base44, Lovable, 별도 Node 서버 후보 검토 기준
-- `docs/project/version3-production-deploy.md`: Version.3 공개 서버 환경값, 데이터 보존, 배포 전 검증 점검표
-- `docs/project/agent-team.md`: 팀장, 프로그래밍, 디자인, 데이터관리, 업무기록 역할 기준
-- `docs/project/task-template.md`: 반복 작업 지시서 양식
-
-## 기본 검증
-
-```text
-pnpm run typecheck
-pnpm run lint
-pnpm run build:pages
-pnpm run verify:surfaces
-pnpm run verify:version3-server
-pnpm run verify:version3-production-env
-pnpm run verify:version3-cleanup
-```
-
-공개 운영 배포 전에는 실제 서버 URL로 다음 검증도 통과해야 합니다.
-
-```text
-VERSION3_API_BASE_URL=https://your-version3-server.example pnpm run verify:version3-release
-```
-
-배포 전에는 `/`, `/login/`, `/dashboard/` 공개 URL을 확인합니다. `NEXT_PUBLIC_ENABLE_LEGACY_PREVIEW=true`로 전환 검증을 켠 경우에만 `/legacy-preview/`를 확인합니다.
+- 이전 `pages-preview`, `/version3-test`, `version3-offline-inspection.html` 흐름을 되살리지 않습니다.
+- 새 기능은 실제 운영 화면과 API 계약에 먼저 구현합니다.
+- 문서나 환경 예시에 실제 비밀번호와 secret을 적지 않습니다.
+- Notion 기록은 사용자가 다시 요청하기 전까지 수행하지 않습니다.

@@ -35,7 +35,7 @@ function isSetupRequiredError(message) {
   return [
     "missing required environment values",
     "Set VERSION3_LOCAL_SERVER_PASSWORD",
-    "Set VERSION3_OWNER_INITIAL_PASSWORD",
+    "Set VERSION3_ADMIN_INITIAL_PASSWORD",
     "Set VERSION3_ALLOWED_ORIGINS",
     "Set VERSION3_LOCAL_DATA_FILE",
     "Keep Version.3 data backups enabled",

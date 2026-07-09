@@ -43,8 +43,12 @@ if (!nextConfig.includes("unoptimized: true")) {
 
 const productionEnvExample = readFileSync(".env.production.example", "utf8");
 const lockfile = readFileSync("pnpm-lock.yaml", "utf8");
-if (productionEnvExample.includes("VERSION3_ADMIN_INITIAL_PASSWORD=")) {
-  errors.push(".env.production.example should use VERSION3_OWNER_INITIAL_PASSWORD instead of the legacy admin alias.");
+const legacyOwnerPasswordKey = ["VERSION3", "OWNER_INITIAL_PASSWORD"].join("_");
+if (!productionEnvExample.includes("VERSION3_ADMIN_INITIAL_PASSWORD=")) {
+  errors.push(".env.production.example must define VERSION3_ADMIN_INITIAL_PASSWORD.");
+}
+if (productionEnvExample.includes(`${legacyOwnerPasswordKey}=`)) {
+  errors.push(`.env.production.example must not use the legacy ${legacyOwnerPasswordKey} name.`);
 }
 if (productionEnvExample.includes("VERSION3_DATABASE_URL=postgres://user:password@host:5432/database") && !productionEnvExample.includes("# VERSION3_DATABASE_URL=")) {
   errors.push(".env.production.example must not enable a real-looking database URL by default.");

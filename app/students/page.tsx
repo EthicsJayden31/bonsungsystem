@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/layout/app-shell";
@@ -10,17 +10,17 @@ import { useAccountsData } from "@/lib/accounts-data";
 import { assetPath } from "@/lib/assets";
 import { teacherName, useOperationAction, useOperationsData, type DataSource } from "@/lib/operations-data";
 import { useCurrentUser } from "@/lib/use-current-user";
-import { usePreviewRole } from "@/lib/use-preview-role";
+import { useCurrentRole } from "@/lib/use-current-role";
 import type { Version3Account } from "@/lib/version3-server-contract";
 
 export default function StudentsPage() {
-  const role = usePreviewRole();
+  const role = useCurrentRole();
   const user = useCurrentUser();
   const operations = useOperationsData(role);
   const accounts = useAccountsData();
   const saveAction = useOperationAction();
   const data = operations.data;
-  const canManageStudents = hasVersion3Permission(user ?? role, "manageStudents") || role === "owner" || role === "manager";
+  const canManageStudents = hasVersion3Permission(user ?? role, "manageStudents") || role === "admin" || role === "manager";
   const [selectedStudentId, setSelectedStudentId] = useState("");
 
   useEffect(() => {
@@ -41,7 +41,7 @@ export default function StudentsPage() {
   const studentAccounts = useMemo(() => {
     const map = new Map<string, Version3Account>();
     accounts.accounts
-      .filter((account) => account.role === "student" && account.linkedStudentId)
+      .filter((account) => account.role === "artist" && account.linkedStudentId)
       .forEach((account) => map.set(account.linkedStudentId, account));
     return map;
   }, [accounts.accounts]);
@@ -91,8 +91,8 @@ export default function StudentsPage() {
       subtitle: `${student.major || "전공 미등록"} · 담당 ${teacher || "-"}`,
       status: <Badge>{student.status}</Badge>,
       meta: [
-        <span key="phone">연락처: {role === "teacher" ? "권한 제한" : student.phone || "-"}</span>,
-        <span key="memo">메모: {role === "teacher" ? maskTeacherMemo(student.memo) : student.memo || "-"}</span>,
+        <span key="phone">연락처: {role === "coach" ? "권한 제한" : student.phone || "-"}</span>,
+        <span key="memo">메모: {role === "coach" ? maskTeacherMemo(student.memo) : student.memo || "-"}</span>,
         canManageStudents ? <span key="account">계정: {studentAccountText(linkedAccount)}</span> : null
       ].filter(Boolean),
       action: (
@@ -136,7 +136,7 @@ export default function StudentsPage() {
             onOpen: openStudentDetail
           }))}
           emptyTitle="학생 기록이 없습니다"
-          emptyDescription="실사용 데이터 또는 preview 데이터에 학생 기록이 없으면 이 상태가 표시됩니다."
+          emptyDescription="운영 데이터에 학생 기록이 없으면 이 상태가 표시됩니다."
           onSubmit={canManageStudents ? saveStudentAndMaybeCreateAccount : undefined}
           submitDisabled={saveAction.pending}
           submitLabel={saveAction.pending ? "저장 중" : "학생 저장"}
@@ -159,20 +159,20 @@ export default function StudentsPage() {
 }
 
 function SourceNote({ source, error }: { source: DataSource; error?: string }) {
-  const text = source === "server" || source === "test"
+  const text = source === "server"
     ? "Version.3 서버의 학생 데이터를 표시합니다."
     : source === "live"
       ? "전환 세션의 학생 데이터를 표시합니다."
       : source === "fallback"
         ? "학생 데이터를 불러오지 못했습니다. 서버 연결과 권한을 확인해야 합니다."
-        : "Preview 점검 모드의 학생 데이터를 표시합니다.";
+        : "학생 데이터를 확인하고 있습니다.";
 
   return (
     <div className="rounded-2xl border border-line bg-white p-4 shadow-card">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm font-semibold text-ink">{text}</p>
-        <Badge tone={source === "server" || source === "test" || source === "live" ? "good" : source === "fallback" ? "warn" : "default"}>
-          {source === "server" || source === "test" ? "서버 데이터" : source === "live" ? "전환 데이터" : source === "fallback" ? "연결 실패" : "Preview"}
+        <Badge tone={source === "server" || source === "live" ? "good" : source === "fallback" ? "warn" : "default"}>
+          {source === "server" ? "서버 데이터" : source === "live" ? "전환 데이터" : source === "fallback" ? "연결 실패" : "확인 중"}
         </Badge>
       </div>
       {error ? <p className="mt-2 text-xs text-muted">연결 오류: {error}</p> : null}
@@ -219,7 +219,7 @@ function studentRow({
     student.major || "-",
     <Badge key={`${student.id}-status`}>{student.status}</Badge>,
     teacher,
-    role === "teacher" ? "권한 제한" : student.phone || "-"
+    role === "coach" ? "권한 제한" : student.phone || "-"
   ];
 
   if (canManageStudents) {
@@ -232,7 +232,7 @@ function studentRow({
 
   return [
     ...common,
-    role === "teacher" ? maskTeacherMemo(student.memo) : student.memo || "-",
+    role === "coach" ? maskTeacherMemo(student.memo) : student.memo || "-",
     <StudentDetailButton studentId={student.id} onOpen={onOpen} key={`${student.id}-detail`} />
   ];
 }

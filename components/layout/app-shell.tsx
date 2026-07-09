@@ -3,23 +3,21 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { assetPath } from "@/lib/assets";
 import { canAccessVersion3Area } from "@/lib/access-policy";
-import { normalizeRole, type CurrentUser, type Role } from "@/lib/auth-shared";
+import { type CurrentUser, type Role } from "@/lib/auth-shared";
 import {
   APPS_SCRIPT_ENDPOINT,
   APPS_SCRIPT_REQUEST_TIMEOUT_MS,
-  APPS_SCRIPT_SESSION_TOKEN_KEY,
-  APPS_SCRIPT_USER_KEY,
-  type AppsScriptUser
+  APPS_SCRIPT_SESSION_TOKEN_KEY
 } from "@/lib/apps-script-client";
-import { clearClientSession, PREVIEW_ROLE_KEY, SESSION_CHANGE_EVENT } from "@/lib/client-session";
+import { clearClientSession, SESSION_CHANGE_EVENT } from "@/lib/client-session";
 import { usePreferences } from "@/lib/preferences";
-import { usePreviewRole } from "@/lib/use-preview-role";
-import { hasVersion3TestSession, version3TestCurrentUser } from "@/lib/version3-test-mode";
-import { callVersion3Server, hasVersion3ServerSession, logoutVersion3Server, VERSION3_SERVER_SESSION_TOKEN_KEY, VERSION3_SERVER_USER_KEY, type Version3ServerUser } from "@/lib/version3-server-client";
-import { ENABLE_APPS_SCRIPT_TRANSITION, ENABLE_BUFFERED_APPS_SCRIPT_SYNC, ENABLE_LEGACY_PREVIEW, ENABLE_PREVIEW_LOGIN } from "@/lib/version3-runtime-flags";
+import { useCurrentUser } from "@/lib/use-current-user";
+import { UI_LOADING_EVENT, UI_TOAST_EVENT, type UiLoadingDetail, type UiToastDetail } from "@/lib/ui-feedback";
+import { callVersion3Server, hasVersion3ServerSession, logoutVersion3Server, VERSION3_SERVER_SESSION_TOKEN_KEY } from "@/lib/version3-server-client";
+import { ENABLE_APPS_SCRIPT_TRANSITION, ENABLE_BUFFERED_APPS_SCRIPT_SYNC } from "@/lib/version3-runtime-flags";
 
 type NavItem = {
   href: string;
@@ -48,12 +46,12 @@ type BufferedSyncStatus = {
   };
 };
 
-const SIDEBAR_GROUP_STORAGE_KEY = "bonsung_sidebar_groups_v1";
+const SIDEBAR_GROUP_STORAGE_KEY = "bonsung_sidebar_groups_v2";
 
 const navGroups: NavGroup[] = [
   {
     id: "operations",
-    title: "Operations",
+    title: "MAIN",
     helper: "오늘 먼저 확인할 일",
     items: [
       { href: "/dashboard", label: "홈", area: "dashboard", tab: "home" },
@@ -64,7 +62,7 @@ const navGroups: NavGroup[] = [
   },
   {
     id: "roster",
-    title: "Academy Roster",
+    title: "ACADEMY",
     helper: "학생, 강사, 보호자, 상담",
     items: [
       { href: "/students", label: "학생", area: "students", tab: "people" },
@@ -75,7 +73,7 @@ const navGroups: NavGroup[] = [
   },
   {
     id: "classes",
-    title: "Classes & Rooms",
+    title: "CLASS",
     helper: "강의, 출결, 예약",
     items: [
       { href: "/enrollments", label: "수강", area: "enrollments", tab: "more" },
@@ -87,7 +85,7 @@ const navGroups: NavGroup[] = [
   },
   {
     id: "administration",
-    title: "Administration",
+    title: "SETTING",
     helper: "계정, 수납과 개인 설정",
     items: [
       { href: "/accounts", label: "계정", area: "accounts", tab: "more" },
@@ -97,7 +95,7 @@ const navGroups: NavGroup[] = [
   }
 ];
 
-const pageCopy: Record<string, { title: string; description: string; action: string }> = {
+const _pageCopy: Record<string, { title: string; description: string; action: string }> = {
   dashboard: { title: "홈", description: "오늘의 수업, 상담, 출결, 납부 흐름을 빠르게 확인합니다.", action: "학생 등록" },
   students: { title: "학생", description: "학생 상태와 보호자, 담당 강사 정보를 한눈에 정리합니다.", action: "학생 등록" },
   teachers: { title: "강사", description: "강사별 학생, 수업, 레슨노트 흐름을 확인합니다.", action: "강사 등록" },
@@ -116,25 +114,25 @@ const pageCopy: Record<string, { title: string; description: string; action: str
   "profile-settings": { title: "개인화 설정", description: "내 화면 방식, 시작 화면, 메뉴 표시 방식을 조정합니다.", action: "설정 저장" }
 };
 
-const dashboardPageCopyByRole: Record<Role, { title: string; description: string; action: string }> = {
-  owner: { title: "대표 운영 홈", description: "전체 운영 현황, 상담요청, 수납과 데이터 점검을 확인합니다.", action: "데이터 점검" },
-  manager: { title: "매니저 운영 홈", description: "상담요청, 학생·강사·수업 관리 흐름을 확인합니다.", action: "학생 관리" },
-  teacher: { title: "강사 업무 홈", description: "담당 학생, 수업, 출결, 레슨노트를 확인합니다.", action: "오늘 수업" },
-  student: { title: "내 수업 홈", description: "공지, 수업, 레슨노트, 상담요청과 연습실 예약을 확인합니다.", action: "내 수업 확인" }
+const _dashboardPageCopyByRole: Record<Role, { title: string; description: string; action: string }> = {
+  admin: { title: "시스템 관리 홈", description: "계정, 권한, 데이터 점검과 시스템 로그를 확인합니다.", action: "데이터 점검" },
+  manager: { title: "Manager 운영 홈", description: "상담요청, Artist·Coach·수업 관리 흐름을 확인합니다.", action: "Artist 관리" },
+  coach: { title: "Coach 업무 홈", description: "담당 Artist, 수업, 출결, 레슨노트를 확인합니다.", action: "오늘 수업" },
+  artist: { title: "Artist 홈", description: "공지, 수업, 레슨노트, 상담요청과 연습실 예약을 확인합니다.", action: "내 수업 확인" }
 };
 
-const roleLabel: Record<Role, string> = {
-  owner: "대표",
-  manager: "매니저",
-  teacher: "강사",
-  student: "수강생"
+const _roleLabel: Record<Role, string> = {
+  admin: "Admin",
+  manager: "Manager",
+  coach: "Coach",
+  artist: "Artist"
 };
 
-const previewUsers: Record<Role, CurrentUser> = {
-  owner: { id: "owner-1", name: "강은미", email: "owner@bonsung.test", role: "owner" },
-  manager: { id: "manager-1", name: "조영진", email: "manager@bonsung.test", role: "manager" },
-  teacher: { id: "teacher-1", name: "황휘현", email: "teacher@bonsung.test", role: "teacher" },
-  student: { id: "student-1-account", name: "장윤호", email: "student@bonsung.test", role: "student", linkedStudentId: "student-jang-yunho" }
+const accountTypeLabel: Record<Role, string> = {
+  admin: "admin",
+  manager: "staff",
+  coach: "coach",
+  artist: "artist"
 };
 
 type BottomTab = { id: NonNullable<NavItem["tab"]>; label: string; icon: string; fallbackHref: string; areas: string[] };
@@ -149,22 +147,22 @@ const defaultBottomTabs: BottomTab[] = [
 
 const roleGroupCopy: Record<string, Partial<Record<Role, { title: string; helper: string }>>> = {
   operations: {
-    student: { title: "My Today", helper: "공지와 내 일정" },
-    teacher: { title: "Teaching Desk", helper: "수업과 확인할 일" }
+    artist: { title: "My Today", helper: "공지와 내 일정" },
+    coach: { title: "Teaching Desk", helper: "수업과 확인할 일" }
   },
   roster: {
-    student: { title: "Support", helper: "상담요청" },
-    teacher: { title: "Students", helper: "담당 학생과 상담" },
-    owner: { title: "Academy Roster", helper: "학생, 강사, 보호자, 상담" },
+    artist: { title: "Support", helper: "상담요청" },
+    coach: { title: "Artists", helper: "담당 Artist와 상담" },
+    admin: { title: "Academy Roster", helper: "Artist, Coach, 보호자, 상담" },
     manager: { title: "Academy Roster", helper: "학생, 강사, 보호자, 상담" }
   },
   classes: {
-    student: { title: "Learning", helper: "수업, 노트, 연습실" },
-    teacher: { title: "Lessons & Rooms", helper: "수업, 출결, 예약" }
+    artist: { title: "Learning", helper: "수업, 노트, 연습실" },
+    coach: { title: "Lessons & Rooms", helper: "수업, 출결, 예약" }
   },
   administration: {
-    student: { title: "My Settings", helper: "개인화 설정" },
-    teacher: { title: "My Settings", helper: "개인화 설정" }
+    artist: { title: "My Settings", helper: "개인화 설정" },
+    coach: { title: "My Settings", helper: "개인화 설정" }
   }
 };
 
@@ -185,8 +183,8 @@ const teacherBottomTabs: BottomTab[] = [
 ];
 
 function bottomTabsFor(role: Role): BottomTab[] {
-  if (role === "student") return studentBottomTabs;
-  if (role === "teacher") return teacherBottomTabs;
+  if (role === "artist") return studentBottomTabs;
+  if (role === "coach") return teacherBottomTabs;
   return defaultBottomTabs;
 }
 
@@ -311,41 +309,26 @@ async function postAppsScriptStatus<T>(body: Record<string, unknown>): Promise<A
 export function AppShell({ children, area = "dashboard" }: { children: ReactNode; area?: string }) {
   const router = useRouter();
   const pathname = usePathname();
-  const role = usePreviewRole();
+  const user = useCurrentUser();
   const preferences = usePreferences();
-  const user = useMemo(() => (role ? getSessionUser(role) ?? (ENABLE_PREVIEW_LOGIN ? previewUsers[role] : null) : null), [role]);
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuQuery, setMenuQuery] = useState("");
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(() => readSidebarGroupState());
-  const [testing, setTesting] = useState(false);
   const connectionStatus = useAppsScriptConnectionStatus();
 
   useEffect(() => {
-    const syncTestingState = () => setTesting(hasVersion3TestSession());
-    syncTestingState();
-    window.addEventListener(SESSION_CHANGE_EVENT, syncTestingState);
-    return () => window.removeEventListener(SESSION_CHANGE_EVENT, syncTestingState);
-  }, []);
-
-  useEffect(() => {
-    const stored = normalizeRole(window.localStorage.getItem(PREVIEW_ROLE_KEY));
-    if (!stored) {
+    if (!user) {
       router.replace("/login");
       return;
     }
-    const currentUser = getSessionUser(stored) ?? (ENABLE_PREVIEW_LOGIN ? previewUsers[stored] : null);
-    if (!currentUser) {
-      router.replace("/login");
-      return;
-    }
-    if (currentUser.mustChangePassword && area !== "profile-settings") {
+    if (user.mustChangePassword && area !== "profile-settings") {
       router.replace("/profile-settings?forcePasswordChange=1");
       return;
     }
-    if (!canAccessVersion3Area(currentUser, area)) {
+    if (!canAccessVersion3Area(user, area)) {
       router.replace("/dashboard");
     }
-  }, [area, pathname, router]);
+  }, [area, pathname, router, user]);
 
   async function logout() {
     if (window.localStorage.getItem(VERSION3_SERVER_SESSION_TOKEN_KEY)) {
@@ -374,7 +357,7 @@ export function AppShell({ children, area = "dashboard" }: { children: ReactNode
   if (!user || !canAccessVersion3Area(user, area)) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-canvas px-4 text-sm text-muted">
-        화면을 준비하고 있습니다.
+        <LoadingMark label="화면을 준비하고 있습니다." />
       </div>
     );
   }
@@ -383,7 +366,6 @@ export function AppShell({ children, area = "dashboard" }: { children: ReactNode
     .map((group) => ({ ...group, items: group.items.filter((item) => canAccessVersion3Area(user, item.area)) }))
     .filter((group) => group.items.length > 0);
   const sidebarGroups = filterSidebarGroups(visibleGroups, user.role, menuQuery);
-  const current = area === "dashboard" ? dashboardPageCopyByRole[user.role] : pageCopy[area] ?? pageCopy.dashboard;
   const compact = preferences.density === "compact";
 
   return (
@@ -391,70 +373,32 @@ export function AppShell({ children, area = "dashboard" }: { children: ReactNode
       <aside className="fixed inset-y-0 left-0 hidden h-screen w-72 flex-col border-r border-line bg-white px-5 py-5 lg:flex">
         <div className="shrink-0">
           <BrandBlock connectionStatus={connectionStatus} />
-          <SidebarAccountBadge user={user} />
+          <SidebarAccountBadge user={user} onLogout={logout} />
           <SidebarMenuSearch query={menuQuery} onChange={setMenuQuery} />
         </div>
         <nav className="mt-5 min-h-0 flex-1 space-y-2 overflow-y-auto pr-1" aria-label="주요 메뉴">
           {sidebarGroups.length ? sidebarGroups.map((group) => (
             <SidebarGroup
-              expanded={expandedGroups[group.id] ?? true}
+              expanded={expandedGroups[group.id] ?? false}
               group={group}
               key={group.id}
               pathname={pathname}
               role={user.role}
-              onToggle={() => setGroupOpen(group.id, !(expandedGroups[group.id] ?? true))}
+              onToggle={() => setGroupOpen(group.id, !(expandedGroups[group.id] ?? false))}
             />
           )) : <SidebarEmptySearch />}
         </nav>
-        <div className="mt-4 shrink-0 space-y-3 border-t border-line pt-4">
-          {ENABLE_LEGACY_PREVIEW ? (
-            <Link className="block rounded-2xl border border-brand/10 bg-brand/5 p-4 text-sm font-bold text-brand hover:bg-brand/10" href={assetPath("/legacy-preview/")}>
-              실사용 legacy 화면
-            </Link>
-          ) : null}
-          <p className="rounded-2xl border border-line bg-surface-muted p-4 text-xs leading-5 text-muted">
-            Version.3 UI는 별도 서버 세션을 기준으로 실사용 데이터를 읽습니다.
-          </p>
-        </div>
       </aside>
 
       <div className="lg:h-screen lg:overflow-y-auto lg:pl-72">
-        <header className="sticky top-0 z-20 hidden border-b border-line bg-white/92 px-4 py-3 backdrop-blur lg:block">
-          <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
-            <div className="flex min-w-0 items-center gap-3">
-              <div className="min-w-0">
-                <p className="truncate text-lg font-extrabold tracking-tight text-ink sm:text-xl">{current.title}</p>
-                <p className="hidden text-xs text-muted sm:block">{current.description}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              {ENABLE_LEGACY_PREVIEW ? (
-                <Link className="hidden rounded-xl border border-line bg-white px-3 py-2.5 text-sm font-semibold text-brand hover:border-brand/40 md:inline-flex" href={assetPath("/legacy-preview/")}>
-                  legacy
-                </Link>
-              ) : null}
-              <div className="hidden text-right sm:block">
-                <p className="text-sm font-semibold text-ink">{user.name}</p>
-                <p className="text-xs text-muted">권한: {roleLabel[user.role]}</p>
-              </div>
-              <button className="hidden rounded-xl bg-brand px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-brand-dark md:inline-flex" type="button">
-                {current.action}
-              </button>
-              <button className="rounded-xl border border-line bg-white px-3 py-2.5 text-sm font-semibold text-muted hover:border-brand/40 hover:text-brand" onClick={logout}>
-                로그아웃
-              </button>
-            </div>
-          </div>
-        </header>
-
-        <MobileAppHeader current={current} user={user} connectionStatus={connectionStatus} onMenu={() => setMenuOpen(true)} onLogout={logout} />
+        <MobileAppHeader user={user} connectionStatus={connectionStatus} onMenu={() => setMenuOpen(true)} onLogout={logout} />
         <MobileHomeStrip groups={visibleGroups} currentArea={area} mode={preferences.mobileMenu} role={user.role} />
         <main className={`mx-auto max-w-7xl px-4 pb-[calc(7.5rem+env(safe-area-inset-bottom))] pt-4 lg:pb-8 ${compact ? "sm:py-5" : "sm:py-8"}`}>{children}</main>
       </div>
 
       <MobileBottomTabs groups={visibleGroups} pathname={pathname} area={area} role={user.role} onMore={() => setMenuOpen(true)} />
       <MobileMenuSheet groups={visibleGroups} open={menuOpen} pathname={pathname} role={user.role} mode={preferences.mobileMenu} onClose={() => setMenuOpen(false)} />
-      {testing ? <TestingPageMark /> : null}
+      <GlobalFeedbackLayer />
     </div>
   );
 }
@@ -496,9 +440,6 @@ function SidebarGroup({
           </span>
         </span>
         <span className="flex shrink-0 items-center gap-1.5">
-          <span className={`min-w-7 rounded-full px-2 py-1 text-center text-[11px] font-black ${active ? "bg-white/18 text-white" : "bg-surface-muted text-brand"}`}>
-            {group.items.length}
-          </span>
           <span className={`flex h-7 w-7 items-center justify-center rounded-full ${active ? "bg-white/18 text-white" : "bg-surface-muted text-brand"}`}>
             <ChevronIcon expanded={expanded} />
           </span>
@@ -550,7 +491,8 @@ function matchesSidebarQuery(values: string[], query: string) {
 }
 
 function groupCopyForRole(group: NavGroup, role: Role) {
-  return roleGroupCopy[group.id]?.[role] ?? { title: group.title, helper: group.helper };
+  const copy = roleGroupCopy[group.id]?.[role];
+  return { title: group.title, helper: copy?.helper ?? group.helper };
 }
 
 function ChevronIcon({ expanded }: { expanded: boolean }) {
@@ -668,6 +610,8 @@ function MobileMenuSheet({
   mode: "grouped" | "expanded";
   onClose: () => void;
 }) {
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+
   if (!open) return null;
 
   return (
@@ -684,40 +628,46 @@ function MobileMenuSheet({
         <div className="grid gap-3">
           {groups.map((group) => {
             const copy = groupCopyForRole(group, role);
+            const expanded = openGroups[group.id] ?? false;
+            const active = group.items.some((item) => pathname === item.href || pathname.startsWith(`${item.href}/`));
             return (
-              <section className="rounded-[22px] border border-line bg-surface-muted p-3" key={group.id}>
-                <div className="mb-3">
-                  <p className="text-sm font-extrabold text-ink">{copy.title}</p>
-                  <p className="mt-1 text-xs text-muted">{copy.helper}</p>
-                </div>
-                <div className={`grid gap-2 ${mode === "expanded" ? "grid-cols-1" : "grid-cols-2"}`}>
-                  {group.items.map((item) => {
-                    const active = pathname === item.href;
-                    return (
-                      <Link
-                        className={`rounded-[18px] border px-3 py-4 text-sm font-extrabold ${active ? "border-brand bg-brand text-white" : "border-line bg-white text-ink"}`}
-                        href={item.href}
-                        key={item.href}
-                        onClick={onClose}
-                      >
-                        {item.label}
-                      </Link>
-                    );
-                  })}
-                </div>
+              <section className={`rounded-[22px] border p-3 ${active ? "border-brand/30 bg-brand/5" : "border-line bg-surface-muted"}`} key={group.id}>
+                <button
+                  className={`flex w-full items-center justify-between gap-3 rounded-[18px] border px-4 py-3 text-left ${
+                    active ? "border-brand bg-brand text-white" : "border-line bg-white text-ink"
+                  }`}
+                  type="button"
+                  aria-expanded={expanded}
+                  onClick={() => setOpenGroups((currentGroups) => ({ ...currentGroups, [group.id]: !expanded }))}
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-extrabold tracking-[0.12em]">{copy.title}</span>
+                    <span className={`mt-1 block truncate text-xs ${active ? "text-white/72" : "text-muted"}`}>{copy.helper}</span>
+                  </span>
+                  <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${active ? "bg-white/18" : "bg-surface-muted text-brand"}`}>
+                    <ChevronIcon expanded={expanded} />
+                  </span>
+                </button>
+                {expanded ? (
+                  <div className={`mt-3 grid gap-2 ${mode === "expanded" ? "grid-cols-1" : "grid-cols-2"}`}>
+                    {group.items.map((item) => {
+                      const itemActive = pathname === item.href;
+                      return (
+                        <Link
+                          className={`rounded-[18px] border px-3 py-4 text-sm font-extrabold ${itemActive ? "border-brand bg-brand text-white" : "border-line bg-white text-ink"}`}
+                          href={item.href}
+                          key={item.href}
+                          onClick={onClose}
+                        >
+                          {item.label}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                ) : null}
               </section>
             );
           })}
-        </div>
-        <div className="mt-3 grid gap-2">
-          {ENABLE_LEGACY_PREVIEW ? (
-            <Link className="rounded-2xl border border-brand/15 bg-brand/5 px-4 py-3 text-sm font-extrabold text-brand" href={assetPath("/legacy-preview/")} onClick={onClose}>
-              실사용 legacy 화면
-            </Link>
-          ) : null}
-          <p className="rounded-2xl bg-surface-muted px-4 py-3 text-xs leading-5 text-muted">
-            현재 권한은 {roleLabel[role]}입니다. 권한에 맞지 않는 수납, 데이터 점검 메뉴는 자동으로 숨겨집니다.
-          </p>
         </div>
       </section>
     </div>
@@ -725,13 +675,11 @@ function MobileMenuSheet({
 }
 
 function MobileAppHeader({
-  current,
   user,
   connectionStatus,
   onMenu,
   onLogout
 }: {
-  current: { title: string; description: string; action: string };
   user: CurrentUser;
   connectionStatus: DataConnectionStatus;
   onMenu: () => void;
@@ -744,70 +692,29 @@ function MobileAppHeader({
           <BrandSeal size={40} />
           <ConnectionLightDot status={connectionStatus} />
           <div className="min-w-0">
-            <p className="truncate text-[11px] font-extrabold uppercase tracking-[0.14em] text-brand">Bonsung Music</p>
-            <h1 className="truncate text-xl font-extrabold tracking-tight text-ink">{current.title}</h1>
+            <p className="truncate text-sm font-extrabold tracking-tight text-brand">본성뮤직 스테이지</p>
+            <p className="truncate text-xs font-semibold text-muted">통합 관리 시스템</p>
           </div>
         </Link>
         <button className="rounded-2xl border border-line bg-surface-muted px-3 py-2 text-sm font-extrabold text-brand" type="button" onClick={onMenu}>
           메뉴
         </button>
       </div>
-      <div className="mt-3 flex items-center justify-between gap-3 rounded-[20px] bg-brand px-4 py-3 text-white shadow-sm">
+      <div className="mt-3 flex items-center justify-between gap-3 rounded-[18px] border border-line bg-surface-muted px-3 py-2.5">
         <div className="min-w-0">
-          <p className="truncate text-sm font-extrabold">{current.action}</p>
-          <p className="mt-0.5 truncate text-xs text-white/72">{user.name} · {roleLabel[user.role]}</p>
+          <p className="truncate text-[11px] font-extrabold tracking-[0.16em] text-brand">{accountTypeLabel[user.role]}</p>
+          <p className="truncate text-sm font-extrabold text-ink">{user.name}</p>
         </div>
-        <button className="shrink-0 rounded-xl bg-white/12 px-3 py-2 text-xs font-extrabold text-white" type="button" onClick={onLogout}>
-          로그아웃
-        </button>
+        <div className="flex shrink-0 items-center gap-1.5">
+          <Link className="rounded-xl border border-line bg-white px-3 py-2 text-xs font-extrabold text-muted" href={accountSettingsHref(user)}>
+            계정 관리
+          </Link>
+          <button className="rounded-xl bg-brand px-3 py-2 text-xs font-extrabold text-white" type="button" onClick={onLogout}>
+            로그아웃
+          </button>
+        </div>
       </div>
     </header>
-  );
-}
-
-function getSessionUser(role: Role): CurrentUser | null {
-  if (typeof window === "undefined") return null;
-
-  const testUser = version3TestCurrentUser();
-  if (testUser && testUser.role === role) return testUser;
-
-  const serverToken = window.localStorage.getItem(VERSION3_SERVER_SESSION_TOKEN_KEY);
-  if (serverToken) {
-    const serverUser = sessionUserFromJson(role, window.localStorage.getItem(VERSION3_SERVER_USER_KEY));
-    if (serverUser) return serverUser;
-  }
-
-  if (!ENABLE_APPS_SCRIPT_TRANSITION || !window.localStorage.getItem(APPS_SCRIPT_SESSION_TOKEN_KEY)) return null;
-
-  return sessionUserFromJson(role, window.localStorage.getItem(APPS_SCRIPT_USER_KEY));
-}
-
-function sessionUserFromJson(role: Role, value: string | null): CurrentUser | null {
-  try {
-    const user = JSON.parse(value || "null") as (AppsScriptUser & Version3ServerUser) | null;
-    if (!user) return null;
-    const normalizedRole = normalizeRole(user.role);
-    if (!user || normalizedRole !== role || !(user.accountId || user.account_id || user.id) || !user.name) return null;
-    return {
-      id: String(user.accountId || user.account_id || user.id),
-      name: user.name,
-      email: user.email || "",
-      role: normalizedRole,
-      linkedStudentId: user.linkedStudentId || user.linked_student_id || "",
-      mustChangePassword: Boolean(user.mustChangePassword || user.must_change_password),
-      sessionExpiresAt: user.sessionExpiresAt || user.session_expires_at || "",
-      permissions: user.permissions || {}
-    };
-  } catch {
-    return null;
-  }
-}
-
-function TestingPageMark() {
-  return (
-    <div className="pointer-events-none fixed right-4 top-4 z-50 select-none text-[11px] font-extrabold uppercase tracking-[0.16em] text-slate-500/45">
-      testing page
-    </div>
   );
 }
 
@@ -845,14 +752,29 @@ function SidebarEmptySearch() {
   );
 }
 
-function SidebarAccountBadge({ user }: { user: CurrentUser }) {
+function SidebarAccountBadge({ user, onLogout }: { user: CurrentUser; onLogout: () => void }) {
   return (
-    <div className="mt-4 rounded-2xl border border-line bg-surface-muted px-4 py-3">
-      <p className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-brand">Current Role</p>
-      <p className="mt-1 truncate text-sm font-extrabold text-ink">{roleLabel[user.role]}</p>
-      <p className="mt-0.5 truncate text-xs font-semibold text-muted">{user.name}</p>
+    <div className="mt-4 rounded-2xl border border-line bg-surface-muted p-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[11px] font-extrabold tracking-[0.16em] text-brand">{accountTypeLabel[user.role]}</p>
+          <p className="mt-1 truncate text-sm font-extrabold text-ink">{user.name}</p>
+        </div>
+        <div className="grid w-[4.4rem] shrink-0 gap-1">
+          <Link className="rounded-xl border border-line bg-white px-1.5 py-1.5 text-center text-[10px] font-extrabold text-muted hover:border-brand/40 hover:text-brand" href={accountSettingsHref(user)}>
+            계정 관리
+          </Link>
+          <button className="rounded-xl bg-brand px-1.5 py-1.5 text-[10px] font-extrabold text-white hover:bg-brand-dark" type="button" onClick={onLogout}>
+            로그아웃
+          </button>
+        </div>
+      </div>
     </div>
   );
+}
+
+function accountSettingsHref(user: CurrentUser) {
+  return canAccessVersion3Area(user, "accounts") ? "/accounts" : "/profile-settings";
 }
 
 function BrandBlock({ compact = false, connectionStatus = "disconnected" }: { compact?: boolean; connectionStatus?: DataConnectionStatus }) {
@@ -861,8 +783,8 @@ function BrandBlock({ compact = false, connectionStatus = "disconnected" }: { co
       <BrandSeal size={compact ? 44 : 52} />
       <ConnectionLightDot status={connectionStatus} />
       <div>
-        <p className="text-lg font-extrabold tracking-tight text-brand">본성뮤직</p>
-        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted">Music Academy</p>
+        <p className="text-lg font-extrabold tracking-tight text-brand">본성뮤직 스테이지</p>
+        <p className="text-xs font-semibold text-muted">통합 관리 시스템</p>
       </div>
     </Link>
   );
@@ -887,6 +809,72 @@ function ConnectionLightDot({ status }: { status: DataConnectionStatus }) {
       role="status"
       title={copy[status]}
     />
+  );
+}
+
+function GlobalFeedbackLayer() {
+  const [loading, setLoading] = useState<UiLoadingDetail>({ active: false, label: "" });
+  const [toast, setToast] = useState<UiToastDetail | null>(null);
+
+  useEffect(() => {
+    const onLoading = (event: Event) => {
+      const detail = (event as CustomEvent<UiLoadingDetail>).detail;
+      setLoading(detail ?? { active: false });
+    };
+    const onToast = (event: Event) => {
+      const detail = (event as CustomEvent<UiToastDetail>).detail;
+      if (detail?.message) setToast({ ...detail, id: detail.id ?? Date.now() });
+    };
+
+    window.addEventListener(UI_LOADING_EVENT, onLoading);
+    window.addEventListener(UI_TOAST_EVENT, onToast);
+    return () => {
+      window.removeEventListener(UI_LOADING_EVENT, onLoading);
+      window.removeEventListener(UI_TOAST_EVENT, onToast);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!toast) return;
+    const timer = window.setTimeout(() => setToast(null), 1500);
+    return () => window.clearTimeout(timer);
+  }, [toast]);
+
+  return (
+    <>
+      {loading.active ? (
+        <div className="pointer-events-none fixed inset-0 z-[90] flex items-center justify-center bg-white/40 backdrop-blur-[1px]" role="status" aria-live="polite">
+          <LoadingMark label={loading.label || "처리 중"} />
+        </div>
+      ) : null}
+      {toast ? (
+        <div
+          className={`fixed left-1/2 top-5 z-[100] -translate-x-1/2 rounded-2xl border px-5 py-3 text-sm font-extrabold shadow-[0_18px_46px_rgba(0,0,0,0.16)] backdrop-blur transition ${
+            toast.tone === "error"
+              ? "border-danger/25 bg-white/90 text-danger"
+              : toast.tone === "info"
+                ? "border-line bg-white/90 text-ink"
+                : "border-success/20 bg-white/90 text-success"
+          }`}
+          role="status"
+          aria-live="polite"
+        >
+          {toast.message}
+        </div>
+      ) : null}
+    </>
+  );
+}
+
+function LoadingMark({ label }: { label: string }) {
+  return (
+    <div className="flex items-center gap-3 rounded-2xl border border-line bg-white/92 px-5 py-4 text-sm font-extrabold text-ink shadow-card">
+      <span className="relative flex h-6 w-6 items-center justify-center" aria-hidden="true">
+        <span className="absolute h-6 w-6 animate-ping rounded-full bg-brand/20" />
+        <span className="h-3 w-3 animate-pulse rounded-full bg-brand" />
+      </span>
+      {label}
+    </div>
   );
 }
 

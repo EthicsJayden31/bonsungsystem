@@ -27,13 +27,21 @@ export type AppsScriptLoginResult = {
   user: AppsScriptUser;
 };
 
+export type AppsScriptPasswordChangeResult = {
+  user?: AppsScriptUser;
+};
+
 export async function loginWithAppsScript(loginId: string, password: string): Promise<AppsScriptLoginResult> {
   return callAppsScript<AppsScriptLoginResult>("login", { loginId, password });
 }
 
+export async function changeAppsScriptPassword(token: string, currentPassword: string, newPassword: string): Promise<AppsScriptPasswordChangeResult> {
+  return callAppsScript<AppsScriptPasswordChangeResult>("changePassword", { token, currentPassword, newPassword });
+}
+
 export async function callAppsScript<T>(action: string, payload: Record<string, unknown> = {}): Promise<T> {
   if (!APPS_SCRIPT_ENDPOINT.trim()) {
-    throw new Error("Apps Script Web App URL이 설정되지 않았습니다.");
+    throw new Error("Apps Script Web App URL이 설정되어 있지 않습니다.");
   }
 
   const controller = new AbortController();

@@ -1,6 +1,6 @@
 "use client";
 
-export const VERSION3_SERVER_BASE_URL = process.env.NEXT_PUBLIC_VERSION3_API_BASE_URL || "";
+export const VERSION3_SERVER_BASE_URL = process.env.NEXT_PUBLIC_VERSION3_API_BASE_URL || "/api/version3";
 export const VERSION3_SERVER_SESSION_TOKEN_KEY = "bonsung_server_session_token";
 export const VERSION3_SERVER_USER_KEY = "bonsung_server_current_user";
 
@@ -8,6 +8,7 @@ type ServerResult<T> = {
   ok?: boolean;
   data?: T;
   error?: string;
+  message?: string;
 };
 
 type ServerRequestOptions = {
@@ -61,7 +62,7 @@ export function version3ServerEndpoint(path = "") {
 }
 
 export async function loginWithVersion3Server(loginId: string, password: string): Promise<Version3ServerLoginResult> {
-  if (!isVersion3ServerConfigured()) throw new Error("Version.3 server URL is not configured.");
+  if (!isVersion3ServerConfigured()) throw new Error("Version.3 서버 주소가 설정되어 있지 않습니다.");
 
   const result = await requestVersion3Server<Version3ServerLoginResult>("/auth/login", {
     method: "POST",
@@ -74,8 +75,8 @@ export async function loginWithVersion3Server(loginId: string, password: string)
 
 export async function callVersion3Server<T>(path: string, options: ServerRequestOptions = {}): Promise<T> {
   const token = readVersion3ServerToken();
-  if (!isVersion3ServerConfigured()) throw new Error("Version.3 server URL is not configured.");
-  if (!token) throw new Error("Version.3 server login session is required.");
+  if (!isVersion3ServerConfigured()) throw new Error("Version.3 서버 주소가 설정되어 있지 않습니다.");
+  if (!token) throw new Error("Version.3 서버 로그인 세션이 필요합니다.");
 
   return requestVersion3Server<T>(path, options, token);
 }
@@ -106,11 +107,15 @@ async function requestVersion3Server<T>(path: string, options: ServerRequestOpti
       signal: controller.signal
     });
 
-    if (!response.ok) throw new Error(`Version.3 server response error (${response.status})`);
-
     const parsed = (await response.json()) as ServerResult<T> | T;
+    if (!response.ok) {
+      const message = isServerResult<T>(parsed)
+        ? parsed.message || parsed.error || `Version.3 서버 응답 오류 (${response.status})`
+        : `Version.3 서버 응답 오류 (${response.status})`;
+      throw new Error(message);
+    }
     if (isServerResult<T>(parsed)) {
-      if (parsed.ok === false) throw new Error(parsed.error || "Version.3 server request failed.");
+      if (parsed.ok === false) throw new Error(parsed.message || parsed.error || "Version.3 서버 요청을 처리하지 못했습니다.");
       return parsed.data as T;
     }
     return parsed as T;

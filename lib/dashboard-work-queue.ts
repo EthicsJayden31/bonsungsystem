@@ -1,5 +1,4 @@
 import type { OperationsData } from "@/lib/operations-data";
-import { getStudentName } from "@/lib/demo-data";
 import type { Version3Account, Version3DashboardWorkItem, Version3DashboardWorkPriority } from "@/lib/version3-server-contract";
 
 const unpaidPaymentStatuses = new Set(["미납", "청구예정", "청구완료", "확인 필요"]);
@@ -132,12 +131,12 @@ function priorityRank(priority: Version3DashboardWorkPriority) {
 function studentsWithoutAccounts(data: OperationsData, accounts: Version3Account[]) {
   const linkedStudentIds = new Set(
     accounts
-      .filter((account) => account.role === "student" && account.linkedStudentId)
+      .filter((account) => account.role === "artist" && account.linkedStudentId)
       .map((account) => account.linkedStudentId)
   );
   return data.students.filter((student) => student.status !== "퇴원" && !linkedStudentIds.has(student.id));
 }
 
 function studentLabel(data: OperationsData, studentId: string) {
-  return data.students.find((student) => student.id === studentId)?.name || getStudentName(studentId) || studentId || "미등록 학생";
+  return data.students.find((student) => student.id === studentId)?.name || studentId || "미등록 학생";
 }

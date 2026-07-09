@@ -540,7 +540,7 @@ function accountRows(accounts = []) {
       password_hash: tempPassword ? hashPassword(tempPassword, salt) : "",
       password_salt: salt,
       password_algorithm: tempPassword ? "sha256:salt:password" : "",
-      role: item.role === "owner" ? "owner" : item.role,
+      role: item.role,
       status: item.status,
       name: item.name,
       email: item.email,

@@ -5,10 +5,10 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { assetPath } from "@/lib/assets";
 import { loginWithAppsScript } from "@/lib/apps-script-client";
-import { clearClientSession, isNextRole, PREVIEW_ROLE_KEY, redirectToAppPath, setLiveSession, setServerSession } from "@/lib/client-session";
+import { clearClientSession, isNextRole, setLiveSession, setServerSession } from "@/lib/client-session";
 import { readPreferences } from "@/lib/preferences";
 import { isVersion3ServerConfigured, loginWithVersion3Server } from "@/lib/version3-server-client";
-import { ENABLE_APPS_SCRIPT_TRANSITION, ENABLE_BUFFERED_APPS_SCRIPT_SYNC, ENABLE_LEGACY_PREVIEW } from "@/lib/version3-runtime-flags";
+import { ENABLE_APPS_SCRIPT_TRANSITION } from "@/lib/version3-runtime-flags";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -22,7 +22,7 @@ export default function LoginPage() {
     const password = String(form.get("password") || "");
 
     if (!loginId || !password) {
-      setLiveLoginError("아이디와 비밀번호를 입력해주세요.");
+      setLiveLoginError("ID와 PW를 입력해 주세요.");
       return;
     }
 
@@ -30,61 +30,34 @@ export default function LoginPage() {
     setLiveLoginError("");
     try {
       clearClientSession();
-      if (ENABLE_BUFFERED_APPS_SCRIPT_SYNC && isVersion3ServerConfigured()) {
-        try {
-          const result = await loginWithVersion3Server(loginId, password);
-          setServerSession(result.token, result.user);
-          if (!isNextRole(result.user.role)) {
-            window.localStorage.removeItem(PREVIEW_ROLE_KEY);
-            if (ENABLE_LEGACY_PREVIEW) {
-              redirectToAppPath("/legacy-preview/");
-              return;
-            }
-            setLiveLoginError("Version.3에서 사용할 수 없는 계정 종류입니다.");
-            return;
-          }
 
-          router.replace(result.user.mustChangePassword || result.user.must_change_password ? "/profile-settings?forcePasswordChange=1" : readPreferences().startPage);
+      if (isVersion3ServerConfigured()) {
+        const result = await loginWithVersion3Server(loginId, password);
+        setServerSession(result.token, result.user);
+        if (!isNextRole(result.user.role)) {
+          setLiveLoginError("Version.3에서 사용할 수 없는 계정 종류입니다.");
           return;
-        } catch (bufferedLoginError) {
-          if (!ENABLE_APPS_SCRIPT_TRANSITION) throw bufferedLoginError;
-          console.warn("Version.3 buffered login failed; falling back to Apps Script transition login.", bufferedLoginError);
         }
+
+        router.replace(mustChangePasswordFromLogin(result.user.mustChangePassword ?? result.user.must_change_password) ? "/profile-settings?forcePasswordChange=1" : readPreferences().startPage);
+        return;
       }
 
       if (ENABLE_APPS_SCRIPT_TRANSITION) {
         const result = await loginWithAppsScript(loginId, password);
         setLiveSession(result.token, result.user);
         if (!isNextRole(result.user.role)) {
-          window.localStorage.removeItem(PREVIEW_ROLE_KEY);
-          setLiveLoginError("Version.3에서 사용할 수 있는 계정 종류가 아닙니다.");
+          setLiveLoginError("Version.3에서 사용할 수 없는 계정 종류입니다.");
           return;
         }
 
-        router.replace(result.user.mustChangePassword || result.user.must_change_password ? "/profile-settings?forcePasswordChange=1" : readPreferences().startPage);
+        router.replace(mustChangePasswordFromLogin(result.user.mustChangePassword ?? result.user.must_change_password) ? "/profile-settings?forcePasswordChange=1" : readPreferences().startPage);
         return;
       }
 
-      if (isVersion3ServerConfigured()) {
-        const result = await loginWithVersion3Server(loginId, password);
-        setServerSession(result.token, result.user);
-        if (!isNextRole(result.user.role)) {
-          window.localStorage.removeItem(PREVIEW_ROLE_KEY);
-          if (ENABLE_LEGACY_PREVIEW) {
-            redirectToAppPath("/legacy-preview/");
-            return;
-          }
-          setLiveLoginError("Version.3에서 사용할 수 있는 계정 종류가 아닙니다.");
-          return;
-        }
-
-        router.replace(result.user.mustChangePassword || result.user.must_change_password ? "/profile-settings?forcePasswordChange=1" : readPreferences().startPage);
-        return;
-      }
-
-      setLiveLoginError("Version.3 서버 주소가 설정되지 않았습니다. 운영 환경에서는 별도 서버 URL이 필요합니다.");
+      setLiveLoginError("Version.3 서버 주소가 설정되어 있지 않습니다.");
     } catch (caught) {
-      setLiveLoginError(caught instanceof Error ? caught.message : "실사용 로그인을 완료하지 못했습니다.");
+      setLiveLoginError(caught instanceof Error ? caught.message : "로그인을 완료하지 못했습니다.");
     } finally {
       setLiveLoginPending(false);
     }
@@ -96,7 +69,7 @@ export default function LoginPage() {
         <div className="relative overflow-hidden rounded-[28px] bg-gradient-to-br from-brand-dark via-brand to-brand-soft p-7 text-white shadow-card sm:p-8">
           <div className="absolute -right-16 -top-16 h-56 w-56 rounded-full border border-white/15" />
           <div className="absolute -bottom-24 right-8 h-64 w-64 rounded-full bg-white/5" />
-          <Image src={assetPath("/brand/bonsung-logo-seal.png")} alt="본성뮤직 아카데미 로고" width={112} height={112} className="relative rounded-full object-contain shadow-lg" priority />
+          <Image src={assetPath("/brand/bonsung-logo-seal.png")} alt="본성뮤직아카데미 로고" width={112} height={112} className="relative rounded-full object-contain shadow-lg" priority />
           <div className="relative mt-8">
             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-white/75">BONSUNG MUSIC ACADEMY</p>
             <h1 className="mt-3 text-4xl font-extrabold leading-tight tracking-tight">본성 스테이지</h1>
@@ -127,4 +100,11 @@ export default function LoginPage() {
       </section>
     </main>
   );
+}
+
+function mustChangePasswordFromLogin(value: unknown) {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") return value === 1;
+  if (typeof value === "string") return ["true", "1", "yes", "y"].includes(value.trim().toLowerCase());
+  return false;
 }

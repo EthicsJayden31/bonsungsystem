@@ -1,4 +1,4 @@
-export type Role = "owner" | "manager" | "teacher" | "student";
+export type Role = "admin" | "manager" | "coach" | "artist";
 
 export type CurrentUser = {
   id: string;
@@ -11,20 +11,18 @@ export type CurrentUser = {
   permissions?: Record<string, boolean>;
 };
 
-export const users: Record<Role, CurrentUser> = {
-  owner: { id: "owner-1", name: "강은미", email: "owner@bonsung.test", role: "owner" },
-  manager: { id: "manager-1", name: "조영진", email: "manager@bonsung.test", role: "manager" },
-  teacher: { id: "teacher-1", name: "황휘현", email: "teacher@bonsung.test", role: "teacher" },
-  student: { id: "student-1-account", name: "장윤호", email: "student@bonsung.test", role: "student", linkedStudentId: "student-jang-yunho" }
-};
-
 const roleAliases: Record<string, Role> = {
-  owner: "owner",
-  admin: "owner",
+  owner: "admin",
+  admin: "admin",
+  administrator: "admin",
+  system: "admin",
+  "system admin": "admin",
   manager: "manager",
   staff: "manager",
-  teacher: "teacher",
-  student: "student"
+  teacher: "coach",
+  coach: "coach",
+  student: "artist",
+  artist: "artist"
 };
 
 export function normalizeRole(role: string | undefined | null): Role | null {
@@ -37,7 +35,7 @@ export function isRole(role: string | undefined | null): role is Role {
 }
 
 export function canAccess(role: Role, area: string) {
-  if (role === "owner") return true;
+  if (role === "admin") return true;
   if (role === "manager") {
     return [
       "dashboard",
@@ -57,7 +55,7 @@ export function canAccess(role: Role, area: string) {
       "profile-settings"
     ].includes(area);
   }
-  if (role === "teacher") {
+  if (role === "coach") {
     return ["dashboard", "students", "lessons", "attendance", "lesson-notes", "practice-rooms", "notices", "consultations", "profile-settings"].includes(area);
   }
   return ["dashboard", "lessons", "lesson-notes", "practice-rooms", "notices", "consultations", "profile-settings"].includes(area);

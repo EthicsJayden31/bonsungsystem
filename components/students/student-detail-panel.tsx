@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { DataTable } from "@/components/ui/table";
 import { courseName, teacherName, type OperationsData } from "@/lib/operations-data";
-import type { Guardian, LessonNote } from "@/lib/demo-data";
+import type { Guardian, LessonNote } from "@/lib/operations-types";
 import type { Role } from "@/lib/auth-shared";
 import type { Version3Account } from "@/lib/version3-server-contract";
 import type { ReactNode } from "react";
@@ -36,7 +36,7 @@ export function StudentDetailPanel({ data, studentId, role, account, canManageSt
   const reservations = data.reservations
     .filter((item) => item.studentId === student.id || item.studentName === student.name)
     .toSorted((left, right) => right.startsAt.localeCompare(left.startsAt));
-  const payments = role === "teacher"
+  const payments = role === "coach"
     ? []
     : data.payments.filter((item) => item.studentId === student.id || item.studentName === student.name);
 
@@ -69,9 +69,9 @@ export function StudentDetailPanel({ data, studentId, role, account, canManageSt
       <div className="grid gap-5 p-5 lg:grid-cols-[320px_minmax(0,1fr)]">
         <aside className="space-y-4">
           <InfoBlock title="기본 정보">
-            <DetailRow label="연락처" value={role === "teacher" ? "권한 제한" : student.phone || "-"} />
+            <DetailRow label="연락처" value={role === "coach" ? "권한 제한" : student.phone || "-"} />
             <DetailRow label="생년월일" value={student.birthDate || "-"} />
-            <DetailRow label="메모" value={role === "teacher" ? maskTeacherMemo(student.memo) : student.memo || "-"} />
+            <DetailRow label="메모" value={role === "coach" ? maskTeacherMemo(student.memo) : student.memo || "-"} />
           </InfoBlock>
           {canManageStudents ? (
             <InfoBlock title="수강생 계정">
@@ -126,8 +126,8 @@ export function StudentDetailPanel({ data, studentId, role, account, canManageSt
                 rows={reservations.map((item) => [formatDateTime(item.startsAt), item.roomName || item.roomId, item.status])}
               />
               <MiniTable
-                title={role === "teacher" ? "수납 정보" : "수납 요약"}
-                empty={role === "teacher" ? "강사 권한에서는 수납 정보를 표시하지 않습니다." : "수납 내역이 없습니다."}
+                title={role === "coach" ? "수납 정보" : "수납 요약"}
+                empty={role === "coach" ? "Coach 권한에서는 수납 정보를 표시하지 않습니다." : "수납 내역이 없습니다."}
                 rows={payments.map((item) => [item.title, `${item.amount.toLocaleString("ko-KR")}원`, item.status])}
               />
             </div>
@@ -196,7 +196,7 @@ function StudentAccountSummary({ account, studentId }: { account?: Version3Accou
 }
 
 function GuardianRow({ guardian, role }: { guardian: Guardian; role: Role | null }) {
-  const phone = role === "teacher" ? "권한 제한" : guardian.phone;
+  const phone = role === "coach" ? "권한 제한" : guardian.phone;
   return (
     <div className="rounded-xl border border-line bg-white p-3">
       <p className="text-sm font-bold text-ink">{guardian.name} <span className="font-medium text-muted">({guardian.relation})</span></p>
@@ -237,7 +237,7 @@ function LessonNoteList({ notes, role }: { notes: LessonNote[]; role: Role | nul
             <NoteBlock label="수업 내용" value={note.content} />
             <NoteBlock label="과제" value={note.homework} />
             <NoteBlock label="연습 요청" value={note.practiceRequest} />
-            {role === "teacher" ? <NoteBlock label="내부 메모" value={note.internalMemo} /> : null}
+            {role === "coach" ? <NoteBlock label="내부 메모" value={note.internalMemo} /> : null}
           </div>
         </article>
       ))}

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useMemo, useState } from "react";
 import { AppShell } from "@/components/layout/app-shell";
@@ -8,10 +8,10 @@ import { Badge } from "@/components/ui/badge";
 import { hasVersion3Permission } from "@/lib/access-policy";
 import { roomName, useOperationAction, useOperationsData } from "@/lib/operations-data";
 import { useCurrentUser } from "@/lib/use-current-user";
-import { usePreviewRole } from "@/lib/use-preview-role";
+import { useCurrentRole } from "@/lib/use-current-role";
 
 export default function PracticeRoomsPage() {
-  const role = usePreviewRole();
+  const role = useCurrentRole();
   const user = useCurrentUser();
   const { data, source } = useOperationsData(role);
   const saveAction = useOperationAction();
@@ -19,9 +19,9 @@ export default function PracticeRoomsPage() {
   const canReserveRoom = hasVersion3Permission(accessUser, "reserveLessonRoom") || hasVersion3Permission(accessUser, "reservePracticeRoom");
   const [selection, setSelection] = useState<RoomReservationSelection | null>(null);
   const [selectionResetKey, setSelectionResetKey] = useState(0);
-  const reservationPurposeOptions = role === "student"
+  const reservationPurposeOptions = role === "artist"
     ? ["연습"]
-    : role === "teacher"
+    : role === "coach"
       ? ["레슨", "이론수업", "연습"]
       : ["레슨", "이론수업", "회의", "연습"];
 
@@ -80,7 +80,7 @@ export default function PracticeRoomsPage() {
 
         <ResourcePage
           title="예약 목록과 등록"
-          description={source === "server" || source === "test" ? "Version.3 서버의 공간/예약 데이터를 표시합니다." : source === "live" ? "전환 세션의 공간/예약 데이터를 표시합니다." : source === "fallback" ? "공간/예약 데이터를 불러오지 못했습니다. 서버 연결과 권한을 확인해야 합니다." : "Preview 데이터로 공간 예약 화면을 점검합니다."}
+          description={source === "server" ? "Version.3 서버의 공간/예약 데이터를 표시합니다." : source === "live" ? "전환 세션의 공간/예약 데이터를 표시합니다." : source === "fallback" ? "공간/예약 데이터를 불러오지 못했습니다. 서버 연결과 권한을 확인해야 합니다." : "공간/예약 데이터를 확인하고 있습니다."}
           headers={["공간", "예약자", "사용 시간", "상태", "메모"]}
           mobileCards={mobileCards}
           initialValues={reservationInitialValues}

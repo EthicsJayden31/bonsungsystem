@@ -1,23 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { students } from "@/lib/demo-data";
 import { APPS_SCRIPT_ENDPOINT, APPS_SCRIPT_REQUEST_TIMEOUT_MS, APPS_SCRIPT_SESSION_TOKEN_KEY, APPS_SCRIPT_USER_KEY } from "@/lib/apps-script-client";
-import { normalizeRole, type Role } from "@/lib/auth-shared";
-import { PREVIEW_ACCOUNT_DRAFTS_KEY, PREVIEW_ACCOUNT_HISTORY_KEY } from "@/lib/client-session";
-import {
-  VERSION3_TEST_DATA_CHANGE_EVENT,
-  createVersion3TestAccount,
-  hasVersion3TestSession,
-  resetVersion3TestAccountPassword,
-  updateVersion3TestAccountStatus,
-  updateVersion3TestPermissions,
-  version3TestAccountHistory,
-  version3TestAccounts,
-  version3TestCurrentAccountId
-} from "@/lib/version3-test-mode";
+import { showUiToast } from "@/lib/ui-feedback";
 import { callVersion3Server, hasVersion3ServerSession } from "@/lib/version3-server-client";
-import { ENABLE_APPS_SCRIPT_TRANSITION, ENABLE_PREVIEW_LOGIN } from "@/lib/version3-runtime-flags";
+import { ENABLE_APPS_SCRIPT_TRANSITION } from "@/lib/version3-runtime-flags";
 import {
   accountRoleToAppsScript,
   normalizeAccountRole,
@@ -30,8 +17,7 @@ import {
   type Version3Permissions
 } from "@/lib/version3-server-contract";
 
-type AccountSource = "loading" | "server" | "live" | "test" | "preview" | "fallback";
-
+type AccountSource = "loading" | "server" | "live" | "fallback";
 type AccountRecord = Record<string, unknown>;
 
 type ApiResult<T> = {
@@ -57,104 +43,14 @@ type AccountsDataOptions = {
   enabled?: boolean;
 };
 
-const previewAccounts: Version3Account[] = [
-  {
-    id: "owner-1",
-    loginId: "owner",
-    name: "강은미",
-    role: "owner",
-    email: "owner@bonsung.test",
-    phone: "",
-    linkedStudentId: "",
-    status: "active",
-    mustChangePassword: false,
-    permissions: {},
-    lastLoginAt: "",
-    createdAt: "2026-07-01"
-  },
-  {
-    id: "manager-1",
-    loginId: "manager",
-    name: "조영진",
-    role: "manager",
-    email: "manager@bonsung.test",
-    phone: "",
-    linkedStudentId: "",
-    status: "active",
-    mustChangePassword: false,
-    permissions: {},
-    lastLoginAt: "",
-    createdAt: "2026-07-01"
-  },
-  {
-    id: "teacher-1",
-    loginId: "teacher",
-    name: "황휘현",
-    role: "teacher",
-    email: "teacher@bonsung.test",
-    phone: "",
-    linkedStudentId: "",
-    status: "active",
-    mustChangePassword: false,
-    permissions: {},
-    lastLoginAt: "",
-    createdAt: "2026-07-01"
-  },
-  {
-    id: "student-1-account",
-    loginId: "student",
-    name: "장윤호",
-    role: "student",
-    email: "student@bonsung.test",
-    phone: "",
-    linkedStudentId: students[0]?.id || "student-jang-yunho",
-    linkedStudentName: students[0]?.name,
-    status: "active",
-    mustChangePassword: true,
-    permissions: {},
-    lastLoginAt: "",
-    createdAt: "2026-07-01"
-  }
-];
-
-const previewAccountIds: Record<Role, string> = {
-  owner: "owner-1",
-  manager: "manager-1",
-  teacher: "teacher-1",
-  student: "student-1-account"
-};
-
-const previewAccountHistory: Version3AccountHistory[] = [
-  {
-    id: "account-history-1",
-    accountId: "manager-1",
-    accountName: "조영진",
-    actorId: "owner-1",
-    actorName: "강은미",
-    action: "create_account",
-    role: "manager",
-    occurredAt: "2026-07-01T09:10:00+09:00"
-  },
-  {
-    id: "account-history-2",
-    accountId: "student-1-account",
-    accountName: "장윤호",
-    actorId: "owner-1",
-    actorName: "강은미",
-    action: "reset_password",
-    role: "student",
-    occurredAt: "2026-07-01T09:35:00+09:00"
-  }
-];
-
 export function useAccountsData(options: AccountsDataOptions = {}): AccountsState {
   const enabled = options.enabled ?? true;
   const [source, setSource] = useState<AccountSource>("loading");
-  const [accounts, setAccounts] = useState<Version3Account[]>(() => (ENABLE_PREVIEW_LOGIN ? previewAccounts : []));
-  const [accountHistory, setAccountHistory] = useState<Version3AccountHistory[]>(() => (ENABLE_PREVIEW_LOGIN ? readPreviewAccountHistory() : []));
-  const [drafts, setDrafts] = useState<Version3Account[]>(() => (ENABLE_PREVIEW_LOGIN ? readPreviewAccountDrafts() : []));
+  const [accounts, setAccounts] = useState<Version3Account[]>([]);
+  const [accountHistory, setAccountHistory] = useState<Version3AccountHistory[]>([]);
   const [error, setError] = useState("");
-  const mergedAccounts = useMemo(() => [...drafts, ...accounts], [accounts, drafts]);
+  const hasLiveSession = typeof window !== "undefined" && (hasVersion3ServerSession() || (ENABLE_APPS_SCRIPT_TRANSITION && Boolean(window.localStorage.getItem(APPS_SCRIPT_SESSION_TOKEN_KEY))));
+  const sortedAccounts = useMemo(() => accounts, [accounts]);
 
   useEffect(() => {
     let active = true;
@@ -162,9 +58,8 @@ export function useAccountsData(options: AccountsDataOptions = {}): AccountsStat
       queueMicrotask(() => {
         if (!active) return;
         setAccounts([]);
-        setDrafts([]);
         setAccountHistory([]);
-        setSource("preview");
+        setSource("fallback");
         setError("");
       });
       return () => {
@@ -173,27 +68,10 @@ export function useAccountsData(options: AccountsDataOptions = {}): AccountsStat
     }
 
     const token = ENABLE_APPS_SCRIPT_TRANSITION ? window.localStorage.getItem(APPS_SCRIPT_SESSION_TOKEN_KEY) : "";
-    if (hasVersion3TestSession()) {
-      const setTestAccounts = () => {
-        if (!active) return;
-        setAccounts(version3TestAccounts());
-        setDrafts([]);
-        setAccountHistory(version3TestAccountHistory());
-        setSource("test");
-        setError("");
-      };
-      queueMicrotask(setTestAccounts);
-      window.addEventListener(VERSION3_TEST_DATA_CHANGE_EVENT, setTestAccounts);
-      return () => {
-        active = false;
-        window.removeEventListener(VERSION3_TEST_DATA_CHANGE_EVENT, setTestAccounts);
-      };
-    }
 
     if (hasVersion3ServerSession()) {
       queueMicrotask(() => {
-        if (!active) return;
-        setSource("loading");
+        if (active) setSource("loading");
       });
       Promise.all([
         callVersion3Server<AccountRecord[]>("/accounts"),
@@ -203,17 +81,13 @@ export function useAccountsData(options: AccountsDataOptions = {}): AccountsStat
           if (!active) return;
           setAccounts(records.map(mapServerAccount));
           setAccountHistory(historyRecords.map(mapServerAccountHistory));
-          setDrafts([]);
           setSource("server");
           setError("");
         })
         .catch((caught: unknown) => {
           if (!active) return;
-          if (!ENABLE_PREVIEW_LOGIN) {
-            setAccounts([]);
-            setAccountHistory([]);
-            setDrafts([]);
-          }
+          setAccounts([]);
+          setAccountHistory([]);
           setSource("fallback");
           setError(caught instanceof Error ? caught.message : String(caught));
         });
@@ -226,11 +100,10 @@ export function useAccountsData(options: AccountsDataOptions = {}): AccountsStat
     if (!token) {
       queueMicrotask(() => {
         if (!active) return;
-        setSource(ENABLE_PREVIEW_LOGIN ? "preview" : "fallback");
-        setAccounts(ENABLE_PREVIEW_LOGIN ? previewAccounts : []);
-        setDrafts(ENABLE_PREVIEW_LOGIN ? readPreviewAccountDrafts() : []);
-        setAccountHistory(ENABLE_PREVIEW_LOGIN ? readPreviewAccountHistory() : []);
-        setError(ENABLE_PREVIEW_LOGIN ? "" : "Version.3 서버 로그인 세션이 필요합니다.");
+        setAccounts([]);
+        setAccountHistory([]);
+        setSource("fallback");
+        setError("Version.3 서버 또는 Apps Script 로그인 세션이 필요합니다.");
       });
       return () => {
         active = false;
@@ -238,8 +111,7 @@ export function useAccountsData(options: AccountsDataOptions = {}): AccountsStat
     }
 
     queueMicrotask(() => {
-      if (!active) return;
-      setSource("loading");
+      if (active) setSource("loading");
     });
     Promise.all([
       callAppsScript<AccountRecord[]>("listAccounts", token),
@@ -249,17 +121,13 @@ export function useAccountsData(options: AccountsDataOptions = {}): AccountsStat
         if (!active) return;
         setAccounts(records.map(mapAccount));
         setAccountHistory(historyRecords.map(mapAccountHistory));
-        setDrafts([]);
         setSource("live");
         setError("");
       })
       .catch((caught: unknown) => {
         if (!active) return;
-        if (!ENABLE_PREVIEW_LOGIN) {
-          setAccounts([]);
-          setAccountHistory([]);
-          setDrafts([]);
-        }
+        setAccounts([]);
+        setAccountHistory([]);
         setSource("fallback");
         setError(caught instanceof Error ? caught.message : String(caught));
       });
@@ -270,45 +138,25 @@ export function useAccountsData(options: AccountsDataOptions = {}): AccountsStat
   }, [enabled]);
 
   async function createAccount(input: Version3AccountInput) {
-    if (input.role === "student" && !input.linkedStudentId) {
-      throw new Error("수강생 계정은 연결할 학생을 선택해야 합니다.");
+    if (input.role === "artist" && !input.linkedStudentId) {
+      throw new Error("Artist 계정은 연결할 학생을 선택해야 합니다.");
     }
-    if (input.role === "student" && mergedAccounts.some((account) => account.role === "student" && account.linkedStudentId === input.linkedStudentId)) {
-      throw new Error("이미 수강생 계정과 연결된 학생입니다.");
-    }
-    if (hasVersion3TestSession()) {
-      createVersion3TestAccount(input);
-      setAccounts(version3TestAccounts());
-      setAccountHistory(version3TestAccountHistory());
-      setDrafts([]);
-      setSource("test");
-      setError("");
-      return;
+    if (input.role === "artist" && sortedAccounts.some((account) => account.role === "artist" && account.linkedStudentId === input.linkedStudentId)) {
+      throw new Error("이미 Artist 계정과 연결된 학생입니다.");
     }
 
     if (hasVersion3ServerSession()) {
       const created = await callVersion3Server<AccountRecord>("/accounts", { method: "POST", body: { account: input } });
       setAccounts((current) => [mapServerAccount(created), ...current]);
       await refreshServerAccountHistory();
-      setDrafts([]);
       setSource("server");
       setError("");
+      showUiToast("계정 저장 완료");
       return;
     }
 
     const token = ENABLE_APPS_SCRIPT_TRANSITION ? window.localStorage.getItem(APPS_SCRIPT_SESSION_TOKEN_KEY) : "";
-    if (!token) {
-      if (!ENABLE_PREVIEW_LOGIN) throw new Error("계정 생성은 Version.3 서버 로그인 세션이 필요합니다.");
-      const draft = inputToDraft(input);
-      setDrafts((current) => {
-        const next = [draft, ...current];
-        writePreviewAccountDrafts(next);
-        return next;
-      });
-      prependAccountHistory(draft, "create_account");
-      setSource("preview");
-      return;
-    }
+    if (!token) throw new Error("계정 생성은 Version.3 서버 또는 Apps Script 로그인 세션이 필요합니다.");
 
     const role = accountRoleToAppsScript(input.role);
     const created = await callAppsScript<AccountRecord>("createAccount", token, {
@@ -320,131 +168,85 @@ export function useAccountsData(options: AccountsDataOptions = {}): AccountsStat
         name: input.name,
         email: input.email,
         phone: input.phone,
-        linked_student_id: input.role === "student" ? input.linkedStudentId : ""
+        linked_student_id: input.role === "artist" ? input.linkedStudentId : ""
       }
     });
     setAccounts((current) => [mapAccount(created), ...current]);
     await refreshAccountHistory(token);
-    setDrafts([]);
     setSource("live");
     setError("");
+    showUiToast("계정 저장 완료");
   }
 
   async function updateAccountStatus(accountId: string, active: boolean) {
-    if (hasVersion3TestSession()) {
-      updateVersion3TestAccountStatus(accountId, active);
-      patchAccount(accountId, { status: active ? "active" : "paused" });
-      setAccountHistory(version3TestAccountHistory());
-      setSource("test");
-      setError("");
-      return;
-    }
-
     if (hasVersion3ServerSession()) {
       await callVersion3Server<boolean>(`/accounts/${encodeURIComponent(accountId)}/status`, { method: "PATCH", body: { active } });
       patchAccount(accountId, { status: active ? "active" : "paused" });
       await refreshServerAccountHistory();
       setSource("server");
       setError("");
+      showUiToast("설정 완료");
       return;
     }
 
     const token = ENABLE_APPS_SCRIPT_TRANSITION ? window.localStorage.getItem(APPS_SCRIPT_SESSION_TOKEN_KEY) : "";
-    if (!token) {
-      if (!ENABLE_PREVIEW_LOGIN) throw new Error("계정 상태 변경은 Version.3 서버 로그인 세션이 필요합니다.");
-      patchAccount(accountId, { status: active ? "active" : "paused" });
-      prependAccountHistory(accountId, active ? "activate_account" : "deactivate_account");
-      setSource("preview");
-      return;
-    }
+    if (!token) throw new Error("계정 상태 변경은 Version.3 서버 또는 Apps Script 로그인 세션이 필요합니다.");
 
     await callAppsScript<boolean>("updateAccountStatus", token, { accountId, active });
     patchAccount(accountId, { status: active ? "active" : "paused" });
     await refreshAccountHistory(token);
     setSource("live");
     setError("");
+    showUiToast("설정 완료");
   }
 
   async function resetAccountPassword(accountId: string, password: string) {
-    if (hasVersion3TestSession()) {
-      resetVersion3TestAccountPassword(accountId, password);
-      patchAccount(accountId, { mustChangePassword: true, status: "active" });
-      setAccountHistory(version3TestAccountHistory());
-      setSource("test");
-      setError("");
-      return;
-    }
-
     if (hasVersion3ServerSession()) {
       await callVersion3Server<boolean>(`/accounts/${encodeURIComponent(accountId)}/password`, { method: "PATCH", body: { password } });
       patchAccount(accountId, { mustChangePassword: true, status: "active" });
       await refreshServerAccountHistory();
       setSource("server");
       setError("");
+      showUiToast("비밀번호 초기화 완료");
       return;
     }
 
     const token = ENABLE_APPS_SCRIPT_TRANSITION ? window.localStorage.getItem(APPS_SCRIPT_SESSION_TOKEN_KEY) : "";
-    if (!token) {
-      if (!ENABLE_PREVIEW_LOGIN) throw new Error("비밀번호 초기화는 Version.3 서버 로그인 세션이 필요합니다.");
-      patchAccount(accountId, { mustChangePassword: true, status: "active" });
-      prependAccountHistory(accountId, "reset_password");
-      setSource("preview");
-      return;
-    }
+    if (!token) throw new Error("비밀번호 초기화는 Version.3 서버 또는 Apps Script 로그인 세션이 필요합니다.");
 
     await callAppsScript<boolean>("resetAccountPassword", token, { accountId, password });
     patchAccount(accountId, { mustChangePassword: true, status: "active" });
     await refreshAccountHistory(token);
     setSource("live");
     setError("");
+    showUiToast("비밀번호 초기화 완료");
   }
 
   async function updateAccountPermissions(accountId: string, permissions: Version3Permissions) {
     const nextPermissions = normalizePermissions(permissions);
-    const beforePermissions = mergedAccounts.find((account) => account.id === accountId)?.permissions || {};
-    if (hasVersion3TestSession()) {
-      updateVersion3TestPermissions(accountId, nextPermissions);
-      patchAccount(accountId, { permissions: nextPermissions });
-      setAccountHistory(version3TestAccountHistory());
-      setSource("test");
-      setError("");
-      return;
-    }
-
     if (hasVersion3ServerSession()) {
       await callVersion3Server<boolean>(`/accounts/${encodeURIComponent(accountId)}/permissions`, { method: "PATCH", body: { permissions: nextPermissions } });
       patchAccount(accountId, { permissions: nextPermissions });
       await refreshServerAccountHistory();
       setSource("server");
       setError("");
+      showUiToast("권한 저장 완료");
       return;
     }
 
     const token = ENABLE_APPS_SCRIPT_TRANSITION ? window.localStorage.getItem(APPS_SCRIPT_SESSION_TOKEN_KEY) : "";
-    if (!token) {
-      if (!ENABLE_PREVIEW_LOGIN) throw new Error("권한 변경은 Version.3 서버 로그인 세션이 필요합니다.");
-      patchAccount(accountId, { permissions: nextPermissions });
-      prependAccountHistory(accountId, "update_permissions", beforePermissions, nextPermissions);
-      setSource("preview");
-      return;
-    }
+    if (!token) throw new Error("권한 변경은 Version.3 서버 또는 Apps Script 로그인 세션이 필요합니다.");
 
     await callAppsScript<boolean>("updateAccountPermissions", token, { accountId, permissions: nextPermissions });
     patchAccount(accountId, { permissions: nextPermissions });
     await refreshAccountHistory(token);
     setSource("live");
     setError("");
+    showUiToast("권한 저장 완료");
   }
 
   function patchAccount(accountId: string, patch: Partial<Version3Account>) {
-    const applyPatch = (account: Version3Account) => (account.id === accountId ? { ...account, ...patch } : account);
-    setAccounts((current) => current.map(applyPatch));
-    setDrafts((current) => {
-      const next = current.map(applyPatch);
-      writePreviewAccountDrafts(next);
-      return next;
-    });
+    setAccounts((current) => current.map((account) => (account.id === accountId ? { ...account, ...patch } : account)));
   }
 
   async function refreshAccountHistory(token: string) {
@@ -457,64 +259,18 @@ export function useAccountsData(options: AccountsDataOptions = {}): AccountsStat
     setAccountHistory(historyRecords.map(mapServerAccountHistory));
   }
 
-  function prependAccountHistory(target: Version3Account | string, action: string, beforePermissions?: Version3Permissions, afterPermissions?: Version3Permissions) {
-    const targetAccount = typeof target === "string" ? mergedAccounts.find((account) => account.id === target) : target;
-    const actorId = readCurrentAccountId();
-    const actor = mergedAccounts.find((account) => account.id === actorId);
-    setAccountHistory((current) => {
-      const next = [
-        {
-        id: `preview-account-history-${Date.now()}`,
-        accountId: targetAccount?.id || (typeof target === "string" ? target : ""),
-        accountName: targetAccount?.name || "계정",
-        actorId,
-        actorName: actor?.name || "강은미",
-        action,
-        role: targetAccount?.role || "",
-        beforePermissions,
-        afterPermissions,
-        occurredAt: new Date().toISOString()
-        },
-        ...current
-      ];
-      writePreviewAccountHistory(next);
-      return next;
-    });
-  }
-
   return {
     source,
-    accounts: mergedAccounts,
+    accounts: sortedAccounts,
     accountHistory,
-    currentAccountId: hasVersion3TestSession() ? version3TestCurrentAccountId() : readCurrentAccountId(),
+    currentAccountId: readCurrentAccountId(),
     error,
-    hasLiveSession: typeof window !== "undefined" && (hasVersion3TestSession() || hasVersion3ServerSession() || (ENABLE_APPS_SCRIPT_TRANSITION && Boolean(window.localStorage.getItem(APPS_SCRIPT_SESSION_TOKEN_KEY)))),
+    hasLiveSession,
     createAccount,
     resetAccountPassword,
     updateAccountPermissions,
     updateAccountStatus
   };
-}
-
-function readPreviewAccountDrafts() {
-  return readJsonArray(PREVIEW_ACCOUNT_DRAFTS_KEY)
-    .map((item) => normalizeStoredAccount(item))
-    .filter((item): item is Version3Account => Boolean(item));
-}
-
-function writePreviewAccountDrafts(accounts: Version3Account[]) {
-  writeJsonArray(PREVIEW_ACCOUNT_DRAFTS_KEY, accounts);
-}
-
-function readPreviewAccountHistory() {
-  const stored = readJsonArray(PREVIEW_ACCOUNT_HISTORY_KEY)
-    .map((item) => normalizeStoredAccountHistory(item))
-    .filter((item): item is Version3AccountHistory => Boolean(item));
-  return stored.length ? stored : previewAccountHistory;
-}
-
-function writePreviewAccountHistory(history: Version3AccountHistory[]) {
-  writeJsonArray(PREVIEW_ACCOUNT_HISTORY_KEY, history.slice(0, 30));
 }
 
 function readCurrentAccountId() {
@@ -524,22 +280,17 @@ function readCurrentAccountId() {
     const serverAccountId = stringValue(serverUser.accountId || serverUser.account_id || serverUser.id);
     if (serverAccountId) return serverAccountId;
   } catch {
-    // Ignore malformed optional server user cache and fall back only when transition paths are enabled.
+    // Ignore malformed optional server user cache.
   }
-
-  if (!ENABLE_APPS_SCRIPT_TRANSITION && !ENABLE_PREVIEW_LOGIN) return "";
 
   const rawUser = window.localStorage.getItem(APPS_SCRIPT_USER_KEY);
-  if (rawUser) {
-    try {
-      const user = JSON.parse(rawUser) as { account_id?: unknown; id?: unknown };
-      return stringValue(user.account_id || user.id);
-    } catch {
-      return "";
-    }
+  if (!rawUser) return "";
+  try {
+    const user = JSON.parse(rawUser) as { account_id?: unknown; id?: unknown };
+    return stringValue(user.account_id || user.id);
+  } catch {
+    return "";
   }
-  const role = normalizeRole(window.localStorage.getItem("bonsung_role") ?? "");
-  return role ? previewAccountIds[role] : "";
 }
 
 function mapServerAccount(item: AccountRecord): Version3Account {
@@ -552,7 +303,7 @@ function mapServerAccount(item: AccountRecord): Version3Account {
     email: stringValue(item.email),
     phone: stringValue(item.phone),
     linkedStudentId,
-    linkedStudentName: stringValue(item.linkedStudentName || item.linked_student_name) || students.find((student) => student.id === linkedStudentId)?.name,
+    linkedStudentName: stringValue(item.linkedStudentName || item.linked_student_name),
     status: normalizeAccountStatus(item.status || item.active),
     mustChangePassword: truthyValue(item.mustChangePassword ?? item.must_change_password),
     permissions: normalizePermissions(item.permissions),
@@ -602,116 +353,36 @@ async function callAppsScript<T>(action: string, token: string, payload: Record<
 }
 
 function mapAccount(item: AccountRecord): Version3Account {
-  const linkedStudentId = stringValue(item.linked_student_id);
+  const linkedStudentId = stringValue(item.linked_student_id || item.linkedStudentId);
   return {
-    id: stringValue(item.account_id),
-    loginId: stringValue(item.login_id),
+    id: stringValue(item.account_id || item.id),
+    loginId: stringValue(item.login_id || item.loginId),
     name: stringValue(item.name, "이름 없음"),
     role: normalizeAccountRole(item.role, item.employee_position),
     email: stringValue(item.email),
     phone: stringValue(item.phone),
     linkedStudentId,
-    linkedStudentName: students.find((student) => student.id === linkedStudentId)?.name,
-    status: normalizeAccountStatus(item.active),
-    mustChangePassword: truthyValue(item.must_change_password),
+    linkedStudentName: stringValue(item.linked_student_name || item.linkedStudentName),
+    status: normalizeAccountStatus(item.active || item.status),
+    mustChangePassword: truthyValue(item.must_change_password ?? item.mustChangePassword),
     permissions: normalizePermissions(item.permissions),
-    lastLoginAt: stringValue(item.last_login_at),
-    createdAt: stringValue(item.created_at)
+    lastLoginAt: stringValue(item.last_login_at || item.lastLoginAt),
+    createdAt: stringValue(item.created_at || item.createdAt)
   };
 }
 
 function mapAccountHistory(item: AccountRecord): Version3AccountHistory {
   return {
-    id: stringValue(item.history_id || item.event_id),
-    accountId: stringValue(item.account_id || item.target_id),
-    accountName: stringValue(item.account_name),
-    actorId: stringValue(item.actor_id),
-    actorName: stringValue(item.actor_name),
+    id: stringValue(item.history_id || item.event_id || item.id),
+    accountId: stringValue(item.account_id || item.target_id || item.accountId),
+    accountName: stringValue(item.account_name || item.accountName),
+    actorId: stringValue(item.actor_id || item.actorId),
+    actorName: stringValue(item.actor_name || item.actorName),
     action: stringValue(item.action),
     role: stringValue(item.role),
-    beforePermissions: normalizePermissions(item.permissions_before),
-    afterPermissions: normalizePermissions(item.permissions_after),
-    occurredAt: stringValue(item.occurred_at)
-  };
-}
-
-function inputToDraft(input: Version3AccountInput): Version3Account {
-  return {
-    id: `draft-${Date.now()}`,
-    loginId: input.loginId,
-    name: input.name,
-    role: input.role,
-    email: input.email,
-    phone: input.phone,
-    linkedStudentId: input.role === "student" ? input.linkedStudentId : "",
-    linkedStudentName: students.find((student) => student.id === input.linkedStudentId)?.name,
-    status: "invited",
-    mustChangePassword: true,
-    permissions: {},
-    lastLoginAt: "",
-    createdAt: new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Seoul" }).format(new Date())
-  };
-}
-
-function readJsonArray(key: string): unknown[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const parsed = JSON.parse(window.localStorage.getItem(key) || "[]");
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-function writeJsonArray(key: string, value: unknown[]) {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(key, JSON.stringify(value));
-}
-
-function normalizeStoredAccount(value: unknown): Version3Account | null {
-  if (!value || typeof value !== "object") return null;
-  const item = value as Record<string, unknown>;
-  const role = normalizeRole(stringValue(item.role));
-  const status = stringValue(item.status);
-  if (!role || !["active", "paused", "invited"].includes(status)) return null;
-  const id = stringValue(item.id);
-  const loginId = stringValue(item.loginId);
-  const name = stringValue(item.name);
-  if (!id || !loginId || !name) return null;
-  return {
-    id,
-    loginId,
-    name,
-    role,
-    email: stringValue(item.email),
-    phone: stringValue(item.phone),
-    linkedStudentId: role === "student" ? stringValue(item.linkedStudentId) : "",
-    linkedStudentName: stringValue(item.linkedStudentName),
-    status: status as Version3Account["status"],
-    mustChangePassword: truthyValue(item.mustChangePassword),
-    permissions: normalizePermissions(item.permissions),
-    lastLoginAt: stringValue(item.lastLoginAt),
-    createdAt: stringValue(item.createdAt)
-  };
-}
-
-function normalizeStoredAccountHistory(value: unknown): Version3AccountHistory | null {
-  if (!value || typeof value !== "object") return null;
-  const item = value as Record<string, unknown>;
-  const id = stringValue(item.id);
-  const accountId = stringValue(item.accountId);
-  if (!id || !accountId) return null;
-  return {
-    id,
-    accountId,
-    accountName: stringValue(item.accountName, "계정"),
-    actorId: stringValue(item.actorId),
-    actorName: stringValue(item.actorName),
-    action: stringValue(item.action),
-    role: stringValue(item.role),
-    beforePermissions: normalizePermissions(item.beforePermissions),
-    afterPermissions: normalizePermissions(item.afterPermissions),
-    occurredAt: stringValue(item.occurredAt)
+    beforePermissions: normalizePermissions(item.permissions_before || item.beforePermissions),
+    afterPermissions: normalizePermissions(item.permissions_after || item.afterPermissions),
+    occurredAt: stringValue(item.occurred_at || item.occurredAt)
   };
 }
 

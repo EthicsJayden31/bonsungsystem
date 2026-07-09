@@ -1,38 +1,39 @@
 "use client";
 
 import { FormEvent, useState, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/layout/app-shell";
-import { Badge } from "@/components/ui/badge";
 import { hasVersion3Permission } from "@/lib/access-policy";
-import { updateServerSessionUser } from "@/lib/client-session";
+import { APPS_SCRIPT_SESSION_TOKEN_KEY, changeAppsScriptPassword } from "@/lib/apps-script-client";
+import { updateLiveSessionUser, updateServerSessionUser } from "@/lib/client-session";
 import { useOperationAction, useOperationsData } from "@/lib/operations-data";
 import { readPreferences, savePreferences, startPages, type Preferences } from "@/lib/preferences";
+import { setGlobalLoading, showUiToast } from "@/lib/ui-feedback";
 import { useCurrentUser } from "@/lib/use-current-user";
-import { usePreviewRole } from "@/lib/use-preview-role";
-import { changeVersion3TestPassword, hasVersion3TestSession } from "@/lib/version3-test-mode";
+import { useCurrentRole } from "@/lib/use-current-role";
 import { changeVersion3ServerPassword, hasVersion3ServerSession } from "@/lib/version3-server-client";
 
 export default function ProfileSettingsPage() {
-  const role = usePreviewRole();
+  const router = useRouter();
+  const role = useCurrentRole();
   const user = useCurrentUser();
   const operations = useOperationsData(role);
   const saveAction = useOperationAction();
   const [preferences, setPreferences] = useState<Preferences>(() => readPreferences());
-  const [saved, setSaved] = useState(false);
   const [passwordMessage, setPasswordMessage] = useState("");
   const [passwordPending, setPasswordPending] = useState(false);
   const [settingsMessage, setSettingsMessage] = useState("");
   const forcePasswordChange = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("forcePasswordChange") === "1";
+  const hasPasswordSession = hasVersion3ServerSession() || (typeof window !== "undefined" && Boolean(window.localStorage.getItem(APPS_SCRIPT_SESSION_TOKEN_KEY)));
   const canManagePublicSettings = hasVersion3Permission(user ?? role, "managePublicSettings");
 
   function update<K extends keyof Preferences>(key: K, value: Preferences[K]) {
-    setSaved(false);
     setPreferences((current) => ({ ...current, [key]: value }));
   }
 
   function save() {
     savePreferences(preferences);
-    setSaved(true);
+    showUiToast("설정 완료");
   }
 
   async function submitPasswordChange(event: FormEvent<HTMLFormElement>) {
@@ -43,8 +44,9 @@ export default function ProfileSettingsPage() {
     const newPassword = values.newPassword || "";
     const confirmPassword = values.confirmPassword || "";
 
-    if (!hasVersion3ServerSession() && !hasVersion3TestSession()) {
-      setPasswordMessage("Version.3 서버 또는 테스트모드 로그인 세션에서만 비밀번호를 변경할 수 있습니다.");
+    const appsScriptToken = typeof window !== "undefined" ? window.localStorage.getItem(APPS_SCRIPT_SESSION_TOKEN_KEY) || "" : "";
+    if (!hasVersion3ServerSession() && !appsScriptToken) {
+      setPasswordMessage("로그인 세션에서만 비밀번호를 변경할 수 있습니다.");
       return;
     }
     if (newPassword.length < 8) {
@@ -58,19 +60,32 @@ export default function ProfileSettingsPage() {
 
     setPasswordPending(true);
     setPasswordMessage("");
+    setGlobalLoading(true, "설정 저장 중");
     try {
-      if (hasVersion3TestSession()) {
-        changeVersion3TestPassword(currentPassword, newPassword);
-      } else {
+      if (hasVersion3ServerSession()) {
         const result = await changeVersion3ServerPassword(currentPassword, newPassword);
-        updateServerSessionUser(result.user);
+        updateServerSessionUser({
+          ...result.user,
+          mustChangePassword: false,
+          must_change_password: false
+        });
+      } else {
+        const result = await changeAppsScriptPassword(appsScriptToken, currentPassword, newPassword);
+        updateLiveSessionUser({
+          ...(result.user ?? user ?? {}),
+          mustChangePassword: false,
+          must_change_password: false
+        });
       }
       form.reset();
       setPasswordMessage("비밀번호가 변경되었습니다.");
+      showUiToast("설정 완료");
+      router.replace("/profile-settings");
     } catch (caught) {
       setPasswordMessage(caught instanceof Error ? caught.message : "비밀번호를 변경하지 못했습니다.");
     } finally {
       setPasswordPending(false);
+      setGlobalLoading(false);
     }
   }
 
@@ -106,9 +121,8 @@ export default function ProfileSettingsPage() {
           </p>
         </div>
 
-        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
-          <div className="space-y-5">
-            {hasVersion3ServerSession() || hasVersion3TestSession() ? (
+        <div className="max-w-4xl space-y-5">
+            {hasPasswordSession ? (
               <SettingCard
                 title={user?.mustChangePassword || forcePasswordChange ? "비밀번호 변경 필요" : "Version.3 계정 보안"}
                 description={user?.mustChangePassword || forcePasswordChange ? "임시 비밀번호로 로그인한 계정입니다. 새 비밀번호를 설정해야 다른 운영 화면을 계속 사용할 수 있습니다." : "서버 계정의 비밀번호를 변경합니다."}
@@ -188,27 +202,12 @@ export default function ProfileSettingsPage() {
               </form>
               {settingsMessage ? <p className="mt-3 rounded-xl bg-brand/5 px-3 py-2 text-xs font-bold leading-5 text-muted">{settingsMessage}</p> : null}
             </SettingCard>
-          </div>
 
-          <aside className="h-fit rounded-2xl border border-line bg-white p-5 shadow-card">
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="text-lg font-extrabold tracking-tight text-ink">설정 요약</h2>
-              <Badge>{role === "owner" ? "대표" : role === "manager" ? "매니저" : role === "teacher" ? "강사" : "수강생"}</Badge>
-            </div>
-            <dl className="mt-5 space-y-4 text-sm">
-              <Summary label="시작 화면" value={startPages.find((item) => item.value === preferences.startPage)?.label || preferences.startPage} />
-              <Summary label="화면 밀도" value={preferences.density === "compact" ? "촘촘하게 보기" : "편안하게 보기"} />
-              <Summary label="모바일 메뉴" value={preferences.mobileMenu === "grouped" ? "업무 그룹별 선택" : "전체 메뉴 펼침"} />
-              <Summary label="대시보드" value={focusLabel(preferences.dashboardFocus)} />
-            </dl>
-            <button className="mt-5 w-full rounded-xl bg-brand px-4 py-3 text-sm font-bold text-white transition hover:bg-brand-dark" type="button" onClick={save}>
-              설정 저장
-            </button>
-            <p className="mt-3 rounded-xl bg-brand/5 px-3 py-2 text-xs leading-5 text-muted">
-              저장 후 다음 로그인부터 선택한 시작 화면으로 이동합니다. 모바일 메뉴와 화면 밀도는 현재 브라우저에서 바로 반영됩니다.
-            </p>
-            {saved ? <p className="mt-3 rounded-xl border border-success/20 bg-success/10 px-3 py-2 text-xs font-bold text-success">설정이 저장되었습니다.</p> : null}
-          </aside>
+            <SettingCard title="설정 저장" description="선택한 시작 화면, 화면 밀도, 모바일 메뉴 방식을 현재 브라우저에 저장합니다.">
+              <button className="w-full rounded-xl bg-brand px-4 py-3 text-sm font-bold text-white transition hover:bg-brand-dark sm:w-auto sm:min-w-40" type="button" onClick={save}>
+                설정 저장
+              </button>
+            </SettingCard>
         </div>
       </section>
     </AppShell>
@@ -239,7 +238,7 @@ function ChoiceButton({ active, label, onClick }: { active: boolean; label: stri
   );
 }
 
-function Summary({ label, value }: { label: string; value: string }) {
+function _Summary({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <dt className="text-xs font-bold text-muted">{label}</dt>
@@ -248,7 +247,7 @@ function Summary({ label, value }: { label: string; value: string }) {
   );
 }
 
-function focusLabel(value: Preferences["dashboardFocus"]) {
+function _focusLabel(value: Preferences["dashboardFocus"]) {
   if (value === "lessons") return "오늘 수업";
   if (value === "students") return "학생 변화";
   return "운영 현황";

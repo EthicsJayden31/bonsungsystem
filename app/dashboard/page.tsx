@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { AppShell } from "@/components/layout/app-shell";
@@ -12,9 +12,9 @@ import { buildDashboardWorkQueue, countActiveConsultations, countOpenTasks, coun
 import { courseName, studentName, teacherName, useOperationAction, useOperationsData, type DataSource } from "@/lib/operations-data";
 import { usePreferences } from "@/lib/preferences";
 import { useCurrentUser } from "@/lib/use-current-user";
-import { usePreviewRole } from "@/lib/use-preview-role";
+import { useCurrentRole } from "@/lib/use-current-role";
 import type { CurrentUser, Role } from "@/lib/auth-shared";
-import type { Consultation } from "@/lib/demo-data";
+import type { Consultation } from "@/lib/operations-types";
 import { useState, type ReactNode } from "react";
 
 type QuickCardData = {
@@ -42,7 +42,7 @@ type ConsultationAlert = {
 };
 
 export default function DashboardPage() {
-  const role = usePreviewRole();
+  const role = useCurrentRole();
   const user = useCurrentUser();
   const preferences = usePreferences();
   const operations = useOperationsData(role);
@@ -51,7 +51,7 @@ export default function DashboardPage() {
   const profile = dashboardProfile(role);
   const accessUser = user ?? role;
   const accessRole = typeof accessUser === "string" ? accessUser : accessUser?.role ?? role;
-  const isStudent = accessRole === "student";
+  const isStudent = accessRole === "artist";
   const canViewAccounts = canAccessVersion3Area(accessUser, "accounts");
   const canViewStudents = canAccessVersion3Area(accessUser, "students");
   const canViewConsultations = canAccessVersion3Area(accessUser, "consultations");
@@ -103,7 +103,7 @@ export default function DashboardPage() {
     setAlertMessage("");
 
     if (!saveAction.hasLiveSession) {
-      setAlertMessage("Preview에서는 확인 처리 상태만 화면에서 반영합니다. 서버 세션에서는 감사 로그까지 저장됩니다.");
+      setAlertMessage("상담요청 확인 처리는 실사용 로그인 세션에서만 저장됩니다.");
       return;
     }
 
@@ -205,7 +205,7 @@ export default function DashboardPage() {
                 ])}
               />
             ) : (
-              <EmptyState title="예정 수업이 없습니다" description="Version.3 서버 또는 preview 데이터에 오늘 수업이 없으면 이 영역은 비어 있습니다." />
+              <EmptyState title="예정 수업이 없습니다" description="운영 데이터에 오늘 수업이 없으면 이 영역은 비어 있습니다." />
             )}
           </Panel>
 
@@ -297,14 +297,14 @@ export default function DashboardPage() {
 }
 
 function dashboardProfile(role: Role | null) {
-  if (role === "student") {
+  if (role === "artist") {
     return {
       title: "내 수업 홈",
       description: "공지, 내 수업, 레슨노트, 상담요청, 연습실 예약을 한곳에서 시작합니다.",
       actions: [["공지 확인", "/notices"], ["상담요청", "/consultations"], ["내 수업", "/lessons"], ["연습실 예약", "/practice-rooms"]]
     };
   }
-  if (role === "teacher") {
+  if (role === "coach") {
     return {
       title: "강사 업무 홈",
       description: "담당 학생, 오늘 수업, 출결, 레슨노트와 공간 예약을 빠르게 확인합니다.",
@@ -319,7 +319,7 @@ function dashboardProfile(role: Role | null) {
     };
   }
   return {
-    title: "대표 운영 홈",
+    title: "관리자 운영 홈",
     description: "전체 운영 현황, 공지, 상담요청, 수납과 데이터 점검을 확인합니다.",
     actions: [["계정 관리", "/accounts"], ["공지 작성", "/notices"], ["상담요청", "/consultations"], ["데이터 점검", "/data-quality"]]
   };
@@ -329,7 +329,7 @@ function buildDashboardStats(
   role: Role | null,
   counts: { lessons: number; consultations: number; attendance: number; students: number; rooms: number; lessonNotes: number; reservations: number; payments: number; tasks: number }
 ): StatData[] {
-  if (role === "student") {
+  if (role === "artist") {
     return [
       { label: "내 예정 수업", value: counts.lessons, helper: "확인 가능한 수업" },
       { label: "내 상담요청", value: counts.consultations, helper: "진행 중 요청" },
@@ -338,7 +338,7 @@ function buildDashboardStats(
     ];
   }
 
-  if (role === "teacher") {
+  if (role === "coach") {
     return [
       { label: "오늘 수업", value: counts.lessons, helper: "담당 수업" },
       { label: "출결 미처리", value: counts.attendance, helper: "확인할 수업" },
@@ -377,7 +377,7 @@ function buildMobileQuickCards(
       tone: counts.attendance ? "warn" : "good"
     },
     students: { href: "/students", label: "학생 관리", value: counts.students, helper: "상세 조회" },
-    rooms: { href: "/practice-rooms", label: role === "student" ? "내 예약" : "공간 예약", value: role === "student" ? counts.reservations : counts.rooms, helper: "시간 선택" },
+    rooms: { href: "/practice-rooms", label: role === "artist" ? "내 예약" : "공간 예약", value: role === "artist" ? counts.reservations : counts.rooms, helper: "시간 선택" },
     lessonNotes: { href: "/lesson-notes", label: "레슨노트", value: counts.lessonNotes, helper: "기록 확인" },
     payments: {
       href: "/payments",
@@ -389,8 +389,8 @@ function buildMobileQuickCards(
     notices: { href: "/notices", label: "공지", value: counts.notices, helper: "최근 안내" }
   };
 
-  if (role === "student") return [cards.lessons, cards.lessonNotes, cards.consultations, cards.rooms, cards.notices];
-  if (role === "teacher") return [cards.lessons, cards.attendance, cards.lessonNotes, cards.students, cards.rooms];
+  if (role === "artist") return [cards.lessons, cards.lessonNotes, cards.consultations, cards.rooms, cards.notices];
+  if (role === "coach") return [cards.lessons, cards.attendance, cards.lessonNotes, cards.students, cards.rooms];
   if (focus === "lessons") return [cards.lessons, cards.attendance, cards.consultations, cards.rooms, cards.students];
   if (focus === "students") return [cards.students, cards.consultations, cards.lessons, cards.attendance, cards.payments];
   return [cards.consultations, cards.attendance, cards.lessons, cards.payments, cards.students];
@@ -409,7 +409,7 @@ function buildConsultationAlerts(consultations: Consultation[], user: CurrentUse
       const unread = Boolean(accountId && item.unreadForAccountIds?.includes(accountId) && !acknowledgedIds.includes(item.id));
       const isHandoff = status === "전달 필요";
       const isNew = status === "접수됨";
-      const label = unread ? "미확인" : role === "student" ? "내 요청" : role === "teacher" ? "강사 확인" : isHandoff ? "전달 필요" : isNew ? "새 요청" : "확인 중";
+      const label = unread ? "미확인" : role === "artist" ? "내 요청" : role === "coach" ? "강사 확인" : isHandoff ? "전달 필요" : isNew ? "새 요청" : "확인 중";
       const tone: ConsultationAlert["tone"] = unread || isHandoff ? "danger" : isNew ? "warn" : "default";
 
       return {
@@ -434,10 +434,10 @@ function consultationAlertRank(item: ConsultationAlert) {
 }
 
 function defaultAccountIdForRole(role: Role | null) {
-  if (role === "owner") return "owner-1";
+  if (role === "admin") return "admin-1";
   if (role === "manager") return "manager-1";
-  if (role === "teacher") return "teacher-1";
-  if (role === "student") return "student-1-account";
+  if (role === "coach") return "teacher-1";
+  if (role === "artist") return "student-1-account";
   return "";
 }
 
@@ -451,11 +451,9 @@ function SourceBanner({ source, error, hasLiveSession }: { source: DataSource; e
     loading: "데이터 확인 중",
     server: "Version.3 서버 데이터",
     live: "전환 연결층 데이터",
-    test: "Version.3 서버 데이터",
-    preview: "기능 점검 Preview 데이터",
     fallback: "연결 실패"
   }[source];
-  const tone = source === "server" || source === "live" || source === "test" ? "good" : source === "fallback" ? "warn" : "default";
+  const tone = source === "server" || source === "live" ? "good" : source === "fallback" ? "warn" : "default";
 
   return (
     <div className="rounded-2xl border border-line bg-white p-4 shadow-card">
@@ -463,13 +461,13 @@ function SourceBanner({ source, error, hasLiveSession }: { source: DataSource; e
         <div>
           <p className="text-sm font-extrabold text-ink">데이터 소스</p>
           <p className="mt-1 text-xs leading-5 text-muted">
-            {source === "server" || source === "test"
+            {source === "server"
               ? "Version.3 별도 서버 세션을 사용해 운영 데이터를 먼저 불러옵니다."
               : source === "fallback"
               ? "운영 데이터를 불러오지 못했습니다. 서버 연결과 권한을 확인해야 합니다."
               : hasLiveSession
               ? "저장된 전환 세션 토큰을 사용해 실사용 데이터를 먼저 불러옵니다."
-              : "실사용 로그인을 하지 않아 Next UI 기능 점검용 preview 데이터를 표시합니다."}
+              : "운영 데이터 세션을 확인하고 있습니다."}
           </p>
         </div>
         <Badge tone={tone}>{label}</Badge>

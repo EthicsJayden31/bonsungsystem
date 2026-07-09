@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/layout/app-shell";
@@ -6,20 +6,20 @@ import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Section } from "@/components/ui/section";
 import { DataTable } from "@/components/ui/table";
-import type { Consultation, ConsultationHistory } from "@/lib/demo-data";
+import type { Consultation, ConsultationHistory } from "@/lib/operations-types";
 import { useOperationAction, useOperationsData } from "@/lib/operations-data";
-import { usePreviewRole } from "@/lib/use-preview-role";
+import { useCurrentRole } from "@/lib/use-current-role";
 import { normalizeConsultationStatus, version3ConsultationStatuses, type Version3ConsultationStatus } from "@/lib/version3-server-contract";
 
 type StatusFilter = Version3ConsultationStatus | "전체";
 type AssigneeOption = {
   id: string;
   name: string;
-  role: "owner" | "manager" | "teacher";
+  role: "manager" | "coach";
 };
 
 export default function ConsultationsPage() {
-  const role = usePreviewRole();
+  const role = useCurrentRole();
   const { data, source, error } = useOperationsData(role);
   const saveAction = useOperationAction();
   const requestedConsultationId = useRequestedConsultationId();
@@ -28,10 +28,10 @@ export default function ConsultationsPage() {
   const [statusOverrides, setStatusOverrides] = useState<Record<string, Version3ConsultationStatus>>({});
   const [assigneeOverrides, setAssigneeOverrides] = useState<Record<string, string>>({});
   const [localHistory, setLocalHistory] = useState<ConsultationHistory[]>([]);
-  const isStudent = role === "student";
-  const canTriage = role === "owner" || role === "manager";
+  const isStudent = role === "artist";
+  const canTriage = role === "admin" || role === "manager";
   const studentName = data.students[0]?.name || "수강생";
-  const sourceLabel = source === "server" || source === "test" ? "Version.3 서버 데이터" : source === "live" ? "전환 데이터" : source === "fallback" ? "연결 실패" : "프리뷰 데이터";
+  const sourceLabel = source === "server" ? "Version.3 서버 데이터" : source === "live" ? "전환 데이터" : source === "fallback" ? "연결 실패" : "확인 중";
   const assignees = useMemo(() => buildAssignees(data.teachers), [data.teachers]);
   const assigneeNames = useMemo(() => Object.fromEntries(assignees.map((assignee) => [assignee.id, assignee.name])), [assignees]);
   const consultations = useMemo(
@@ -119,7 +119,7 @@ export default function ConsultationsPage() {
 
     if (!saveAction.hasLiveSession) {
       appendLocalHistory(consultationId, "update_consultation_status", status, assignedTo);
-      setMessage("Preview 상태에서 상담요청 상태를 변경했습니다. 실사용 저장은 로그인 세션이 있을 때 반영됩니다.");
+      setMessage("상담요청 상태를 변경했습니다.");
       return;
     }
 
@@ -143,7 +143,7 @@ export default function ConsultationsPage() {
 
     if (!saveAction.hasLiveSession) {
       appendLocalHistory(item.id, "assign_consultation", normalizeConsultationStatus(item.status), assignedTo);
-      setMessage("Preview 상태에서 담당자를 배정했습니다. 실사용 저장은 로그인 세션이 있을 때 반영됩니다.");
+      setMessage("담당자를 배정했습니다.");
       return;
     }
 
@@ -171,7 +171,7 @@ export default function ConsultationsPage() {
       {
         id: `local-${consultationId}-${occurredAt}`,
         consultationId,
-        actorId: role || "preview",
+        actorId: role || "current",
         actorName: currentActorName(role),
         action,
         status,
@@ -285,11 +285,11 @@ export default function ConsultationsPage() {
 }
 
 function currentActorName(role: string | null) {
-  if (role === "owner") return "강은미";
+  if (role === "admin") return "시스템 관리자";
   if (role === "manager") return "조영진";
-  if (role === "teacher") return "황휘현";
-  if (role === "student") return "장윤호";
-  return "Preview 계정";
+  if (role === "coach") return "황휘현";
+  if (role === "artist") return "장윤호";
+  return "현재 계정";
 }
 
 function useRequestedConsultationId() {
@@ -348,10 +348,9 @@ function RequestedConsultationPanel({ consultation, requestId }: { consultation?
 function buildAssignees(teachers: Array<{ id: string; name: string }>): AssigneeOption[] {
   const options = new Map<string, AssigneeOption>();
   options.set("manager-1", { id: "manager-1", name: "조영진", role: "manager" });
-  options.set("owner-1", { id: "owner-1", name: "강은미", role: "owner" });
   teachers.forEach((teacher) => {
     if (!teacher.id) return;
-    options.set(teacher.id, { id: teacher.id, name: teacher.name || teacher.id, role: "teacher" });
+    options.set(teacher.id, { id: teacher.id, name: teacher.name || teacher.id, role: "coach" });
   });
   return Array.from(options.values());
 }

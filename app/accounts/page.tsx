@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { FormEvent, MouseEvent, useMemo, useState } from "react";
 import { AppShell } from "@/components/layout/app-shell";
@@ -11,20 +11,16 @@ import { roleLabel, useAccountsData } from "@/lib/accounts-data";
 import { redirectToAppPath } from "@/lib/client-session";
 import { useOperationsData } from "@/lib/operations-data";
 import { useCurrentUser } from "@/lib/use-current-user";
-import { usePreviewRole } from "@/lib/use-preview-role";
-import { hasVersion3TestSession, reviewVersion3TestAccountRequest } from "@/lib/version3-test-mode";
+import { useCurrentRole } from "@/lib/use-current-role";
 import { callVersion3Server, hasVersion3ServerSession } from "@/lib/version3-server-client";
-import { ENABLE_PREVIEW_LOGIN } from "@/lib/version3-runtime-flags";
 import { version3AccountRoles, version3PermissionGroups, version3PermissionKeys, version3ServerEntities, type Version3Account, type Version3AccountHistory, type Version3AccountInput, type Version3Permissions } from "@/lib/version3-server-contract";
 import type { Role } from "@/lib/auth-shared";
-import type { AccountRequest } from "@/lib/demo-data";
+import type { AccountRequest } from "@/lib/operations-types";
 
 const accountSourceLabel = {
   loading: "계정 확인 중",
   server: "Version.3 서버 계정",
   live: "실사용 계정",
-  test: "Version.3 서버 계정",
-  preview: "Version.3 Preview",
   fallback: "계정 연결 실패"
 };
 
@@ -33,12 +29,12 @@ const permissionLabels = Object.fromEntries(
 ) as Record<(typeof version3PermissionKeys)[number], string>;
 
 export default function AccountsPage() {
-  const role = usePreviewRole();
+  const role = useCurrentRole();
   const user = useCurrentUser();
   const accountState = useAccountsData();
   const operations = useOperationsData(role);
   const [message, setMessage] = useState("");
-  const [selectedRole, setSelectedRole] = useState<Role>("student");
+  const [selectedRole, setSelectedRole] = useState<Role>("artist");
   const prefillStudentId = readAccountPrefillStudentId();
   const returnToPath = readAccountReturnToPath();
   const [pendingAccountId, setPendingAccountId] = useState("");
@@ -50,14 +46,14 @@ export default function AccountsPage() {
   const canManageAccount = hasVersion3Permission(accessUser, "manageAccounts");
   const canEditPermissions = hasVersion3Permission(accessUser, "managePermissions");
   const canReviewAccountRequests = hasVersion3Permission(accessUser, "reviewAccountRequests");
-  const canSubmitAccount = canCreateAccount && (accountState.hasLiveSession || ENABLE_PREVIEW_LOGIN);
-  const accountWriteModeLabel = accountState.hasLiveSession ? "계정 생성" : ENABLE_PREVIEW_LOGIN ? "Preview 초안 추가" : "서버 로그인 필요";
+  const canSubmitAccount = canCreateAccount && accountState.hasLiveSession;
+  const accountWriteModeLabel = accountState.hasLiveSession ? "계정 생성" : "서버 로그인 필요";
   const linkedStudentCount = useMemo(
-    () => accountState.accounts.filter((account) => account.role === "student" && account.linkedStudentId).length,
+    () => accountState.accounts.filter((account) => account.role === "artist" && account.linkedStudentId).length,
     [accountState.accounts]
   );
   const linkedStudentIds = useMemo(
-    () => new Set(accountState.accounts.filter((account) => account.role === "student" && account.linkedStudentId).map((account) => account.linkedStudentId)),
+    () => new Set(accountState.accounts.filter((account) => account.role === "artist" && account.linkedStudentId).map((account) => account.linkedStudentId)),
     [accountState.accounts]
   );
   const availableStudents = useMemo(
@@ -116,20 +112,20 @@ export default function AccountsPage() {
       setMessage("초기 비밀번호는 8자 이상이어야 합니다.");
       return;
     }
-    if (input.role === "student" && !input.linkedStudentId) {
-      setMessage("수강생 계정은 연결할 학생을 선택해야 합니다.");
+    if (input.role === "artist" && !input.linkedStudentId) {
+      setMessage("Artist 계정은 연결할 학생을 선택해야 합니다.");
       return;
     }
-    if (input.role === "student" && linkedStudentIds.has(input.linkedStudentId)) {
-      setMessage("이미 수강생 계정과 연결된 학생입니다. 다른 학생을 선택해 주세요.");
+    if (input.role === "artist" && linkedStudentIds.has(input.linkedStudentId)) {
+      setMessage("이미 Artist 계정과 연결된 학생입니다. 다른 학생을 선택해 주세요.");
       return;
     }
 
     try {
       await accountState.createAccount(input);
       form.reset();
-      setSelectedRole("student");
-      setMessage(accountState.hasLiveSession ? "계정 생성 요청이 완료되었습니다." : "Preview 초안을 추가했습니다. 서버 저장은 Version.3 세션에서 처리합니다.");
+      setSelectedRole("artist");
+      setMessage("계정 생성 요청이 완료되었습니다.");
       if (returnToPath) redirectToAppPath(returnToPath);
     } catch (caught) {
       setMessage(caught instanceof Error ? caught.message : "계정을 저장하지 못했습니다.");
@@ -149,7 +145,7 @@ export default function AccountsPage() {
     setPendingAccountId(account.id);
     try {
       await accountState.updateAccountStatus(account.id, active);
-      setMessage(accountState.hasLiveSession ? `${account.name} 계정을 ${active ? "재개" : "중지"}했습니다.` : `Preview에서 ${account.name} 계정을 ${active ? "재개" : "중지"}했습니다.`);
+      setMessage(`${account.name} 계정을 ${active ? "재개" : "중지"}했습니다.`);
     } catch (caught) {
       setMessage(caught instanceof Error ? caught.message : "계정 상태를 변경하지 못했습니다.");
     } finally {
@@ -184,7 +180,7 @@ export default function AccountsPage() {
       await accountState.resetAccountPassword(accountId, password);
       const passwordInput = form.elements.namedItem("resetPassword") as HTMLInputElement | null;
       if (passwordInput) passwordInput.value = "";
-      setMessage(accountState.hasLiveSession ? `${account.name} 계정의 비밀번호를 초기화했습니다.` : `Preview에서 ${account.name} 계정의 비밀번호 초기화를 확인했습니다.`);
+      setMessage(`${account.name} 계정의 비밀번호를 초기화했습니다.`);
     } catch (caught) {
       setMessage(caught instanceof Error ? caught.message : "비밀번호를 초기화하지 못했습니다.");
     } finally {
@@ -205,7 +201,7 @@ export default function AccountsPage() {
     setPendingAccountId(selectedPermissionAccount.id);
     try {
       await accountState.updateAccountPermissions(selectedPermissionAccount.id, effectivePermissionDraft);
-      setMessage(accountState.hasLiveSession ? `${selectedPermissionAccount.name} 계정의 권한을 저장했습니다.` : `Preview에서 ${selectedPermissionAccount.name} 계정의 권한 변경을 확인했습니다.`);
+      setMessage(`${selectedPermissionAccount.name} 계정의 권한을 저장했습니다.`);
     } catch (caught) {
       setMessage(caught instanceof Error ? caught.message : "권한을 저장하지 못했습니다.");
     } finally {
@@ -231,8 +227,8 @@ export default function AccountsPage() {
       setMessage("계정 요청 승인은 대표 권한에서만 진행합니다.");
       return;
     }
-    if (!hasVersion3ServerSession() && !hasVersion3TestSession()) {
-      setMessage("계정 요청 승인은 Version.3 서버 또는 테스트모드 로그인 세션에서만 진행합니다.");
+    if (!hasVersion3ServerSession()) {
+      setMessage("계정 요청 승인은 Version.3 서버 로그인 세션에서만 진행합니다.");
       return;
     }
     const form = event.currentTarget;
@@ -246,31 +242,22 @@ export default function AccountsPage() {
       setMessage("승인할 계정의 초기 비밀번호는 8자 이상이어야 합니다.");
       return;
     }
-    if (decision === "approve" && request.requestedRole === "student" && !linkedStudentId) {
-      setMessage("수강생 계정 요청은 연결할 학생을 선택해야 승인할 수 있습니다.");
+    if (decision === "approve" && request.requestedRole === "artist" && !linkedStudentId) {
+      setMessage("Artist 계정 요청은 연결할 학생을 선택해야 승인할 수 있습니다.");
       return;
     }
 
     setRequestPendingId(request.id);
     try {
-      if (hasVersion3TestSession()) {
-        reviewVersion3TestAccountRequest(request.id, {
+      await callVersion3Server(`/account-requests/${encodeURIComponent(request.id)}/review`, {
+        method: "PATCH",
+        body: {
           decision,
           initialPassword,
           linkedStudentId,
           memo: values.memo || ""
-        });
-      } else {
-        await callVersion3Server(`/account-requests/${encodeURIComponent(request.id)}/review`, {
-          method: "PATCH",
-          body: {
-            decision,
-            initialPassword,
-            linkedStudentId,
-            memo: values.memo || ""
-          }
-        });
-      }
+        }
+      });
       setMessage(decision === "approve" ? `${request.name} 계정 요청을 승인했습니다. 새로고침 후 계정 목록에 반영됩니다.` : `${request.name} 계정 요청을 반려했습니다.`);
       form.reset();
     } catch (caught) {
@@ -284,13 +271,13 @@ export default function AccountsPage() {
     <AppShell area="accounts">
       <Section
         title="계정 관리"
-        description="Version.3의 대표, 매니저, 강사, 수강생 계정을 한 기준으로 정리합니다. 수강생 계정은 학생 기록과 연결되어야 합니다."
+        description="Version.3의 Admin, Manager, Coach, Artist 계정을 한 기준으로 정리합니다. Artist 계정은 학생 기록과 연결되어야 합니다."
       >
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
           <div className="min-w-0 space-y-4">
             <div className="grid gap-3 sm:grid-cols-3">
-              <SummaryCard label="계정 소스" value={accountSourceLabel[accountState.source]} helper={accountState.source === "server" || accountState.source === "test" ? "별도 서버 연결" : accountState.source === "live" ? "전환 연결층 사용" : accountState.source === "preview" ? "점검용 Preview" : "서버 세션 필요"} />
-              <SummaryCard label="전체 계정" value={accountState.accounts.length} helper="대표/매니저/강사/수강생 합계" />
+              <SummaryCard label="계정 소스" value={accountSourceLabel[accountState.source]} helper={accountState.source === "server" ? "Version.3 서버 연결" : accountState.source === "live" ? "Apps Script 연결" : "서버 세션 필요"} />
+              <SummaryCard label="전체 계정" value={accountState.accounts.length} helper="Admin/Manager/Coach/Artist 합계" />
               <SummaryCard label="연결 가능 학생" value={availableStudents.length} helper={`연결됨 ${linkedStudentCount}명`} />
             </div>
 
@@ -327,7 +314,7 @@ export default function AccountsPage() {
                           <div className="mt-4 grid gap-3 lg:grid-cols-2">
                             <label className="block">
                               <span className="text-xs font-bold text-ink">연결 학생</span>
-                              <select className="mt-1 h-11 w-full rounded-xl border border-line bg-white px-3 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/15" defaultValue={request.linkedStudentId} disabled={request.requestedRole !== "student" || requestPendingId === request.id} name="linkedStudentId">
+                              <select className="mt-1 h-11 w-full rounded-xl border border-line bg-white px-3 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/15" defaultValue={request.linkedStudentId} disabled={request.requestedRole !== "artist" || requestPendingId === request.id} name="linkedStudentId">
                                 <option value="">학생 선택</option>
                                 {availableStudents.map((student) => (
                                   <option value={student.id} key={student.id}>{student.name}</option>
@@ -377,7 +364,7 @@ export default function AccountsPage() {
                       account.name,
                       account.loginId,
                       <Badge key={`${account.id}-role`}>{roleLabel(account.role)}</Badge>,
-                      account.role === "student" ? account.linkedStudentName || account.linkedStudentId || "미연결" : "-",
+                      account.role === "artist" ? account.linkedStudentName || account.linkedStudentId || "미연결" : "-",
                       statusBadge(account),
                       account.lastLoginAt || "-",
                       <AccountActions account={account} canManage={canManageAccount} isCurrent={account.id === accountState.currentAccountId} isPending={pendingAccountId === account.id} key={`${account.id}-actions`} onToggle={toggleAccount} />
@@ -386,7 +373,7 @@ export default function AccountsPage() {
                 </div>
               </>
             ) : (
-              <EmptyState title="계정 데이터가 없습니다" description="실사용 계정 연결 또는 preview 계정 초안이 표시됩니다." />
+              <EmptyState title="계정 데이터가 없습니다" description="Version.3 서버 또는 Apps Script 계정 연결 상태를 확인해 주세요." />
             )}
 
             <div className="rounded-[24px] border border-line bg-white p-5 shadow-card">
@@ -395,7 +382,7 @@ export default function AccountsPage() {
                   <h2 className="text-lg font-extrabold tracking-tight text-ink">최근 계정 변경 이력</h2>
                   <p className="mt-1 text-sm leading-6 text-muted">계정 생성, 중지/재개, 비밀번호 초기화처럼 운영에 영향을 주는 변경을 남깁니다.</p>
                 </div>
-                <Badge tone={accountState.hasLiveSession ? "good" : "warn"}>{accountState.hasLiveSession ? "실사용 이력" : "Preview 이력"}</Badge>
+                <Badge tone={accountState.hasLiveSession ? "good" : "warn"}>{accountState.hasLiveSession ? "실사용 이력" : "세션 필요"}</Badge>
               </div>
               {recentAccountHistory.length ? (
                 <div className="mt-4 grid gap-2">
@@ -430,15 +417,15 @@ export default function AccountsPage() {
               <div>
                 <h2 className="text-lg font-extrabold tracking-tight text-ink">계정 입력</h2>
                 <p className="mt-1 text-xs leading-5 text-muted">
-                  대표 계정은 Version.3 서버에 계정을 생성합니다. Preview 점검 모드에서만 초안으로 목록에 추가됩니다.
+                  계정은 Version.3 서버 또는 Apps Script 운영 저장소에 생성됩니다.
                 </p>
               </div>
-              <Badge tone={canCreateAccount ? "good" : "warn"}>{canCreateAccount ? "생성 가능" : "대표 권한 필요"}</Badge>
+              <Badge tone={canCreateAccount ? "good" : "warn"}>{canCreateAccount ? "생성 가능" : "Manager 권한 필요"}</Badge>
             </div>
 
             {prefillStudent ? (
               <p className="mb-4 rounded-xl border border-brand/15 bg-brand/5 px-3 py-2 text-xs leading-5 text-muted">
-                {prefillStudent.name} 학생의 수강생 계정 초안을 바로 만들 수 있도록 연결 학생과 기본 이름을 채웠습니다.
+                {prefillStudent.name} 학생의 Artist 계정을 바로 만들 수 있도록 연결 학생과 기본 이름을 채웠습니다.
               </p>
             ) : requestedStudent ? (
               <p className="mb-4 rounded-xl border border-accent/25 bg-accent/10 px-3 py-2 text-xs leading-5 text-accent">
@@ -481,13 +468,13 @@ export default function AccountsPage() {
             </label>
             <label className="mt-3 block">
               <span className="text-xs font-bold text-ink">연결 학생</span>
-              <select className="mt-1 h-11 w-full rounded-xl border border-line bg-white px-3 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/15" name="linkedStudentId" defaultValue={accountPrefill.linkedStudentId} disabled={selectedRole !== "student" || !canSubmitAccount}>
+              <select className="mt-1 h-11 w-full rounded-xl border border-line bg-white px-3 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/15" name="linkedStudentId" defaultValue={accountPrefill.linkedStudentId} disabled={selectedRole !== "artist" || !canSubmitAccount}>
                 <option value="">학생 선택</option>
                 {availableStudents.map((student) => (
                   <option value={student.id} key={student.id}>{student.name}</option>
                 ))}
               </select>
-              {selectedRole === "student" && !availableStudents.length ? (
+              {selectedRole === "artist" && !availableStudents.length ? (
                 <span className="mt-2 block rounded-xl bg-accent/10 px-3 py-2 text-xs leading-5 text-accent">연결 가능한 학생 기록이 없습니다. 먼저 학생을 등록하거나 기존 수강생 계정 연결을 정리해야 합니다.</span>
               ) : null}
             </label>
@@ -496,8 +483,8 @@ export default function AccountsPage() {
             </button>
             {message ? <p className="mt-3 rounded-xl bg-brand/5 px-3 py-2 text-xs leading-5 text-muted">{message}</p> : null}
             {!canCreateAccount ? (
-              <p className="mt-3 rounded-xl bg-accent/10 px-3 py-2 text-xs leading-5 text-accent">계정 생성은 대표 권한에서만 진행합니다.</p>
-            ) : !accountState.hasLiveSession && !ENABLE_PREVIEW_LOGIN ? (
+              <p className="mt-3 rounded-xl bg-accent/10 px-3 py-2 text-xs leading-5 text-accent">계정 생성은 Manager 이상 권한에서만 진행합니다.</p>
+            ) : !accountState.hasLiveSession ? (
               <p className="mt-3 rounded-xl bg-accent/10 px-3 py-2 text-xs leading-5 text-accent">Version.3 서버 로그인 세션이 있어야 계정을 생성할 수 있습니다.</p>
             ) : null}
 
@@ -599,7 +586,7 @@ function AccountCard({ account, canManage, isCurrent, isPending, onToggle }: { a
         <Badge>{roleLabel(account.role)}</Badge>
       </div>
       <div className="mt-3 grid gap-2 text-xs text-muted">
-        <p className="rounded-xl bg-surface-muted px-3 py-2">학생 연결: {account.role === "student" ? account.linkedStudentName || account.linkedStudentId || "미연결" : "-"}</p>
+        <p className="rounded-xl bg-surface-muted px-3 py-2">학생 연결: {account.role === "artist" ? account.linkedStudentName || account.linkedStudentId || "미연결" : "-"}</p>
         <p className="rounded-xl bg-surface-muted px-3 py-2">상태: {statusText(account)}</p>
         <p className="rounded-xl bg-surface-muted px-3 py-2">최근 로그인: {account.lastLoginAt || "-"}</p>
       </div>

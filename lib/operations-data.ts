@@ -1,63 +1,40 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import {
-  attendance,
-  consultations,
-  consultationHistory,
-  courses,
-  enrollments,
-  getCourseName,
-  getStudentName,
-  getTeacherName,
-  guardians,
-  lessonNotes,
-  lessons,
-  notices,
-  payments,
-  accountRequests,
-  calendarEvents,
-  meetings,
-  publicSettings,
-  reservations,
-  rooms,
-  students,
-  tasks,
-  teachers,
-  workLogs,
-  type AccountRequest,
-  type Attendance,
-  type CalendarEvent,
-  type Consultation,
-  type ConsultationHistory,
-  type Course,
-  type Enrollment,
-  type Guardian,
-  type Lesson,
-  type LessonNote,
-  type Notice,
-  type Payment,
-  type PublicSettings,
-  type Reservation,
-  type Room,
-  type Student,
-  type Task,
-  type Teacher,
-  type Meeting,
-  type WorkLog
-} from "@/lib/demo-data";
+import { useEffect, useState } from "react";
+import type {
+  AccountRequest,
+  Attendance,
+  CalendarEvent,
+  Consultation,
+  ConsultationHistory,
+  Course,
+  Enrollment,
+  Guardian,
+  Lesson,
+  LessonNote,
+  Notice,
+  Payment,
+  PublicSettings,
+  Reservation,
+  Room,
+  Student,
+  Task,
+  Teacher,
+  Meeting,
+  WorkLog
+} from "@/lib/operations-types";
 import { normalizeRole, type Role } from "@/lib/auth-shared";
 import { canAccessVersion3Area, hasVersion3Permission, type AccessUser } from "@/lib/access-policy";
 import { APPS_SCRIPT_ENDPOINT, APPS_SCRIPT_REQUEST_TIMEOUT_MS, APPS_SCRIPT_SESSION_TOKEN_KEY } from "@/lib/apps-script-client";
 import { useCurrentUser } from "@/lib/use-current-user";
-import { VERSION3_TEST_DATA_CHANGE_EVENT, hasVersion3TestSession, readVersion3TestData, runVersion3TestAction } from "@/lib/version3-test-mode";
+import { loadingMessageForAction, setGlobalLoading, showUiToast, successMessageForAction } from "@/lib/ui-feedback";
 import { normalizeConsultationStatus, type Version3AuditLog, type Version3DashboardWorkItem, type Version3DashboardWorkPriority, type Version3DashboardWorkTone } from "@/lib/version3-server-contract";
 import { callVersion3Server, hasVersion3ServerSession, version3ServerEndpoint } from "@/lib/version3-server-client";
-import { ENABLE_APPS_SCRIPT_TRANSITION, ENABLE_PREVIEW_LOGIN } from "@/lib/version3-runtime-flags";
+import { ENABLE_APPS_SCRIPT_TRANSITION } from "@/lib/version3-runtime-flags";
 
 const SESSION_TOKEN_KEY = APPS_SCRIPT_SESSION_TOKEN_KEY;
 
-export type DataSource = "loading" | "server" | "live" | "test" | "preview" | "fallback";
+export type DataSource = "loading" | "server" | "live" | "fallback";
 
 export type DataQualityIssue = {
   severity: "blocking" | "warning" | "info";
@@ -230,71 +207,49 @@ export function useOperationAction(): OperationActionState {
   const [error, setError] = useState("");
 
   async function run<T>(action: string, payload: Record<string, unknown> = {}) {
-    if (hasVersion3TestSession()) {
-      setPending(true);
-      setError("");
-      try {
-        return await runVersion3TestAction<T>(action, payload);
-      } catch (caught) {
-        const message = caught instanceof Error ? caught.message : String(caught);
-        setError(message);
-        throw new Error(message);
-      } finally {
-        setPending(false);
-      }
-    }
-
-    if (hasVersion3ServerSession()) {
-      setPending(true);
-      setError("");
-      try {
-        return await callVersion3Server<T>(`/actions/${encodeURIComponent(action)}`, { method: "POST", body: payload });
-      } catch (caught) {
-        const message = caught instanceof Error ? caught.message : String(caught);
-        setError(message);
-        throw new Error(message);
-      } finally {
-        setPending(false);
-      }
-    }
-
-    const token = ENABLE_APPS_SCRIPT_TRANSITION ? window.localStorage.getItem(SESSION_TOKEN_KEY) : "";
-    if (!token) {
-      const message = "실사용 저장은 Version.3 서버 로그인 세션이 필요합니다.";
-      setError(message);
-      throw new Error(message);
-    }
-
     setPending(true);
     setError("");
+    setGlobalLoading(true, loadingMessageForAction(action));
     try {
-      return await callAppsScript<T>(action, token, payload);
+      const result = hasVersion3ServerSession()
+        ? await callVersion3Server<T>(`/actions/${encodeURIComponent(action)}`, { method: "POST", body: payload })
+        : await runAppsScriptAction<T>(action, payload);
+      showUiToast(successMessageForAction(action));
+      return result;
     } catch (caught) {
-      const message = caught instanceof Error ? caught.message : String(caught);
+      const message = String(caught);
       setError(message);
+      showUiToast(message || "처리하지 못했습니다.", "error");
       throw new Error(message);
     } finally {
       setPending(false);
+      setGlobalLoading(false);
     }
   }
 
   return {
     pending,
     error,
-    hasLiveSession: typeof window !== "undefined" && (hasVersion3TestSession() || hasVersion3ServerSession() || (ENABLE_APPS_SCRIPT_TRANSITION && Boolean(window.localStorage.getItem(SESSION_TOKEN_KEY)))),
-    endpoint: hasVersion3TestSession() ? "localStorage:version3-test" : hasVersion3ServerSession() ? version3ServerEndpoint() : APPS_SCRIPT_ENDPOINT,
+    hasLiveSession: typeof window !== "undefined" && (hasVersion3ServerSession() || (ENABLE_APPS_SCRIPT_TRANSITION && Boolean(window.localStorage.getItem(SESSION_TOKEN_KEY)))),
+    endpoint: hasVersion3ServerSession() ? version3ServerEndpoint() : APPS_SCRIPT_ENDPOINT,
     run
   };
+}
+
+async function runAppsScriptAction<T>(action: string, payload: Record<string, unknown>) {
+  const token = ENABLE_APPS_SCRIPT_TRANSITION ? window.localStorage.getItem(SESSION_TOKEN_KEY) : "";
+  if (!token) {
+    throw new Error("Version.3 서버 로그인 세션이 필요합니다.");
+  }
+  return callAppsScript<T>(action, token, payload);
 }
 
 export function useOperationsData(role: Role | null): OperationsState {
   const currentUser = useCurrentUser();
   const accessUser = currentUser ?? role;
-  const previewData = useMemo(() => filterOperationsData(buildPreviewData(role), accessUser), [accessUser, role]);
-  const fallbackData = ENABLE_PREVIEW_LOGIN ? previewData : emptyOperationsData;
   const [state, setState] = useState<OperationsState>({
     source: "loading",
-    data: fallbackData,
+    data: emptyOperationsData,
     error: "",
     hasLiveSession: false,
     endpoint: APPS_SCRIPT_ENDPOINT
@@ -302,33 +257,14 @@ export function useOperationsData(role: Role | null): OperationsState {
 
   useEffect(() => {
     let active = true;
-    const token = ENABLE_APPS_SCRIPT_TRANSITION ? window.localStorage.getItem(SESSION_TOKEN_KEY) : "";
-    if (hasVersion3TestSession()) {
-      const setTestState = () => {
-        if (!active) return;
-        setState({
-          source: "test",
-          data: filterOperationsData(readVersion3TestData(), accessUser),
-          error: "",
-          hasLiveSession: true,
-          endpoint: "localStorage:version3-test"
-        });
-      };
-      queueMicrotask(setTestState);
-      window.addEventListener(VERSION3_TEST_DATA_CHANGE_EVENT, setTestState);
-      return () => {
-        active = false;
-        window.removeEventListener(VERSION3_TEST_DATA_CHANGE_EVENT, setTestState);
-      };
-    }
-
+    const token = (ENABLE_APPS_SCRIPT_TRANSITION ? window.localStorage.getItem(SESSION_TOKEN_KEY) : "") || "";
     if (hasVersion3ServerSession()) {
       queueMicrotask(() => {
         if (!active) return;
         setState((current) => ({
           ...current,
           source: "loading",
-          data: fallbackData,
+          data: emptyOperationsData,
           error: "",
           hasLiveSession: true,
           endpoint: version3ServerEndpoint()
@@ -350,7 +286,7 @@ export function useOperationsData(role: Role | null): OperationsState {
           if (!active) return;
           setState({
             source: "fallback",
-            data: fallbackData,
+            data: emptyOperationsData,
             error: error instanceof Error ? error.message : String(error),
             hasLiveSession: true,
             endpoint: version3ServerEndpoint()
@@ -366,8 +302,8 @@ export function useOperationsData(role: Role | null): OperationsState {
       queueMicrotask(() => {
         if (!active) return;
         setState({
-          source: ENABLE_PREVIEW_LOGIN ? "preview" : "fallback",
-          data: fallbackData,
+          source: "fallback",
+          data: emptyOperationsData,
           error: "",
           hasLiveSession: false,
           endpoint: APPS_SCRIPT_ENDPOINT
@@ -383,7 +319,7 @@ export function useOperationsData(role: Role | null): OperationsState {
       setState((current) => ({
         ...current,
         source: "loading",
-        data: fallbackData,
+        data: emptyOperationsData,
         error: "",
         hasLiveSession: true
       }));
@@ -404,7 +340,7 @@ export function useOperationsData(role: Role | null): OperationsState {
         if (!active) return;
         setState({
           source: "fallback",
-          data: fallbackData,
+          data: emptyOperationsData,
           error: error instanceof Error ? error.message : String(error),
           hasLiveSession: true,
           endpoint: APPS_SCRIPT_ENDPOINT
@@ -414,7 +350,7 @@ export function useOperationsData(role: Role | null): OperationsState {
     return () => {
       active = false;
     };
-  }, [accessUser, fallbackData, previewData, role]);
+  }, [accessUser, role]);
 
   return state;
 }
@@ -426,37 +362,6 @@ export function useDataQualityReport(): DataQualityState {
   useEffect(() => {
     let active = true;
     const token = ENABLE_APPS_SCRIPT_TRANSITION ? window.localStorage.getItem(SESSION_TOKEN_KEY) : "";
-    if (hasVersion3TestSession()) {
-      queueMicrotask(() => {
-        if (!active) return;
-        const data = readVersion3TestData();
-        setState({
-          source: "test",
-          report: {
-            generatedAt: new Date().toISOString(),
-            summary: {
-              totalIssues: 0,
-              blocking: 0,
-              warning: 0,
-              info: 0,
-              checkedSheets: ["localStorage"],
-              checkedRecords: data.students.length + data.accounts.length + data.auditLogs.length,
-              accounts: data.accounts.length,
-              students: data.students.length,
-              auditLogs: data.auditLogs.length,
-              backupEnabled: true
-            },
-            checks: [],
-            issues: []
-          },
-          error: "",
-          hasLiveSession: true,
-          endpoint: "localStorage:version3-test"
-        });
-      });
-      return () => { active = false; };
-    }
-
     if (hasVersion3ServerSession()) {
       callVersion3Server<DataQualityReport>("/data-quality")
         .then((report) => {
@@ -474,7 +379,7 @@ export function useDataQualityReport(): DataQualityState {
     if (!token) {
       queueMicrotask(() => {
         if (!active) return;
-        setState({ source: "preview", report: null, error: "", hasLiveSession: false, endpoint: APPS_SCRIPT_ENDPOINT });
+        setState({ source: "fallback", report: null, error: "실사용 데이터 세션이 필요합니다.", hasLiveSession: false, endpoint: APPS_SCRIPT_ENDPOINT });
       });
       return () => { active = false; };
     }
@@ -500,19 +405,6 @@ export function useAuditLogs(): AuditLogsState {
 
   useEffect(() => {
     let active = true;
-    if (hasVersion3TestSession()) {
-      const setTestLogs = () => {
-        if (!active) return;
-        setState({ source: "test", logs: readVersion3TestData().auditLogs, error: "", hasLiveSession: true, endpoint: "localStorage:version3-test" });
-      };
-      queueMicrotask(setTestLogs);
-      window.addEventListener(VERSION3_TEST_DATA_CHANGE_EVENT, setTestLogs);
-      return () => {
-        active = false;
-        window.removeEventListener(VERSION3_TEST_DATA_CHANGE_EVENT, setTestLogs);
-      };
-    }
-
     if (hasVersion3ServerSession()) {
       callVersion3Server<Version3AuditLog[]>("/audit-logs")
         .then((logs) => {
@@ -531,7 +423,7 @@ export function useAuditLogs(): AuditLogsState {
       if (!active) return;
       const token = ENABLE_APPS_SCRIPT_TRANSITION ? window.localStorage.getItem(SESSION_TOKEN_KEY) : "";
       setState({
-        source: token ? "live" : "preview",
+        source: token ? "live" : "fallback",
         logs: [],
         error: token ? "감사 로그는 Version.3 별도 서버 세션에서 확인합니다." : "",
         hasLiveSession: Boolean(token),
@@ -641,80 +533,24 @@ async function callAppsScript<T>(action: string, token: string, payload: Record<
   }
 }
 
-function buildPreviewData(role: Role | null): OperationsData {
-  const studentId = students[0]?.id || "student-jang-yunho";
-  const teacherId = "teacher-1";
-  const visibleStudents = role === "teacher"
-    ? students.filter((student) => student.teacherId === teacherId)
-    : role === "student"
-      ? students.filter((student) => student.id === studentId)
-      : students;
-  const visibleLessons = role === "teacher"
-    ? lessons.filter((lesson) => lesson.teacherId === teacherId)
-    : role === "student"
-      ? lessons.filter((lesson) => lesson.studentId === studentId)
-      : lessons;
-  const visibleEnrollments = role === "teacher"
-    ? enrollments.filter((item) => item.teacherId === teacherId)
-    : role === "student"
-      ? enrollments.filter((item) => item.studentId === studentId)
-      : enrollments;
-  const visibleNotes = role === "teacher"
-    ? lessonNotes.filter((note) => note.teacherId === teacherId)
-    : role === "student"
-      ? lessonNotes.filter((note) => note.studentId === studentId)
-      : lessonNotes;
-  const visibleReservations = role === "student" ? reservations.filter((item) => item.studentId === studentId) : reservations;
-  const visiblePayments = role === "teacher" || role === "student" ? [] : payments;
-  const visibleConsultations = role === "student" ? consultations.filter((item) => item.studentId === studentId || item.studentName === students[0]?.name) : consultations;
-  const visibleConsultationIds = new Set(visibleConsultations.map((item) => item.id));
-  const visibleConsultationHistory = consultationHistory.filter((item) => visibleConsultationIds.has(item.consultationId));
-  const visibleLessonIds = new Set(visibleLessons.map((lesson) => lesson.id));
-  const visibleStudentIds = new Set(visibleStudents.map((student) => student.id));
-  const visibleAttendance = attendance.filter((item) => visibleLessonIds.has(item.lessonId) || visibleStudentIds.has(item.studentId));
-
-  return {
-    teachers,
-    students: visibleStudents,
-    guardians,
-    consultations: visibleConsultations,
-    consultationHistory: visibleConsultationHistory,
-    courses,
-    enrollments: visibleEnrollments,
-    lessons: visibleLessons,
-    attendance: visibleAttendance,
-    lessonNotes: visibleNotes,
-    rooms,
-    reservations: visibleReservations,
-    payments: visiblePayments,
-    tasks,
-    workLogs,
-    meetings,
-    calendarEvents,
-    accountRequests,
-    publicSettings,
-    notices
-  };
-}
-
 function filterOperationsData(data: OperationsData, user: AccessUser | Role | null): OperationsData {
   if (!user) return data;
   const role = typeof user === "string" ? user : user.role;
   const userId = typeof user === "string" ? "" : user.id;
   const linkedStudentId = typeof user === "string" ? "" : user.linkedStudentId || "";
-  const studentId = role === "student" ? linkedStudentId || students[0]?.id || "student-jang-yunho" : "";
-  const teacherId = role === "teacher" ? userId || "teacher-1" : "";
+  const studentId = role === "artist" ? linkedStudentId : "";
+  const teacherId = role === "coach" ? userId : "";
 
   const roleScopedStudents = data.students.filter((student) => {
-    if (role === "student") return student.id === studentId;
-    if (role === "teacher") return student.teacherId === teacherId || (!userId && student.teacherId === "teacher-1");
+    if (role === "artist") return student.id === studentId;
+    if (role === "coach") return student.teacherId === teacherId;
     return true;
   });
   const roleScopedStudentIds = new Set(roleScopedStudents.map((student) => student.id));
 
   const roleScopedLessons = data.lessons.filter((lesson) => {
-    if (role === "student") return lesson.studentId === studentId;
-    if (role === "teacher") return lesson.teacherId === teacherId || (!userId && lesson.teacherId === "teacher-1");
+    if (role === "artist") return lesson.studentId === studentId;
+    if (role === "coach") return lesson.teacherId === teacherId;
     return true;
   });
   const roleScopedLessonIds = new Set(roleScopedLessons.map((lesson) => lesson.id));
@@ -726,8 +562,8 @@ function filterOperationsData(data: OperationsData, user: AccessUser | Role | nu
   const canViewPayments = hasVersion3Permission(user, "viewPayments");
 
   const visibleConsultations = data.consultations.filter((item) => {
-    if (role === "student") return item.studentId === studentId || item.studentName === getStudentName(studentId);
-    if (role === "teacher") return item.assignedTo === teacherId || roleScopedStudentIds.has(item.studentId || "");
+    if (role === "artist") return item.studentId === studentId || item.studentName === studentName(data, studentId);
+    if (role === "coach") return item.assignedTo === teacherId || roleScopedStudentIds.has(item.studentId || "");
     return true;
   });
   const visibleConsultationIds = new Set(visibleConsultations.map((item) => item.id));
@@ -741,9 +577,9 @@ function filterOperationsData(data: OperationsData, user: AccessUser | Role | nu
     consultations: visibleConsultations,
     consultationHistory: data.consultationHistory.filter((item) => visibleConsultationIds.has(item.consultationId)),
     enrollments: data.enrollments.filter((item) => {
-      if (!hasVersion3Permission(user, "manageOperations") && role !== "teacher" && role !== "student") return false;
-      if (role === "student") return false;
-      if (role === "teacher") return item.teacherId === teacherId || roleScopedStudentIds.has(item.studentId);
+      if (!hasVersion3Permission(user, "manageOperations") && role !== "coach" && role !== "artist") return false;
+      if (role === "artist") return false;
+      if (role === "coach") return item.teacherId === teacherId || roleScopedStudentIds.has(item.studentId);
       return true;
     }),
     lessons: roleScopedLessons,
@@ -752,19 +588,19 @@ function filterOperationsData(data: OperationsData, user: AccessUser | Role | nu
       : [],
     lessonNotes: canViewLessonLogs
       ? data.lessonNotes.filter((note) => {
-          if (role === "student") return note.studentId === studentId;
-          if (role === "teacher") return note.teacherId === teacherId || roleScopedStudentIds.has(note.studentId);
+          if (role === "artist") return note.studentId === studentId;
+          if (role === "coach") return note.teacherId === teacherId || roleScopedStudentIds.has(note.studentId);
           return true;
         })
       : [],
     rooms: canViewReservations ? data.rooms : [],
     reservations: canViewReservations
-      ? data.reservations.filter((item) => (role === "student" ? item.studentId === studentId : true))
+      ? data.reservations.filter((item) => (role === "artist" ? item.studentId === studentId : true))
       : [],
     payments: canViewPayments
       ? data.payments.filter((item) => {
-          if (role === "student") return item.studentId === studentId;
-          if (role === "teacher") return false;
+          if (role === "artist") return item.studentId === studentId;
+          if (role === "coach") return false;
           return true;
         })
       : [],
@@ -784,14 +620,13 @@ function filterOperationsData(data: OperationsData, user: AccessUser | Role | nu
 }
 
 function normalizeBootstrap(payload: BootstrapPayload, role: Role | null): OperationsData {
-  const previewFallback = ENABLE_PREVIEW_LOGIN ? buildPreviewData(role) : emptyOperationsData;
   const liveTeachersFromPayload = (payload.teachers ?? []).map(mapTeacher);
   const liveStudents = (payload.students ?? []).map(mapStudent);
   const liveGuardians = (payload.guardians ?? []).map(mapGuardian);
   const liveCourses = (payload.courses ?? payload.classTypes ?? []).map(mapCourse);
   const liveEnrollments = (payload.enrollments ?? []).map(mapEnrollment);
   const liveLessons = (payload.lessons ?? payload.overview?.todayLessons ?? []).map(mapLesson);
-  const livePayments = role === "teacher" || role === "student" ? [] : (payload.registrations ?? []).map(mapPayment);
+  const livePayments = role === "coach" || role === "artist" ? [] : (payload.registrations ?? []).map(mapPayment);
   const liveRooms = (payload.rooms ?? []).map(mapRoom);
   const liveReservations = (payload.reservations ?? []).map(mapReservation);
   const liveTasks = (payload.tasks ?? []).map(mapTask);
@@ -810,26 +645,26 @@ function normalizeBootstrap(payload: BootstrapPayload, role: Role | null): Opera
   const liveTeachers = liveTeachersFromPayload.length ? liveTeachersFromPayload : uniqueTeachers(liveEnrollments, liveLessons, liveLessonNotes);
 
   return {
-    teachers: liveTeachers.length ? liveTeachers : previewFallback.teachers,
-    students: liveStudents.length ? liveStudents : previewFallback.students,
-    guardians: liveGuardians.length ? liveGuardians : previewFallback.guardians,
-    consultations: liveConsultations.length ? liveConsultations : previewFallback.consultations,
-    consultationHistory: liveConsultationHistory.length ? liveConsultationHistory : previewFallback.consultationHistory,
-    courses: liveCourses.length ? liveCourses : previewFallback.courses,
-    enrollments: liveEnrollments.length ? liveEnrollments : previewFallback.enrollments,
-    lessons: liveLessons.length ? liveLessons : previewFallback.lessons,
-    attendance: liveAttendance.length ? liveAttendance : derivedAttendance.length ? derivedAttendance : previewFallback.attendance,
-    lessonNotes: liveLessonNotes.length ? liveLessonNotes : previewFallback.lessonNotes,
-    rooms: liveRooms.length ? liveRooms : previewFallback.rooms,
-    reservations: liveReservations.length ? liveReservations : previewFallback.reservations,
-    payments: livePayments.length ? livePayments : previewFallback.payments,
-    tasks: liveTasks.length ? liveTasks : previewFallback.tasks,
-    workLogs: liveWorkLogs.length ? liveWorkLogs : previewFallback.workLogs,
-    meetings: liveMeetings.length ? liveMeetings : previewFallback.meetings,
-    calendarEvents: liveCalendarEvents.length ? liveCalendarEvents : previewFallback.calendarEvents,
-    accountRequests: liveAccountRequests.length ? liveAccountRequests : previewFallback.accountRequests,
-    publicSettings: Object.values(livePublicSettings).some(Boolean) ? livePublicSettings : previewFallback.publicSettings,
-    notices: liveNotices.length ? liveNotices : previewFallback.notices,
+    teachers: liveTeachers,
+    students: liveStudents,
+    guardians: liveGuardians,
+    consultations: liveConsultations,
+    consultationHistory: liveConsultationHistory,
+    courses: liveCourses,
+    enrollments: liveEnrollments,
+    lessons: liveLessons,
+    attendance: liveAttendance.length ? liveAttendance : derivedAttendance,
+    lessonNotes: liveLessonNotes,
+    rooms: liveRooms,
+    reservations: liveReservations,
+    payments: livePayments,
+    tasks: liveTasks,
+    workLogs: liveWorkLogs,
+    meetings: liveMeetings,
+    calendarEvents: liveCalendarEvents,
+    accountRequests: liveAccountRequests,
+    publicSettings: Object.values(livePublicSettings).some(Boolean) ? livePublicSettings : emptyOperationsData.publicSettings,
+    notices: liveNotices,
     dashboardWorkQueue: liveDashboardWorkQueue.length ? liveDashboardWorkQueue : undefined,
     overview: payload.overview
   };
@@ -1035,7 +870,7 @@ function mapAccountRequest(item: LiveRecord): AccountRequest {
     id: stringValue(item.account_request_id || item.id),
     loginId: stringValue(item.login_id || item.loginId),
     name: stringValue(item.name, "이름 없음"),
-    requestedRole: normalizeRole(stringValue(item.requested_role || item.requestedRole)) ?? "student",
+    requestedRole: normalizeRole(stringValue(item.requested_role || item.requestedRole)) ?? "artist",
     email: stringValue(item.email),
     phone: stringValue(item.phone),
     linkedStudentId: stringValue(item.linked_student_id || item.linkedStudentId),
@@ -1177,20 +1012,20 @@ function truthyValue(value: unknown) {
 
 function noticeTargetRoles(value: unknown): Role[] {
   const text = Array.isArray(value) ? value.join(",") : stringValue(value);
-  if (!text || text === "전체" || text === "all") return ["owner", "manager", "teacher", "student"];
+  if (!text || text === "전체" || text === "all") return ["admin", "manager", "coach", "artist"];
   const normalized = text
     .split(/[,/|]+/)
     .map((item) => item.trim())
     .flatMap((item) => {
-      if (item === "대표/매니저" || item === "운영진") return ["owner", "manager"] as Role[];
-      if (item === "대표") return ["owner"] as Role[];
+      if (item === "대표/매니저" || item === "운영진") return ["manager"] as Role[];
+      if (item === "대표" || item === "관리자") return ["manager"] as Role[];
       if (item === "매니저") return ["manager"] as Role[];
-      if (item === "강사") return ["teacher"] as Role[];
-      if (item === "수강생" || item === "학생") return ["student"] as Role[];
+      if (item === "강사") return ["coach"] as Role[];
+      if (item === "수강생" || item === "학생") return ["artist"] as Role[];
       const role = normalizeRole(item);
       return role ? [role] : [];
     });
-  return normalized.length ? Array.from(new Set(normalized)) : ["owner", "manager", "teacher", "student"];
+  return normalized.length ? Array.from(new Set(normalized)) : ["admin", "manager", "coach", "artist"];
 }
 
 function canViewNotice(role: Role, targetRoles: Role[]) {
@@ -1221,15 +1056,15 @@ function enrollmentStatus(value: string) {
 }
 
 export function studentName(data: OperationsData, id: string) {
-  return data.students.find((student) => student.id === id)?.name || getStudentName(id);
+  return data.students.find((student) => student.id === id)?.name || id;
 }
 
 export function teacherName(data: OperationsData, id: string) {
-  return data.teachers.find((teacher) => teacher.id === id)?.name || getTeacherName(id);
+  return data.teachers.find((teacher) => teacher.id === id)?.name || id;
 }
 
 export function courseName(data: OperationsData, id: string) {
-  return data.courses.find((course) => course.id === id)?.name || getCourseName(id) || id;
+  return data.courses.find((course) => course.id === id)?.name || id;
 }
 
 export function roomName(data: OperationsData, id: string) {

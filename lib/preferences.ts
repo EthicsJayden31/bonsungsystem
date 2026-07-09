@@ -20,8 +20,8 @@ export const defaultPreferences: Preferences = {
 
 export const startPages = [
   { value: "/dashboard", label: "대시보드" },
-  { value: "/students", label: "학생 관리" },
-  { value: "/teachers", label: "강사별 조회" },
+  { value: "/students", label: "Artist 관리" },
+  { value: "/teachers", label: "Coach 조회" },
   { value: "/lessons", label: "수업/시간표" },
   { value: "/practice-rooms", label: "강의실/연습실 예약" },
   { value: "/lesson-notes", label: "레슨노트" }

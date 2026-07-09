@@ -5,7 +5,7 @@ const warnings = [];
 
 const nodeEnv = readEnv("NODE_ENV");
 const password = readEnv("VERSION3_LOCAL_SERVER_PASSWORD");
-const ownerPassword = readEnv("VERSION3_OWNER_INITIAL_PASSWORD") || readEnv("VERSION3_ADMIN_INITIAL_PASSWORD");
+const adminPassword = readEnv("VERSION3_ADMIN_INITIAL_PASSWORD");
 const host = readEnv("VERSION3_SERVER_HOST") || "127.0.0.1";
 const allowedOrigins = splitCsv(readEnv("VERSION3_ALLOWED_ORIGINS") || "*");
 const storageDriver = readEnv("VERSION3_STORAGE_DRIVER");
@@ -27,7 +27,7 @@ if (nodeEnv !== "production") {
 if (!password) {
   errors.push("VERSION3_LOCAL_SERVER_PASSWORD must be set.");
 } else {
-  if (password === "version3") {
+  if (password === "version3" || password === "bonsung1") {
     errors.push("VERSION3_LOCAL_SERVER_PASSWORD must not use the local default value.");
   }
   if (password.length < 12) {
@@ -35,10 +35,10 @@ if (!password) {
   }
 }
 
-if (!ownerPassword) {
-  errors.push("VERSION3_OWNER_INITIAL_PASSWORD must be set.");
-} else if (ownerPassword.length < 12) {
-  errors.push("VERSION3_OWNER_INITIAL_PASSWORD should be at least 12 characters for public deployment.");
+if (!adminPassword) {
+  errors.push("VERSION3_ADMIN_INITIAL_PASSWORD must be set.");
+} else if (adminPassword.length < 12) {
+  errors.push("VERSION3_ADMIN_INITIAL_PASSWORD should be at least 12 characters for public deployment.");
 }
 
 if (!["0.0.0.0", "::"].includes(host)) {

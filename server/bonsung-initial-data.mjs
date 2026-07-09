@@ -158,14 +158,14 @@ export const bonsungInitialCalendarEvents = openingScheduleRows.map(([slug, titl
 });
 
 export const bonsungInitialNotices = [
-  { id: "notice-initial-data", title: "본성 스테이지 초기 운영 데이터 반영", category: "운영공지", author: "강은미", updatedAt: importedAt, body: "직원, 수강생, 프로그램, 공개 개원 일정, 운영 문서 초기 데이터는 Notion '본성뮤직_업무노트 HQ'와 초기 운영 DB에서 필요한 항목만 선별해 반영했습니다.", targetRoles: ["owner", "manager", "teacher", "student"], pinned: true, active: true },
-  { id: "notice-student-data-followup", title: "수강생 배정 정보 추가 확인 필요", category: "학생관리", author: "조영진", updatedAt: importedAt, body: "현재 수강생 DB에는 담당 강사, 프로그램, 수업 요일/시간, 보호자 연락처가 비어 있습니다. 실제 운영 전 등록 확정자부터 배정을 완료해야 합니다.", targetRoles: ["owner", "manager", "teacher"], pinned: true, active: true }
+  { id: "notice-initial-data", title: "본성 스테이지 초기 운영 데이터 반영", category: "운영공지", author: "강은미", updatedAt: importedAt, body: "직원, 수강생, 프로그램, 공개 개원 일정, 운영 문서 초기 데이터는 Notion '본성뮤직_업무노트 HQ'와 초기 운영 DB에서 필요한 항목만 선별해 반영했습니다.", targetRoles: ["admin", "manager", "coach", "artist"], pinned: true, active: true },
+  { id: "notice-student-data-followup", title: "수강생 배정 정보 추가 확인 필요", category: "학생관리", author: "조영진", updatedAt: importedAt, body: "현재 수강생 DB에는 담당 강사, 프로그램, 수업 요일/시간, 보호자 연락처가 비어 있습니다. 실제 운영 전 등록 확정자부터 배정을 완료해야 합니다.", targetRoles: ["admin", "manager", "coach"], pinned: true, active: true }
 ];
 
 function teamsToRoles(teams) {
   const roles = new Set();
-  if (teams.includes("대표")) roles.add("owner");
+  if (teams.includes("대표")) roles.add("manager");
   if (teams.some((team) => ["운영", "재무", "콘텐츠", "공연"].includes(team))) roles.add("manager");
-  if (teams.includes("강사")) roles.add("teacher");
+  if (teams.includes("강사")) roles.add("coach");
   return Array.from(roles.size ? roles : new Set(["manager"]));
 }

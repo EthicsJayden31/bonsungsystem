@@ -1,23 +1,23 @@
-"use client";
+﻿"use client";
 
 import { AppShell } from "@/components/layout/app-shell";
 import { ResourcePage } from "@/components/layout/resource-page";
 import { hasVersion3Permission } from "@/lib/access-policy";
-import type { Notice } from "@/lib/demo-data";
+import type { Notice } from "@/lib/operations-types";
 import { useOperationAction, useOperationsData } from "@/lib/operations-data";
 import { version3RoleLabels } from "@/lib/version3-server-contract";
 import { useCurrentUser } from "@/lib/use-current-user";
-import { usePreviewRole } from "@/lib/use-preview-role";
+import { useCurrentRole } from "@/lib/use-current-role";
 
 export default function NoticesPage() {
-  const role = usePreviewRole();
+  const role = useCurrentRole();
   const user = useCurrentUser();
   const { data, source, error } = useOperationsData(role);
   const saveAction = useOperationAction();
-  const sourceLabel = source === "server" || source === "test" ? "Version.3 서버 데이터" : source === "live" ? "전환 데이터" : source === "fallback" ? "연결 실패" : "프리뷰 데이터";
+  const sourceLabel = source === "server" ? "Version.3 서버 데이터" : source === "live" ? "전환 데이터" : source === "fallback" ? "연결 실패" : "확인 중";
   const accessUser = user ?? role;
   const accessRole = typeof accessUser === "string" ? accessUser : accessUser?.role;
-  const canWriteNotice = (accessRole === "owner" || accessRole === "manager") && hasVersion3Permission(accessUser, "manageNotices");
+  const canWriteNotice = (accessRole === "admin" || accessRole === "manager") && hasVersion3Permission(accessUser, "manageNotices");
   const visibleNotices = [...data.notices].sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.updatedAt.localeCompare(a.updatedAt));
 
   return (

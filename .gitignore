@@ -3,6 +3,7 @@
 node_modules
 out
 .env
+.env.production
 .env*.local
 coverage
 dist
@@ -12,3 +13,4 @@ dist
 version3-data.json
 version3-data.json.*.tmp
 *.bak
+tmp-*.log

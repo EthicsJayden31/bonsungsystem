@@ -4,8 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 const explicitBaseUrl = (process.env.VERSION3_SERVER_VERIFY_BASE_URL || process.env.NEXT_PUBLIC_VERSION3_API_BASE_URL || "").trim();
-const password = process.env.VERSION3_SERVER_VERIFY_PASSWORD || process.env.VERSION3_LOCAL_SERVER_PASSWORD || "version3";
-const ownerPassword = process.env.VERSION3_OWNER_INITIAL_PASSWORD || process.env.VERSION3_ADMIN_INITIAL_PASSWORD || "owner-test-123";
+const password = process.env.VERSION3_SERVER_VERIFY_PASSWORD || process.env.VERSION3_LOCAL_SERVER_PASSWORD || "bonsung1";
+const adminPassword = process.env.VERSION3_ADMIN_INITIAL_PASSWORD || "bonsung_2020_03";
 const localPort = Number(process.env.VERSION3_LOCAL_SERVER_PORT || 4303);
 let serverProcess;
 let tempDataDir;
@@ -30,7 +30,7 @@ async function startLocalServer() {
       ...process.env,
       VERSION3_LOCAL_SERVER_PORT: String(localPort),
       VERSION3_LOCAL_SERVER_PASSWORD: password,
-      VERSION3_OWNER_INITIAL_PASSWORD: ownerPassword,
+      VERSION3_ADMIN_INITIAL_PASSWORD: adminPassword,
       VERSION3_LOCAL_DATA_FILE: tempDataFile
     },
     stdio: ["ignore", "pipe", "pipe"]
@@ -59,59 +59,58 @@ async function runVerification(baseUrl) {
     assert(health.cors?.restricted === true, "External Version.3 server must restrict CORS to official UI origins.");
   }
 
-  const owner = await login(baseUrl, "owner", ownerPassword);
+  const admin = await login(baseUrl, "admin", adminPassword);
   const manager = await login(baseUrl, "manager");
-  const teacher = await login(baseUrl, "teacher");
-  const student = await login(baseUrl, "student");
+  const coach = await login(baseUrl, "coach");
+  const artist = await login(baseUrl, "artist");
 
-  assert(owner.user.role === "owner", "Owner login must return role=owner.");
+  assert(admin.user.role === "admin", "Admin login must return role=admin.");
   assert(manager.user.role === "manager", "Manager login must return role=manager.");
-  assert(teacher.user.role === "teacher", "Teacher login must return role=teacher.");
-  assert(student.user.role === "student", "Student login must return role=student.");
-  assert(Boolean(owner.expiresAt), "Login response must include expiresAt.");
-  assert(Boolean(student.user.linkedStudentId || student.user.linked_student_id), "Student login must include linkedStudentId.");
-  assert(student.user.permissions?.viewPayments !== true, "Student accounts must not receive payment-view permission by default.");
+  assert(coach.user.role === "coach", "Coach login must return role=coach.");
+  assert(artist.user.role === "artist", "Artist login must return role=artist.");
+  assert(Boolean(admin.expiresAt), "Login response must include expiresAt.");
+  assert(Boolean(artist.user.linkedStudentId || artist.user.linked_student_id), "Artist login must include linkedStudentId.");
+  assert(artist.user.permissions?.viewPayments !== true, "Artist accounts must not receive payment-view permission by default.");
   assert(manager.user.permissions?.resetPasswords === true, "Manager accounts must be able to reset passwords.");
   assert(manager.user.permissions?.reviewAccountRequests === true, "Manager accounts must be able to review account requests.");
-  assert(manager.user.permissions?.manageAccounts !== true, "Manager accounts must not directly manage account records.");
-  assert(owner.user.permissions?.manageAccounts === true, "Owner accounts must directly manage account records.");
-  assert(owner.user.permissions?.managePublicSettings === true, "Owner accounts must manage public settings.");
+  assert(manager.user.permissions?.manageAccounts === true, "Manager accounts must directly manage account records.");
+  assert(admin.user.permissions?.manageAccounts === true, "Admin accounts must directly manage account records.");
+  assert(admin.user.permissions?.managePublicSettings === true, "Admin accounts must manage public settings.");
 
-  const studentBootstrap = await authorizedRequest(baseUrl, "/bootstrap", student.token);
-  assert(Array.isArray(studentBootstrap.payments) && studentBootstrap.payments.length === 0, "Student bootstrap must not expose payment records.");
-  assert(Array.isArray(studentBootstrap.enrollments) && studentBootstrap.enrollments.length === 0, "Student bootstrap must not expose enrollment operations.");
+  const artistBootstrap = await authorizedRequest(baseUrl, "/bootstrap", artist.token);
+  assert(Array.isArray(artistBootstrap.payments) && artistBootstrap.payments.length === 0, "Artist bootstrap must not expose payment records.");
+  assert(Array.isArray(artistBootstrap.enrollments) && artistBootstrap.enrollments.length === 0, "Artist bootstrap must not expose enrollment operations.");
 
-  const ownerBootstrap = await authorizedRequest(baseUrl, "/bootstrap", owner.token);
+  const adminBootstrap = await authorizedRequest(baseUrl, "/bootstrap", admin.token);
   for (const key of ["teachers", "students", "consultations", "courses", "payments", "tasks", "notices", "dashboardWorkQueue", "workLogs", "meetings", "calendarEvents", "accountRequests"]) {
-    assert(Array.isArray(ownerBootstrap[key]), `/bootstrap must return ${key} array.`);
+    assert(Array.isArray(adminBootstrap[key]), `/bootstrap must return ${key} array.`);
   }
-  assert(ownerBootstrap.students.length >= 28, "Bootstrap must include selected Notion student rows.");
-  assert(ownerBootstrap.courses.length === 7, "Bootstrap must include the 7 current Notion Program DB rows.");
-  assert(ownerBootstrap.calendarEvents.length === 3, "Bootstrap must include only the 3 public Notion opening schedule rows.");
+  assert(adminBootstrap.students.length >= 28, "Bootstrap must include selected Notion student rows.");
+  assert(adminBootstrap.courses.length === 7, "Bootstrap must include the 7 current Notion Program DB rows.");
+  assert(adminBootstrap.calendarEvents.length === 3, "Bootstrap must include only the 3 public Notion opening schedule rows.");
   for (const title of ["신규 수강상담 및 사전등록 시작", "파운딩멤버 보컬 수업 시작", "신규 등록자 수업 시작"]) {
-    assert(ownerBootstrap.calendarEvents.some((event) => event.title === title), `Bootstrap must include public opening schedule: ${title}.`);
+    assert(adminBootstrap.calendarEvents.some((event) => event.title === title), `Bootstrap must include public opening schedule: ${title}.`);
   }
   for (const privateTitle of ["인테리어 공사 종료", "홈페이지 제작 완료", "SNS 업로드 시작", "강의실 수업 시뮬레이션", "수업 가능 컨디션 원내 정리 완료", "프리컬리지 과정 홍보 시작"]) {
-    assert(!ownerBootstrap.calendarEvents.some((event) => event.title === privateTitle), `Bootstrap must not include private opening schedule: ${privateTitle}.`);
+    assert(!adminBootstrap.calendarEvents.some((event) => event.title === privateTitle), `Bootstrap must not include private opening schedule: ${privateTitle}.`);
   }
-  assert(ownerBootstrap.publicSettings && typeof ownerBootstrap.publicSettings === "object", "/bootstrap must return publicSettings.");
+  assert(adminBootstrap.publicSettings && typeof adminBootstrap.publicSettings === "object", "/bootstrap must return publicSettings.");
 
-  const accounts = await authorizedRequest(baseUrl, "/accounts", owner.token);
-  for (const role of ["owner", "manager", "teacher", "student"]) {
+  const accounts = await authorizedRequest(baseUrl, "/accounts", admin.token);
+  for (const role of ["admin", "manager", "coach", "artist"]) {
     assert(accounts.some((account) => account.role === role), `/accounts must include ${role} accounts.`);
   }
   assert(accounts.every((account) => !("password" in account)), "/accounts must not expose password fields.");
 
   const managerAccountRequests = await authorizedRequest(baseUrl, "/account-requests", manager.token);
   assert(Array.isArray(managerAccountRequests), "Manager must be able to list account requests.");
-  const rejectedManagerDirectAccountCreate = await authorizedRequest(baseUrl, "/accounts", manager.token, {
+  const managerDirectAccount = await authorizedRequest(baseUrl, "/accounts", manager.token, {
     method: "POST",
-    body: { account: { loginId: `manager-direct-${Date.now()}`, name: "Manager Direct", role: "teacher", initialPassword: password } },
-    allowFailure: true
+    body: { account: { loginId: `manager-direct-${Date.now()}`, name: "Manager Direct", role: "coach", initialPassword: password } }
   });
-  assert(rejectedManagerDirectAccountCreate?.ok === false, "Manager must not directly create accounts.");
+  assert(managerDirectAccount.role === "coach", "Manager must be able to create coach accounts.");
 
-  const createdStudent = await authorizedRequest(baseUrl, "/actions/createStudent", owner.token, {
+  const createdStudent = await authorizedRequest(baseUrl, "/actions/createStudent", admin.token, {
     method: "POST",
     body: {
       student: {
@@ -127,22 +126,22 @@ async function runVerification(baseUrl) {
   });
   assert(createdStudent.id && createdStudent.student_id === createdStudent.id, "createStudent must return a server student id.");
 
-  const createdStudentAccount = await authorizedRequest(baseUrl, "/accounts", owner.token, {
+  const createdStudentAccount = await authorizedRequest(baseUrl, "/accounts", admin.token, {
     method: "POST",
     body: {
       account: {
-        loginId: `student-${Date.now()}`,
+        loginId: `artist-${Date.now()}`,
         name: "Verification Student",
-        role: "student",
+        role: "artist",
         email: "verification-student@bonsung.local",
         initialPassword: password,
         linkedStudentId: createdStudent.id
       }
     }
   });
-  assert(createdStudentAccount.role === "student" && createdStudentAccount.linkedStudentId === createdStudent.id, "POST /accounts must create linked student accounts.");
+  assert(createdStudentAccount.role === "artist" && createdStudentAccount.linkedStudentId === createdStudent.id, "POST /accounts must create linked artist accounts.");
 
-  const accountRequestStudent = await authorizedRequest(baseUrl, "/actions/createStudent", owner.token, {
+  const accountRequestStudent = await authorizedRequest(baseUrl, "/actions/createStudent", admin.token, {
     method: "POST",
     body: { student: { name: "Verification Requested Student", status: "상담중" } }
   });
@@ -151,7 +150,7 @@ async function runVerification(baseUrl) {
     body: {
       loginId: `request-student-${Date.now()}`,
       name: "Verification Requested Student",
-      requestedRole: "student",
+      requestedRole: "artist",
       linkedStudentId: accountRequestStudent.id,
       message: "Please create a Version.3 student account."
     }
@@ -160,9 +159,9 @@ async function runVerification(baseUrl) {
     method: "PATCH",
     body: { decision: "approve", linkedStudentId: accountRequestStudent.id, initialPassword: password, memo: "Manager approval verification." }
   });
-  assert(approvedRequest.account?.role === "student", "Manager approval must create a student account.");
+  assert(approvedRequest.account?.role === "artist", "Manager approval must create an artist account.");
 
-  const createdLesson = await authorizedRequest(baseUrl, "/actions/createLesson", owner.token, {
+  const createdLesson = await authorizedRequest(baseUrl, "/actions/createLesson", admin.token, {
     method: "POST",
     body: {
       lesson: {
@@ -177,7 +176,7 @@ async function runVerification(baseUrl) {
   });
   assert(createdLesson.id && createdLesson.studentId === createdStudent.id, "createLesson must persist a server lesson.");
 
-  const createdLessonLog = await authorizedRequest(baseUrl, "/actions/createLessonLog", teacher.token, {
+  const createdLessonLog = await authorizedRequest(baseUrl, "/actions/createLessonLog", coach.token, {
     method: "POST",
     body: {
       log: {
@@ -190,30 +189,16 @@ async function runVerification(baseUrl) {
       }
     }
   });
-  assert(createdLessonLog.id && createdLessonLog.teacherId === "teacher-1", "Teacher accounts must write assigned lesson notes.");
+  assert(createdLessonLog.id && createdLessonLog.teacherId === "teacher-1", "Coach accounts must write assigned lesson notes.");
 
-  const createdReservation = await authorizedRequest(baseUrl, "/actions/createReservation", student.token, {
-    method: "POST",
-    body: {
-      reservation: {
-        room_id: "room-1",
-        date: "2026-07-09",
-        start_time: "19:00",
-        end_time: "20:00",
-        purpose: "연습"
-      }
-    }
-  });
-  assert(createdReservation.id && createdReservation.roomId === "room-1", "Student accounts must be able to reserve practice rooms.");
-
-  const rejectedStudentPayment = await authorizedRequest(baseUrl, "/actions/createRegistration", student.token, {
+  const rejectedStudentPayment = await authorizedRequest(baseUrl, "/actions/createRegistration", artist.token, {
     method: "POST",
     body: { registration: { student_id: createdStudent.id, amount: 10000 } },
     allowFailure: true
   });
-  assert(rejectedStudentPayment?.ok === false, "Student accounts must not create payment records.");
+  assert(rejectedStudentPayment?.ok === false, "Artist accounts must not create payment records.");
 
-  const createdConsultation = await authorizedRequest(baseUrl, "/actions/createConsultation", student.token, {
+  const createdConsultation = await authorizedRequest(baseUrl, "/actions/createConsultation", artist.token, {
     method: "POST",
     body: { consultation: { goal: "상담 요청 검증", memo: "Student-created consultation." } }
   });
@@ -227,39 +212,39 @@ async function runVerification(baseUrl) {
     method: "PATCH",
     body: { password: "teacher-reset-123" }
   });
-  const oldTeacherTokenAfterReset = await authorizedRequest(baseUrl, "/bootstrap", teacher.token, { allowFailure: true });
-  assert(oldTeacherTokenAfterReset?.ok === false, "Manager password reset must invalidate existing teacher sessions.");
+  const oldTeacherTokenAfterReset = await authorizedRequest(baseUrl, "/bootstrap", coach.token, { allowFailure: true });
+  assert(oldTeacherTokenAfterReset?.ok === false, "Manager password reset must invalidate existing coach sessions.");
   const resetTeacher = await request(baseUrl, "/auth/login", {
     method: "POST",
-    body: { loginId: "teacher", password: "teacher-reset-123" }
+    body: { loginId: "coach", password: "teacher-reset-123" }
   });
   assert(resetTeacher.user.mustChangePassword === true, "Password reset login must require password change.");
 
   const managerBackups = await authorizedRequest(baseUrl, "/data-backups", manager.token, { allowFailure: true });
-  assert(managerBackups?.ok === false, "Only owner accounts must be allowed to list Version.3 backups.");
-  const backupList = await authorizedRequest(baseUrl, "/data-backups", owner.token);
+  assert(managerBackups?.ok === false, "Only admin accounts must be allowed to list Version.3 backups.");
+  const backupList = await authorizedRequest(baseUrl, "/data-backups", admin.token);
   assert(backupList.backupEnabled === true, "/data-backups must report whether backups are enabled.");
   assert(Array.isArray(backupList.backups), "/data-backups must return a backups array.");
 
-  const dataExport = await authorizedRequest(baseUrl, "/data-export", owner.token);
+  const dataExport = await authorizedRequest(baseUrl, "/data-export", admin.token);
   assert(dataExport.schema === "bonsung-version3-local-v1", "/data-export must include the Version.3 export schema.");
-  assert(dataExport.exportedBy.accountId === owner.user.id, "/data-export must include the exporting account.");
+  assert(dataExport.exportedBy.accountId === admin.user.id, "/data-export must include the exporting account.");
   assert(dataExport.data.accounts.every((account) => !("password" in account)), "/data-export must not expose account passwords.");
   const managerImport = await authorizedRequest(baseUrl, "/data-import", manager.token, {
     method: "POST",
     body: { export: dataExport },
     allowFailure: true
   });
-  assert(managerImport?.ok === false, "Only owner accounts must import Version.3 data.");
+  assert(managerImport?.ok === false, "Only admin accounts must import Version.3 data.");
 
-  const auditLogs = await authorizedRequest(baseUrl, "/audit-logs", owner.token);
-  for (const action of ["create_student", "create_account", "approve_account_request", "create_lesson", "create_lesson_log", "create_reservation", "update_consultation_status", "reset_password", "export_data"]) {
+  const auditLogs = await authorizedRequest(baseUrl, "/audit-logs", admin.token);
+  for (const action of ["create_student", "create_account", "approve_account_request", "create_lesson", "create_lesson_log", "update_consultation_status", "reset_password", "export_data"]) {
     assert(auditLogs.some((item) => item.action === action), `/audit-logs must include ${action}.`);
   }
 }
 
 async function assertPublicStartupGuard() {
-  const result = await runGuardedStartup({ NODE_ENV: "production", VERSION3_ALLOWED_ORIGINS: "https://example.com", VERSION3_LOCAL_SERVER_PASSWORD: "version3" });
+  const result = await runGuardedStartup({ NODE_ENV: "production", VERSION3_ALLOWED_ORIGINS: "https://example.com", VERSION3_LOCAL_SERVER_PASSWORD: "bonsung1" });
   assert(result.code !== 0 && result.output.includes("VERSION3_LOCAL_SERVER_PASSWORD"), "Public startup guard must reject the default server password.");
 }
 

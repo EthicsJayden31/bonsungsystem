@@ -7,9 +7,7 @@ const serverUrl = (
 
 const allowTransitionFlags = process.env.VERSION3_RELEASE_ALLOW_TRANSITION_FLAGS === "true";
 const transitionFlags = [
-  "NEXT_PUBLIC_ENABLE_APPS_SCRIPT_TRANSITION",
-  "NEXT_PUBLIC_ENABLE_LEGACY_PREVIEW",
-  "NEXT_PUBLIC_ENABLE_PREVIEW_LOGIN"
+  "NEXT_PUBLIC_ENABLE_APPS_SCRIPT_TRANSITION"
 ].filter((key) => process.env[key] === "true");
 
 const errors = [];

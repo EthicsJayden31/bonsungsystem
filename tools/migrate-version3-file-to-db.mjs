@@ -75,7 +75,7 @@ function normalizeSnapshot(value) {
   }));
   snapshot.accountRequests = array(snapshot.accountRequests).map((request) => ({
     ...request,
-    requestedRole: normalizeRole(request.requestedRole, "student")
+    requestedRole: normalizeRole(request.requestedRole, "artist")
   }));
   snapshot.notices = array(snapshot.notices).map((notice) => ({
     ...notice,
@@ -102,17 +102,17 @@ function summarize(snapshot) {
 
 function normalizeRole(value, fallback) {
   const role = String(value || "").trim().toLowerCase();
-  if (role === "owner" || role === "admin" || role === "system") return "owner";
+  if (role === "owner" || role === "admin" || role === "system") return "admin";
   if (role === "manager" || role === "staff") return "manager";
-  if (role === "teacher" || role === "coach") return "teacher";
-  if (role === "student" || role === "artist") return "student";
+  if (role === "teacher" || role === "coach") return "coach";
+  if (role === "student" || role === "artist") return "artist";
   return fallback;
 }
 
 function normalizeRoleList(value) {
   const roles = array(value).length ? array(value) : String(value || "").split(/[,|/]/);
   const normalized = roles.map((role) => normalizeRole(role, "")).filter(Boolean);
-  return normalized.length ? Array.from(new Set(normalized)) : ["owner", "manager", "teacher", "student"];
+  return normalized.length ? Array.from(new Set(normalized)) : ["admin", "manager", "coach", "artist"];
 }
 
 function array(value) {

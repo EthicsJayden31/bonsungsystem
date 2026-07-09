@@ -38,7 +38,7 @@ jobs:
           NODE_ENV: production
           VERSION3_SERVER_HOST: 0.0.0.0
           VERSION3_LOCAL_SERVER_PASSWORD: replace-with-safe-ci-password
-          VERSION3_OWNER_INITIAL_PASSWORD: replace-with-safe-owner-password
+          VERSION3_ADMIN_INITIAL_PASSWORD: replace-with-safe-admin-password
           VERSION3_ALLOWED_ORIGINS: https://ethicsjayden31.github.io
           VERSION3_LOCAL_DATA_FILE: /data/version3-data.json
           VERSION3_SESSION_TTL_HOURS: 12
@@ -75,7 +75,7 @@ jobs:
             -e NODE_ENV=production \
             -e VERSION3_SERVER_HOST=0.0.0.0 \
             -e VERSION3_LOCAL_SERVER_PASSWORD=replace-with-safe-ci-password \
-            -e VERSION3_OWNER_INITIAL_PASSWORD=replace-with-safe-owner-password \
+            -e VERSION3_ADMIN_INITIAL_PASSWORD=replace-with-safe-admin-password \
             -e VERSION3_ALLOWED_ORIGINS=https://ethicsjayden31.github.io \
             -e VERSION3_LOCAL_DATA_FILE=/data/version3-data.json \
             -e VERSION3_SESSION_TTL_HOURS=12 \

@@ -17,9 +17,9 @@ import { createVersion3StorageAdapter, hashSessionToken } from "./version3-stora
 
 const port = Number(process.env.VERSION3_LOCAL_SERVER_PORT || process.env.PORT || 4303);
 const host = (process.env.VERSION3_SERVER_HOST || "127.0.0.1").trim() || "127.0.0.1";
-const testPassword = process.env.VERSION3_LOCAL_SERVER_PASSWORD || "version3";
-const adminInitialPassword = process.env.VERSION3_OWNER_INITIAL_PASSWORD || process.env.VERSION3_ADMIN_INITIAL_PASSWORD || testPassword;
-const adminCredentialVersion = "2026-07-08-owner-canonical";
+const testPassword = process.env.VERSION3_LOCAL_SERVER_PASSWORD || "bonsung1";
+const adminInitialPassword = process.env.VERSION3_ADMIN_INITIAL_PASSWORD || "bonsung_2020_03";
+const adminCredentialVersion = "2026-07-09-admin-canonical";
 const dataFileSetting = (process.env.VERSION3_LOCAL_DATA_FILE || ".version3-local-data.json").trim();
 const storage = await createVersion3StorageAdapter({
   driver: process.env.VERSION3_STORAGE_DRIVER,
@@ -42,7 +42,7 @@ const loginFailureLockMs = 5 * 60 * 1000;
 const maxLoginFailures = 5;
 
 const permissionSets = {
-  owner: {
+  admin: {
     manageAccounts: true, resetPasswords: true, viewAccounts: true, manageOperations: true, manageNotices: true, managePermissions: true,
     manageMeetings: true, manageCalendar: true, viewPayments: true, clockWork: true, viewStudents: true,
     manageStudents: true, viewLessonLogs: true, writeLessonLogs: true, viewReservations: true, manageReservations: true,
@@ -50,20 +50,20 @@ const permissionSets = {
     reviewAccountRequests: true, managePublicSettings: true
   },
   manager: {
-    manageAccounts: false, resetPasswords: true, viewAccounts: true, manageOperations: true, manageNotices: true, managePermissions: false,
+    manageAccounts: true, resetPasswords: true, viewAccounts: true, manageOperations: true, manageNotices: true, managePermissions: false,
     manageMeetings: true, manageCalendar: true, viewPayments: true, clockWork: true, viewStudents: true,
     manageStudents: true, viewLessonLogs: true, writeLessonLogs: true, viewReservations: true, manageReservations: true,
     reserveLessonRoom: true, reservePracticeRoom: true, viewTeam: true, viewMeetings: true, viewCalendar: true,
     reviewAccountRequests: true, managePublicSettings: false
   },
-  teacher: {
+  coach: {
     manageAccounts: false, resetPasswords: false, viewAccounts: false, manageOperations: false, manageNotices: false, managePermissions: false,
     manageMeetings: false, manageCalendar: false, viewPayments: false, clockWork: true, viewStudents: true,
     manageStudents: false, viewLessonLogs: true, writeLessonLogs: true, viewReservations: true, manageReservations: false,
     reserveLessonRoom: true, reservePracticeRoom: true, viewTeam: true, viewMeetings: true, viewCalendar: true,
     reviewAccountRequests: false, managePublicSettings: false
   },
-  student: {
+  artist: {
     manageAccounts: false, resetPasswords: false, viewAccounts: false, manageOperations: false, manageNotices: false, managePermissions: false,
     manageMeetings: false, manageCalendar: false, viewPayments: false, clockWork: false, viewStudents: true,
     manageStudents: false, viewLessonLogs: true, writeLessonLogs: false, viewReservations: true, manageReservations: false,
@@ -72,9 +72,9 @@ const permissionSets = {
   }
 };
 
-const accountRoles = ["owner", "manager", "teacher", "student"];
-const requestableRoles = ["manager", "teacher", "student"];
-const allRoleTargets = ["owner", "manager", "teacher", "student"];
+const accountRoles = ["admin", "manager", "coach", "artist"];
+const requestableRoles = ["manager", "coach", "artist"];
+const allRoleTargets = ["admin", "manager", "coach", "artist"];
 
 assertServerRuntimeSafe();
 
@@ -249,23 +249,23 @@ async function deleteSession(token) {
 }
 
 function bootstrapFor(account) {
-  const studentId = account.role === "student" ? account.linkedStudentId : "";
-  const teacherId = account.role === "teacher" ? account.id : "";
-  const students = account.role === "student"
+  const studentId = account.role === "artist" ? account.linkedStudentId : "";
+  const teacherId = account.role === "coach" ? account.id : "";
+  const students = account.role === "artist"
     ? db.students.filter((student) => student.id === studentId)
-    : account.role === "teacher"
+    : account.role === "coach"
       ? db.students.filter((student) => student.teacherId === teacherId)
       : db.students;
   const studentIds = new Set(students.map((student) => student.id));
   const lessons = db.lessons.filter((lesson) => {
-    if (account.role === "student") return lesson.studentId === studentId;
-    if (account.role === "teacher") return lesson.teacherId === teacherId;
+    if (account.role === "artist") return lesson.studentId === studentId;
+    if (account.role === "coach") return lesson.teacherId === teacherId;
     return true;
   });
   const lessonIds = new Set(lessons.map((lesson) => lesson.id));
   const consultations = db.consultations.filter((item) => {
-    if (account.role === "student") return item.studentId === studentId;
-    if (account.role === "teacher") return item.assignedTo === teacherId || studentIds.has(item.studentId);
+    if (account.role === "artist") return item.studentId === studentId;
+    if (account.role === "coach") return item.assignedTo === teacherId || studentIds.has(item.studentId);
     return true;
   });
 
@@ -276,13 +276,13 @@ function bootstrapFor(account) {
     consultations,
     consultationHistory: db.consultationHistory.filter((item) => consultations.some((consultation) => consultation.id === item.consultationId)),
     courses: db.courses,
-    enrollments: account.role === "student" ? [] : db.enrollments.filter((item) => studentIds.size === 0 || studentIds.has(item.studentId) || account.role === "owner" || account.role === "manager"),
+    enrollments: account.role === "artist" ? [] : db.enrollments.filter((item) => studentIds.size === 0 || studentIds.has(item.studentId) || account.role === "admin" || account.role === "manager"),
     lessons,
     attendance: account.permissions.viewLessonLogs ? db.attendance.filter((item) => lessonIds.has(item.lessonId) || studentIds.has(item.studentId)) : [],
     lessonNotes: visibleLessonNotes(account, lessonIds, studentIds),
     rooms: account.permissions.viewReservations ? db.rooms : [],
-    reservations: account.permissions.viewReservations ? db.reservations.filter((item) => account.role !== "student" || item.studentId === studentId) : [],
-    payments: account.permissions.viewPayments ? db.payments.filter((item) => account.role !== "student" || item.studentId === studentId) : [],
+    reservations: account.permissions.viewReservations ? db.reservations.filter((item) => account.role !== "artist" || item.studentId === studentId) : [],
+    payments: account.permissions.viewPayments ? db.payments.filter((item) => account.role !== "artist" || item.studentId === studentId) : [],
     tasks: account.permissions.manageOperations ? db.tasks : [],
     workLogs: account.permissions.viewTeam ? visibleWorkLogs(account) : [],
     meetings: account.permissions.viewMeetings ? visibleMeetings(account) : [],
@@ -333,7 +333,7 @@ function dashboardWorkQueueFor(account, consultations) {
     });
 
   if (account.permissions.viewAccounts) {
-    const linkedStudentIds = new Set(db.accounts.filter((item) => item.role === "student").map((item) => item.linkedStudentId).filter(Boolean));
+    const linkedStudentIds = new Set(db.accounts.filter((item) => item.role === "artist").map((item) => item.linkedStudentId).filter(Boolean));
     for (const student of db.students.filter((item) => !linkedStudentIds.has(item.id))) {
       items.push({
         id: `work-account-${student.id}`,
@@ -366,7 +366,7 @@ function createAccountRequest(response, body) {
   const input = body.request || body.accountRequest || body;
   const loginId = stringValue(input.loginId).toLowerCase();
   const name = stringValue(input.name);
-  const requestedRole = normalizeServerRole(input.requestedRole || input.role || "student");
+  const requestedRole = normalizeServerRole(input.requestedRole || input.role || "artist");
   if (!requestableRoles.includes(requestedRole)) return sendJson(response, 400, { ok: false, error: "Unsupported requested role." });
   if (!loginId || !name) return sendJson(response, 400, { ok: false, error: "Account request requires name and loginId." });
   if (db.accounts.some((account) => account.loginId.toLowerCase() === loginId)) return sendJson(response, 409, { ok: false, error: "Account loginId already exists." });
@@ -423,11 +423,11 @@ function reviewAccountRequest(response, actor, requestId, body) {
   const linkedStudentId = stringValue(review.linkedStudentId || request.linkedStudentId);
   const initialPassword = stringValue(review.initialPassword || body.initialPassword);
   if (!isValidPassword(initialPassword)) return sendJson(response, 400, { ok: false, error: `Initial password must be at least ${passwordMinLength} characters.` });
-  if (role === "student" && !linkedStudentId) return sendJson(response, 400, { ok: false, error: "Student account request requires linkedStudentId before approval." });
-  if (role === "student" && !db.students.some((student) => student.id === linkedStudentId)) return sendJson(response, 400, { ok: false, error: "Linked student was not found." });
+  if (role === "artist" && !linkedStudentId) return sendJson(response, 400, { ok: false, error: "Artist account request requires linkedStudentId before approval." });
+  if (role === "artist" && !db.students.some((student) => student.id === linkedStudentId)) return sendJson(response, 400, { ok: false, error: "Linked student was not found." });
   if (db.accounts.some((account) => account.loginId.toLowerCase() === request.loginId.toLowerCase())) return sendJson(response, 409, { ok: false, error: "Account loginId already exists." });
-  if (role === "student" && db.accounts.some((account) => account.role === "student" && account.linkedStudentId === linkedStudentId && account.status !== "paused")) {
-    return sendJson(response, 409, { ok: false, error: "Student already has an active account." });
+  if (role === "artist" && db.accounts.some((account) => account.role === "artist" && account.linkedStudentId === linkedStudentId && account.status !== "paused")) {
+    return sendJson(response, 409, { ok: false, error: "Artist already has an active account." });
   }
   const student = db.students.find((item) => item.id === linkedStudentId);
   const account = {
@@ -437,8 +437,8 @@ function reviewAccountRequest(response, actor, requestId, body) {
     role,
     email: request.email,
     phone: request.phone,
-    linkedStudentId: role === "student" ? linkedStudentId : "",
-    linkedStudentName: role === "student" ? student?.name || "" : "",
+    linkedStudentId: role === "artist" ? linkedStudentId : "",
+    linkedStudentName: role === "artist" ? student?.name || "" : "",
     status: "invited",
     mustChangePassword: true,
     permissions: permissionsFor(role),
@@ -472,12 +472,12 @@ function createAccount(response, actor, body) {
   if (!name) return sendJson(response, 400, { ok: false, error: "Account name is required." });
   if (db.accounts.some((account) => account.loginId.toLowerCase() === loginId)) return sendJson(response, 409, { ok: false, error: "Account loginId already exists." });
   if (!isValidPassword(initialPassword)) return sendJson(response, 400, { ok: false, error: `Initial password must be at least ${passwordMinLength} characters.` });
-  if (role === "student" && !linkedStudentId) return sendJson(response, 400, { ok: false, error: "Student account requires linkedStudentId." });
-  if (role === "student" && !db.students.some((student) => student.id === linkedStudentId || student.student_id === linkedStudentId)) {
-    return sendJson(response, 400, { ok: false, error: "Student account requires an existing linked student." });
+  if (role === "artist" && !linkedStudentId) return sendJson(response, 400, { ok: false, error: "Artist account requires linkedStudentId." });
+  if (role === "artist" && !db.students.some((student) => student.id === linkedStudentId || student.student_id === linkedStudentId)) {
+    return sendJson(response, 400, { ok: false, error: "Artist account requires an existing linked student." });
   }
-  if (role === "student" && db.accounts.some((account) => account.role === "student" && account.linkedStudentId === linkedStudentId && account.status !== "paused")) {
-    return sendJson(response, 409, { ok: false, error: "Student already has an active account." });
+  if (role === "artist" && db.accounts.some((account) => account.role === "artist" && account.linkedStudentId === linkedStudentId && account.status !== "paused")) {
+    return sendJson(response, 409, { ok: false, error: "Artist already has an active account." });
   }
 
   const account = {
@@ -487,8 +487,8 @@ function createAccount(response, actor, body) {
     role,
     email: stringValue(input.email),
     phone: stringValue(input.phone),
-    linkedStudentId: role === "student" ? linkedStudentId : "",
-    linkedStudentName: role === "student" ? db.students.find((student) => student.id === linkedStudentId)?.name || "" : "",
+    linkedStudentId: role === "artist" ? linkedStudentId : "",
+    linkedStudentName: role === "artist" ? db.students.find((student) => student.id === linkedStudentId)?.name || "" : "",
     status: "invited",
     mustChangePassword: true,
     permissions: permissionsFor(role),
@@ -696,10 +696,10 @@ function handleAction(response, account, action, body) {
     const student = findStudentByValue(input.student_id || input.studentId || input.student);
     if (!student) return sendJson(response, 400, { ok: false, error: "Lesson note requires a valid student." });
     const requestedTeacher = findTeacherByValue(input.teacher_id || input.teacherId || input.teacher || account.id);
-    const teacher = account.role === "teacher" ? findTeacherByValue(account.id) : requestedTeacher;
+    const teacher = account.role === "coach" ? findTeacherByValue(account.id) : requestedTeacher;
     if (!teacher) return sendJson(response, 400, { ok: false, error: "Lesson note requires a valid teacher." });
-    if (account.role === "teacher" && teacher.id !== account.id) return sendJson(response, 403, { ok: false, error: "Teacher accounts can only write their own lesson notes." });
-    if (account.role === "teacher" && student.teacherId && student.teacherId !== account.id) return sendJson(response, 403, { ok: false, error: "Teacher accounts can only write notes for assigned students." });
+    if (account.role === "coach" && teacher.id !== account.id) return sendJson(response, 403, { ok: false, error: "Coach accounts can only write their own lesson notes." });
+    if (account.role === "coach" && student.teacherId && student.teacherId !== account.id) return sendJson(response, 403, { ok: false, error: "Coach accounts can only write notes for assigned students." });
     const lessonDate = stringValue(input.lesson_date || input.date || new Date().toISOString().slice(0, 10));
     const lesson = db.lessons.find((item) => item.studentId === student.id && item.teacherId === teacher.id && stringValue(item.lessonDate || item.lesson_date || item.startsAt).startsWith(lessonDate));
     if (!lesson) return sendJson(response, 400, { ok: false, error: "Lesson note requires an existing lesson for the student, teacher, and date." });
@@ -752,9 +752,9 @@ function handleAction(response, account, action, body) {
     const student = findStudentByValue(input.student_id || input.studentId || input.student || lesson?.studentId);
     if (!student) return sendJson(response, 400, { ok: false, error: "Attendance requires a valid student." });
     if (lesson.studentId !== student.id) return sendJson(response, 400, { ok: false, error: "Attendance student must match the lesson student." });
-    if (account.role === "teacher") {
+    if (account.role === "coach") {
       const lessonTeacherId = lesson?.teacherId || student.teacherId;
-      if (lessonTeacherId && lessonTeacherId !== account.id) return sendJson(response, 403, { ok: false, error: "Teacher accounts can only update attendance for assigned lessons." });
+      if (lessonTeacherId && lessonTeacherId !== account.id) return sendJson(response, 403, { ok: false, error: "Coach accounts can only update attendance for assigned lessons." });
     }
     const status = stringValue(input.status, "출석");
     const existing = db.attendance.find((item) => (lesson && item.lessonId === lesson.id) || (!lesson && item.studentId === student.id && item.status === "미처리"));
@@ -807,9 +807,9 @@ function handleAction(response, account, action, body) {
     if (startsAt >= endsAt) return sendJson(response, 400, { ok: false, error: "Reservation end time must be after start time." });
     const overlaps = db.reservations.some((item) => item.roomId === room.id && item.startsAt < endsAt && item.endsAt > startsAt && item.status !== "취소");
     if (overlaps) return sendJson(response, 409, { ok: false, error: "Selected room slot is already reserved." });
-    const student = account.role === "student" ? findStudentByValue(account.linkedStudentId) : findStudentByValue(input.student_id || input.studentId || input.student);
-    if (account.role === "student" && !student) return sendJson(response, 400, { ok: false, error: "Student reservation requires a linked student record." });
-    if (account.role !== "student" && (input.student_id || input.studentId || input.student) && !student) return sendJson(response, 400, { ok: false, error: "Reservation student reference is invalid." });
+    const student = account.role === "artist" ? findStudentByValue(account.linkedStudentId) : findStudentByValue(input.student_id || input.studentId || input.student);
+    if (account.role === "artist" && !student) return sendJson(response, 400, { ok: false, error: "Artist reservation requires a linked student record." });
+    if (account.role !== "artist" && (input.student_id || input.studentId || input.student) && !student) return sendJson(response, 400, { ok: false, error: "Reservation student reference is invalid." });
     const reservation = {
       id: `reserve-${randomUUID()}`,
       reservation_id: "",
@@ -953,7 +953,7 @@ function handleAction(response, account, action, body) {
     const input = body.meeting || body;
     const title = stringValue(input.title);
     if (!title) return sendJson(response, 400, { ok: false, error: "Meeting title is required." });
-    const participantIds = stringList(input.participantIds || input.participant_ids).filter((id) => db.accounts.some((item) => item.id === id && item.role !== "student"));
+    const participantIds = stringList(input.participantIds || input.participant_ids).filter((id) => db.accounts.some((item) => item.id === id && item.role !== "artist"));
     if (!participantIds.includes(account.id)) participantIds.push(account.id);
     const meeting = {
       id: `meeting-${randomUUID()}`,
@@ -1022,7 +1022,7 @@ function handleAction(response, account, action, body) {
     const input = body.consultation || body;
     const consultation = {
       id: `consult-${randomUUID()}`,
-      studentId: account.role === "student" ? account.linkedStudentId : stringValue(input.studentId),
+      studentId: account.role === "artist" ? account.linkedStudentId : stringValue(input.studentId),
       studentName: stringValue(input.studentName || account.name),
       guardianName: stringValue(input.guardianName),
       phone: stringValue(input.phone),
@@ -1040,8 +1040,8 @@ function handleAction(response, account, action, body) {
       unreadForAccountIds: notificationAccountIds(["manager"], account.id)
     };
     if (!consultation.goal && !consultation.memo) return sendJson(response, 400, { ok: false, error: "Consultation request requires a message." });
-    if (account.role === "student" && !findStudentByValue(account.linkedStudentId)) return sendJson(response, 400, { ok: false, error: "Student consultation requires a linked student record." });
-    if (account.role !== "student" && consultation.studentId && !findStudentByValue(consultation.studentId)) return sendJson(response, 400, { ok: false, error: "Consultation student reference is invalid." });
+    if (account.role === "artist" && !findStudentByValue(account.linkedStudentId)) return sendJson(response, 400, { ok: false, error: "Artist consultation requires a linked student record." });
+    if (account.role !== "artist" && consultation.studentId && !findStudentByValue(consultation.studentId)) return sendJson(response, 400, { ok: false, error: "Consultation student reference is invalid." });
     db.consultations.unshift(consultation);
     db.consultationHistory.unshift({
       id: `consult-history-${randomUUID()}`,
@@ -1093,7 +1093,7 @@ function handleAction(response, account, action, body) {
     if (!nextStatus) return sendJson(response, 400, { ok: false, error: "Unsupported consultation status." });
     const nextAssignee = Object.prototype.hasOwnProperty.call(body, "assignedTo") ? stringValue(body.assignedTo) : consultation.assignedTo;
     const assignee = nextAssignee ? findConsultationAssignee(nextAssignee) : null;
-    if (nextAssignee && !assignee) return sendJson(response, 400, { ok: false, error: "Consultation assignee must be a manager or teacher account." });
+    if (nextAssignee && !assignee) return sendJson(response, 400, { ok: false, error: "Consultation assignee must be a manager or coach account." });
     consultation.status = nextStatus;
     consultation.assignedTo = nextAssignee;
     consultation.assignedToName = assignee?.name || "";
@@ -1148,11 +1148,11 @@ function handleAction(response, account, action, body) {
 }
 
 function dataQualityReport() {
-  const linkedStudentIds = new Set(db.accounts.filter((account) => account.role === "student").map((account) => account.linkedStudentId).filter(Boolean));
+  const linkedStudentIds = new Set(db.accounts.filter((account) => account.role === "artist").map((account) => account.linkedStudentId).filter(Boolean));
   const studentIds = new Set(db.students.map((student) => student.id));
   const teacherIds = new Set([
     ...db.teachers.map((teacher) => teacher.id),
-    ...db.accounts.filter((account) => account.role === "teacher").map((account) => account.id)
+    ...db.accounts.filter((account) => account.role === "coach").map((account) => account.id)
   ]);
   const lessonIds = new Set(db.lessons.map((lesson) => lesson.id));
   const roomIds = new Set(db.rooms.map((room) => room.id));
@@ -1271,19 +1271,19 @@ async function listDataBackups(response) {
 }
 
 function visibleStudents(account, students) {
-  if (account.role !== "teacher") return students;
+  if (account.role !== "coach") return students;
   return students.map(({ phone, birthDate, birth_date, memo, ...student }) => student);
 }
 
 function visibleGuardians(account, guardians) {
-  if (account.role !== "teacher") return guardians;
+  if (account.role !== "coach") return guardians;
   return guardians.map(({ phone, memo, ...guardian }) => guardian);
 }
 
 function visibleLessonNotes(account, lessonIds, studentIds) {
   if (!account.permissions.viewLessonLogs) return [];
   const notes = db.lessonNotes.filter((item) => lessonIds.has(item.lessonId) || studentIds.has(item.studentId));
-  if (account.role !== "student") return notes;
+  if (account.role !== "artist") return notes;
   return notes.map(({ internalMemo, internal_memo, ...note }) => note);
 }
 
@@ -1363,12 +1363,12 @@ function replaceDatabase(snapshot) {
 }
 
 function requirePermission(response, account, key, callback) {
-  if (account.role !== "owner" && !account.permissions[key]) return sendJson(response, 403, { ok: false, error: `${key} permission is required.` });
+  if (account.role !== "admin" && !account.permissions[key]) return sendJson(response, 403, { ok: false, error: `${key} permission is required.` });
   return callback();
 }
 
 function requireAdmin(response, account, callback) {
-  if (account.role !== "owner") return sendJson(response, 403, { ok: false, error: "Owner permission is required." });
+  if (account.role !== "admin") return sendJson(response, 403, { ok: false, error: "Admin permission is required." });
   return callback();
 }
 
@@ -1492,7 +1492,7 @@ function normalizeServerEnrollmentStatus(value) {
 }
 
 function findConsultationAssignee(accountId) {
-  const account = db.accounts.find((item) => item.id === accountId && item.status === "active" && ["manager", "teacher"].includes(item.role));
+  const account = db.accounts.find((item) => item.id === accountId && item.status === "active" && ["manager", "coach"].includes(item.role));
   if (account) return account;
   const teacher = db.teachers.find((item) => item.id === accountId);
   return teacher ? { id: teacher.id, name: teacher.name } : null;
@@ -1515,7 +1515,7 @@ function findTeacherByValue(value) {
   if (!text) return null;
   const teacher = db.teachers.find((item) => item.id === text || item.name === text);
   if (teacher) return teacher;
-  const teacherAccount = db.accounts.find((item) => item.id === text && item.role === "teacher");
+  const teacherAccount = db.accounts.find((item) => item.id === text && item.role === "coach");
   return teacherAccount ? { id: teacherAccount.id, name: teacherAccount.name, major: "" } : null;
 }
 
@@ -1555,15 +1555,15 @@ function notificationAccountIds(roles, excludeAccountId = "") {
 function unreadAfterConsultationUpdate(consultation, actorId, assignedTo) {
   const unreadIds = new Set(Array.isArray(consultation.unreadForAccountIds) ? consultation.unreadForAccountIds : []);
   unreadIds.delete(actorId);
-  const targetAccount = db.accounts.find((item) => item.id === assignedTo && item.status === "active" && ["manager", "teacher"].includes(item.role));
+  const targetAccount = db.accounts.find((item) => item.id === assignedTo && item.status === "active" && ["manager", "coach"].includes(item.role));
   if (targetAccount && targetAccount.id !== actorId) unreadIds.add(targetAccount.id);
   return Array.from(unreadIds);
 }
 
 function canReadConsultation(account, consultation) {
   if (account.permissions.manageOperations) return true;
-  if (account.role === "student") return consultation.studentId === account.linkedStudentId;
-  if (account.role === "teacher") return consultation.assignedTo === account.id;
+  if (account.role === "artist") return consultation.studentId === account.linkedStudentId;
+  if (account.role === "coach") return consultation.assignedTo === account.id;
   return false;
 }
 
@@ -1612,11 +1612,11 @@ function assertServerRuntimeSafe() {
   const publicHost = !["127.0.0.1", "localhost", "::1"].includes(host);
   const productionMode = process.env.NODE_ENV === "production" || publicHost;
   if (!productionMode) return;
-  if (testPassword === "version3") {
+  if (testPassword === "bonsung1") {
     throw new Error("Set VERSION3_LOCAL_SERVER_PASSWORD to a non-default value before running a public Version.3 server.");
   }
-  if (!process.env.VERSION3_OWNER_INITIAL_PASSWORD && !process.env.VERSION3_ADMIN_INITIAL_PASSWORD) {
-    throw new Error("Set VERSION3_OWNER_INITIAL_PASSWORD before running a public Version.3 server.");
+  if (!process.env.VERSION3_ADMIN_INITIAL_PASSWORD) {
+    throw new Error("Set VERSION3_ADMIN_INITIAL_PASSWORD before running a public Version.3 server.");
   }
   if (allowedOrigins.includes("*")) {
     throw new Error("Set VERSION3_ALLOWED_ORIGINS to the official Version.3 UI origin before running a public Version.3 server.");
@@ -1650,10 +1650,10 @@ function permissionsFor(role) {
 
 function normalizeServerRole(value, fallback = "manager") {
   const role = stringValue(value).toLowerCase();
-  if (role === "owner" || role === "admin" || role === "system") return "owner";
+  if (role === "owner" || role === "admin" || role === "system") return "admin";
   if (role === "manager" || role === "staff") return "manager";
-  if (role === "teacher" || role === "coach") return "teacher";
-  if (role === "student" || role === "artist") return "student";
+  if (role === "teacher" || role === "coach") return "coach";
+  if (role === "student" || role === "artist") return "artist";
   return fallback;
 }
 
@@ -1681,7 +1681,8 @@ async function loadDatabase() {
   const passwordMigrationChanged = migrateAccountPasswords(migrated);
   const adminPasswordMigrationChanged = migrateAdminInitialPassword(migrated);
   const notionSeedMigrationChanged = migrateNotionHqSeedData(migrated);
-  if (passwordMigrationChanged || adminPasswordMigrationChanged || notionSeedMigrationChanged || needsMigrationSave) await storage.saveState(migrated);
+  const obsoleteSeedDataChanged = pruneObsoleteSeedData(migrated);
+  if (passwordMigrationChanged || adminPasswordMigrationChanged || notionSeedMigrationChanged || obsoleteSeedDataChanged || needsMigrationSave) await storage.saveState(migrated);
   return migrated;
 }
 
@@ -1706,21 +1707,21 @@ function migrateRoleValues(snapshot) {
     if (account.role !== previousRole) changed = true;
     const nextPermissions = { ...permissionsFor(account.role), ...(account.permissions && typeof account.permissions === "object" ? account.permissions : {}) };
     if (account.role === "manager") {
-      nextPermissions.manageAccounts = false;
+      nextPermissions.manageAccounts = true;
       nextPermissions.managePermissions = false;
       nextPermissions.managePublicSettings = false;
       nextPermissions.reviewAccountRequests = true;
       nextPermissions.resetPasswords = true;
     }
-    if (account.role === "owner") Object.assign(nextPermissions, permissionsFor("owner"));
-    if (account.role === "teacher") Object.assign(nextPermissions, permissionsFor("teacher"));
-    if (account.role === "student") Object.assign(nextPermissions, permissionsFor("student"));
+    if (account.role === "admin") Object.assign(nextPermissions, permissionsFor("admin"));
+    if (account.role === "coach") Object.assign(nextPermissions, permissionsFor("coach"));
+    if (account.role === "artist") Object.assign(nextPermissions, permissionsFor("artist"));
     if (JSON.stringify(account.permissions || {}) !== JSON.stringify(nextPermissions)) changed = true;
     account.permissions = nextPermissions;
   }
   for (const request of snapshot.accountRequests || []) {
     const previousRole = request.requestedRole;
-    request.requestedRole = normalizeServerRole(request.requestedRole, "student");
+    request.requestedRole = normalizeServerRole(request.requestedRole, "artist");
     if (request.requestedRole !== previousRole) changed = true;
   }
   for (const notice of snapshot.notices || []) {
@@ -1763,6 +1764,27 @@ function migrateNotionHqSeedData(snapshot) {
   return changed;
 }
 
+function pruneObsoleteSeedData(snapshot) {
+  let changed = false;
+  const removeById = (key, ids) => {
+    if (!Array.isArray(snapshot[key])) return;
+    const removeIds = new Set(ids);
+    const before = snapshot[key].length;
+    snapshot[key] = snapshot[key].filter((item) => !removeIds.has(item.id));
+    if (snapshot[key].length !== before) changed = true;
+  };
+
+  removeById("enrollments", ["enroll-1", "enrollment-sample-1"]);
+  removeById("lessons", ["lesson-1", "lesson-sample-1"]);
+  removeById("attendance", ["att-1", "attendance-sample-1"]);
+  removeById("lessonNotes", ["note-1", "lesson-note-sample-1"]);
+  removeById("reservations", ["reserve-1", "reservation-sample-1"]);
+  removeById("rooms", ["room-1", "room-vocal-a", "room-practice-1"]);
+  removeById("meetings", ["meeting-sample-1"]);
+  removeById("tasks", ["task-sample-1"]);
+  return changed;
+}
+
 function migrateAccountPasswords(snapshot) {
   let changed = false;
   for (const account of snapshot.accounts || []) {
@@ -1785,6 +1807,11 @@ function migrateAdminInitialPassword(snapshot) {
     return true;
   }
   adminAccount.password = hashPassword(adminInitialPassword);
+  if (!snapshot.accounts.some((account) => account !== adminAccount && account.loginId === "admin")) {
+    adminAccount.loginId = "admin";
+  }
+  adminAccount.role = "admin";
+  adminAccount.permissions = permissionsFor("admin");
   adminAccount.mustChangePassword = false;
   snapshot.adminCredentialVersion = adminCredentialVersion;
   return true;
@@ -1803,10 +1830,10 @@ function saveDatabase() {
 
 function createSeedData() {
   const accounts = [
-    createSeedAccount("admin-1", "owner", "시스템 관리자", "owner", "", "", adminInitialPassword),
+    createSeedAccount("admin-1", "admin", "시스템 관리자", "admin", "", "", adminInitialPassword),
     createSeedAccount("manager-1", "manager", "강은미", "manager", ""),
-    createSeedAccount("teacher-1", "teacher", "황휘현", "teacher", ""),
-    createSeedAccount("student-1-account", "student", "장윤호", "student", "student-jang-yunho", "장윤호")
+    createSeedAccount("teacher-1", "coach", "황휘현", "coach", ""),
+    createSeedAccount("student-1-account", "artist", "장윤호", "artist", "student-jang-yunho", "장윤호")
   ];
 
   return {
@@ -1815,7 +1842,7 @@ function createSeedData() {
       { id: "account-history-1", accountId: "manager-1", accountName: "강은미", actorId: "admin-1", actorName: "시스템 관리자", action: "create_account", role: "manager", occurredAt: "2026-07-01T09:10:00+09:00" }
     ],
     accountRequests: [
-      { id: "account-request-1", loginId: "kimtaeji", name: "(신) 김태지", requestedRole: "student", email: "", phone: "", linkedStudentId: "student-kim-taeji-new", message: "Notion 수강생 DB에서 등록 상태가 확인 필요인 신규 수강생입니다. 계정 생성 전 상담/등록 확정 여부 확인이 필요합니다.", status: "대기", reviewedBy: "", reviewedByName: "", reviewedAt: "", reviewMemo: "", createdAccountId: "", createdAt: "2026-07-02T10:10:00+09:00", updatedAt: "2026-07-02T10:10:00+09:00" }
+      { id: "account-request-1", loginId: "kimtaeji", name: "(신) 김태지", requestedRole: "artist", email: "", phone: "", linkedStudentId: "student-kim-taeji-new", message: "Notion 수강생 DB에서 등록 상태가 확인 필요인 신규 수강생입니다. 계정 생성 전 상담/등록 확정 여부 확인이 필요합니다.", status: "대기", reviewedBy: "", reviewedByName: "", reviewedAt: "", reviewMemo: "", createdAccountId: "", createdAt: "2026-07-02T10:10:00+09:00", updatedAt: "2026-07-02T10:10:00+09:00" }
     ],
     auditLogs: [
       { id: "audit-1", actorId: "admin-1", actorName: "시스템 관리자", action: "create_account", targetType: "account", targetId: "manager-1", targetName: "강은미", metadata: { role: "manager" }, createdAt: "2026-07-01T09:10:00+09:00" }
@@ -1836,24 +1863,12 @@ function createSeedData() {
     courses: [
       ...bonsungInitialCourses
     ],
-    enrollments: [
-      { id: "enroll-1", studentId: "student-jang-yunho", courseId: "course-precollege", teacherId: "teacher-unassigned", startDate: "", status: "등록 확정", memo: "Notion 수강생 DB 기준 등록 확정. 실제 프로그램/담당 강사 배정 필요. 화면 기능 확인용 임시 연결값입니다." }
-    ],
-    lessons: [
-      { id: "lesson-1", studentId: "student-jang-yunho", teacherId: "teacher-unassigned", courseId: "course-precollege", startsAt: "2026-08-18T14:00:00+09:00", duration: 60, status: "배정필요", memo: "초기 이관 데이터 점검용 수업. 실제 시간표 확정 전까지 임시값입니다." }
-    ],
-    attendance: [
-      { id: "att-1", lessonId: "lesson-1", studentId: "student-jang-yunho", status: "미처리", makeupNeeded: false, memo: "초기 이관 데이터 점검" }
-    ],
-    lessonNotes: [
-      { id: "note-1", lessonId: "lesson-1", studentId: "student-jang-yunho", teacherId: "teacher-unassigned", date: "2026-08-18", content: "초기 이관 데이터 확인", homework: "프로그램과 담당 강사 배정 확인", nextGoal: "실제 수업 시작일 입력", practiceRequest: "", internalMemo: "Notion 수강생 DB 기반" }
-    ],
-    rooms: [
-      { id: "room-1", name: "A Vocal Room", location: "2F", capacity: 2, status: "사용가능" }
-    ],
-    reservations: [
-      { id: "reserve-1", roomId: "room-1", studentId: "student-jang-yunho", requester: "조영진", startsAt: "2026-08-18T18:00:00+09:00", endsAt: "2026-08-18T19:00:00+09:00", status: "예약", memo: "초기 점검용 예약" }
-    ],
+    enrollments: [],
+    lessons: [],
+    attendance: [],
+    lessonNotes: [],
+    rooms: [],
+    reservations: [],
     payments: [
       ...bonsungInitialPayments
     ],

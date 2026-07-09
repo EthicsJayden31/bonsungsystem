@@ -4,8 +4,8 @@ const serverPort = process.env.VERSION3_LOCAL_SERVER_PORT || "4303";
 const nextPort = process.env.VERSION3_NEXT_PORT || "3000";
 const serverUrl = `http://127.0.0.1:${serverPort}`;
 const pnpm = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
-const ownerPassword = process.env.VERSION3_OWNER_INITIAL_PASSWORD || process.env.VERSION3_ADMIN_INITIAL_PASSWORD || "owner-test-123";
-const defaultSeedPassword = process.env.VERSION3_LOCAL_SERVER_PASSWORD || "version3";
+const adminPassword = process.env.VERSION3_ADMIN_INITIAL_PASSWORD || "bonsung_2020_03";
+const defaultSeedPassword = process.env.VERSION3_LOCAL_SERVER_PASSWORD || "bonsung1";
 
 const children = [];
 
@@ -17,7 +17,7 @@ start(
     ...process.env,
     VERSION3_LOCAL_SERVER_PORT: serverPort,
     VERSION3_LOCAL_SERVER_PASSWORD: defaultSeedPassword,
-    VERSION3_OWNER_INITIAL_PASSWORD: ownerPassword
+    VERSION3_ADMIN_INITIAL_PASSWORD: adminPassword
   }
 );
 
@@ -34,8 +34,8 @@ start(
 console.log(`Version.3 local mode`);
 console.log(`- UI: http://127.0.0.1:${nextPort}/login/`);
 console.log(`- Server: ${serverUrl}`);
-console.log(`- Owner seed password: ${ownerPassword}`);
-console.log(`- Manager/Teacher/Student seed password: ${defaultSeedPassword}`);
+console.log(`- Admin seed password: ${adminPassword}`);
+console.log(`- Manager/Coach/Artist seed password: ${defaultSeedPassword}`);
 
 process.on("SIGINT", shutdown);
 process.on("SIGTERM", shutdown);

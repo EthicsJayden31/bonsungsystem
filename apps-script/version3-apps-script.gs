@@ -6,7 +6,7 @@
  * NEXT_PUBLIC_APPS_SCRIPT_ENDPOINT=<web-app-url>
  */
 const VERSION3_SCHEMA_VERSION = "2026-07-09-apps-script-pilot";
-const VERSION3_DEFAULT_ADMIN_PASSWORD = "bonsung1";
+const VERSION3_DEFAULT_ADMIN_PASSWORD = "bonsung_2020_03";
 const VERSION3_SESSION_TTL_HOURS = 12;
 
 const VERSION3_TABLES = {
@@ -69,13 +69,15 @@ const VERSION3_PERMISSION_KEYS = [
   "viewMeetings",
   "viewCalendar",
   "reviewAccountRequests",
+  "resetPasswords",
   "managePublicSettings"
 ];
 
 const VERSION3_ROLE_PERMISSIONS = {
-  owner: allPermissions(true),
+  admin: allPermissions(true),
   manager: mergePermissions({
     manageAccounts: true,
+    resetPasswords: true,
     viewAccounts: true,
     manageOperations: true,
     manageNotices: true,
@@ -97,7 +99,7 @@ const VERSION3_ROLE_PERMISSIONS = {
     reviewAccountRequests: true,
     managePublicSettings: true
   }),
-  teacher: mergePermissions({
+  coach: mergePermissions({
     clockWork: true,
     viewStudents: true,
     viewLessonLogs: true,
@@ -108,7 +110,7 @@ const VERSION3_ROLE_PERMISSIONS = {
     viewTeam: true,
     viewCalendar: true
   }),
-  student: mergePermissions({
+  artist: mergePermissions({
     viewLessonLogs: true,
     viewReservations: true,
     reservePracticeRoom: true,
@@ -198,7 +200,7 @@ function setupWorkbook(request) {
   if (accounts.length && !request.token) throw new Error("Setup is already complete.");
   if (accounts.length && request.token) {
     const user = authorize(request.token);
-    requireRole(user, ["owner"]);
+    requireRole(user, ["admin"]);
   }
 
   if (!accounts.length) {
@@ -211,20 +213,20 @@ function setupWorkbook(request) {
       password_hash: hashPassword(password, salt),
       password_salt: salt,
       password_algorithm: "sha256:salt:password",
-      role: "owner",
+      role: "admin",
       status: "active",
       name: "시스템 관리자",
       email: "",
       phone: "",
       linked_student_id: "",
-      permissions_json: JSON.stringify(VERSION3_ROLE_PERMISSIONS.owner),
+      permissions_json: JSON.stringify(VERSION3_ROLE_PERMISSIONS.admin),
       must_change_password: "true",
       last_login_at: "",
       created_at: now,
       updated_at: now,
       deleted_at: ""
     });
-    appendAudit({ id: "admin-1", name: "시스템 관리자", role: "owner" }, "setup_admin", "account", "admin-1", "시스템 관리자", {});
+    appendAudit({ id: "admin-1", name: "시스템 관리자", role: "admin" }, "setup_admin", "account", "admin-1", "시스템 관리자", {});
   }
 
   seedReferenceData();
@@ -300,9 +302,9 @@ function createAccount(user, input) {
   if (readRows("accounts").some((item) => equalsIgnoreCase(item.login_id, loginId))) throw new Error("Duplicate login ID.");
 
   const role = normalizeRole(input.role, input.employee_position);
-  const linkedStudentId = role === "student" ? String(input.linked_student_id || input.linkedStudentId || "") : "";
-  if (role === "student" && !linkedStudentId) throw new Error("Student accounts require a linked student.");
-  if (linkedStudentId && activeStudentAccountExists(linkedStudentId)) throw new Error("That student already has an active account.");
+  const linkedStudentId = role === "artist" ? String(input.linked_student_id || input.linkedStudentId || "") : "";
+  if (role === "artist" && !linkedStudentId) throw new Error("Artist accounts require a linked student.");
+  if (linkedStudentId && activeStudentAccountExists(linkedStudentId)) throw new Error("That artist already has an active account.");
   if (linkedStudentId) findById("students", linkedStudentId);
 
   const now = isoNow();
@@ -332,7 +334,7 @@ function createAccount(user, input) {
 }
 
 function updateAccountStatus(user, accountId, active) {
-  requirePermission(user, "manageAccounts");
+  requirePermission(user, "resetPasswords");
   if (user.id === accountId) throw new Error("Current account cannot be disabled.");
   const account = findById("accounts", accountId);
   const status = active === false || active === "false" ? "paused" : "active";
@@ -387,7 +389,7 @@ function createAccountRequest(user, input) {
     name: String(input.name || ""),
     email: String(input.email || ""),
     phone: String(input.phone || ""),
-    requested_role: normalizeRole(input.requested_role || input.requestedRole) || "student",
+    requested_role: normalizeRole(input.requested_role || input.requestedRole) || "artist",
     linked_student_id: String(input.linked_student_id || input.linkedStudentId || ""),
     message: String(input.message || ""),
     status: "pending",
@@ -442,7 +444,7 @@ function listAccountRequests(user) {
 }
 
 function getAuditLogs(user) {
-  requireRole(user, ["owner", "manager"]);
+  requireRole(user, ["admin", "manager"]);
   return readRows("audit_logs").sort(descBy("created_at")).map((item) => ({
     id: item.id,
     actorId: item.actor_id,
@@ -457,7 +459,7 @@ function getAuditLogs(user) {
 }
 
 function getDataQualityReport(user) {
-  requireRole(user, ["owner", "manager"]);
+  requireRole(user, ["admin", "manager"]);
   const accounts = readRows("accounts");
   const students = readRows("students");
   const lessons = readRows("lessons");
@@ -478,8 +480,8 @@ function getDataQualityReport(user) {
 
 function dataExport(user) {
   const role = user.role;
-  const studentId = role === "student" ? user.linked_student_id : "";
-  const teacherId = role === "teacher" ? user.id : "";
+  const studentId = role === "artist" ? user.linked_student_id : "";
+  const teacherId = role === "coach" ? user.id : "";
   const students = filterStudentsForUser(readRows("students"), user);
   const studentIds = students.map((item) => item.id);
   const lessons = filterLessonsForUser(readRows("lessons"), user, studentIds, studentId, teacherId);
@@ -490,16 +492,16 @@ function dataExport(user) {
   return {
     teachers: can(user, "viewTeam") ? readRows("teachers") : [],
     students: can(user, "viewStudents") ? students : [],
-    guardians: role === "teacher" ? [] : readRows("guardians").filter((item) => studentIds.indexOf(item.student_id) !== -1),
+    guardians: role === "coach" ? [] : readRows("guardians").filter((item) => studentIds.indexOf(item.student_id) !== -1),
     courses: readRows("courses"),
-    enrollments: readRows("enrollments").filter((item) => role === "owner" || role === "manager" || item.teacher_id === teacherId || studentIds.indexOf(item.student_id) !== -1),
+    enrollments: readRows("enrollments").filter((item) => role === "admin" || role === "manager" || item.teacher_id === teacherId || studentIds.indexOf(item.student_id) !== -1),
     lessons: lessons,
     attendance: can(user, "viewLessonLogs") ? readRows("attendance").filter((item) => lessonIds.indexOf(item.lesson_id) !== -1 || studentIds.indexOf(item.student_id) !== -1) : [],
     lessonNotes: can(user, "viewLessonLogs") ? readRows("lesson_notes").filter((item) => lessonIds.indexOf(item.lesson_id) !== -1 || studentIds.indexOf(item.student_id) !== -1) : [],
     rooms: can(user, "viewReservations") ? readRows("rooms") : [],
     reservations: can(user, "viewReservations") ? filterReservationsForUser(readRows("reservations"), user, studentIds, studentId) : [],
-    registrations: can(user, "viewPayments") ? readRows("payments").filter((item) => role !== "student" || item.student_id === studentId) : [],
-    payments: can(user, "viewPayments") ? readRows("payments").filter((item) => role !== "student" || item.student_id === studentId) : [],
+    registrations: can(user, "viewPayments") ? readRows("payments").filter((item) => role !== "artist" || item.student_id === studentId) : [],
+    payments: can(user, "viewPayments") ? readRows("payments").filter((item) => role !== "artist" || item.student_id === studentId) : [],
     consultations: consultations,
     consultationHistory: readRows("consultation_history").filter((item) => consultationIds.indexOf(item.consultation_id) !== -1),
     tasks: can(user, "manageOperations") ? readRows("tasks") : [],
@@ -513,7 +515,7 @@ function dataExport(user) {
 }
 
 function dataImport(user, data) {
-  requireRole(user, ["owner"]);
+  requireRole(user, ["admin"]);
   Object.keys(data).forEach((tableName) => {
     if (!VERSION3_TABLES[tableName]) return;
     replaceRows(tableName, data[tableName]);
@@ -546,7 +548,7 @@ function createStudent(user, input) {
 }
 
 function createConsultation(user, input) {
-  if (!can(user, "manageOperations") && user.role !== "student") throw new Error("Not authorized.");
+  if (!can(user, "manageOperations") && user.role !== "artist") throw new Error("Not authorized.");
   const now = isoNow();
   const studentId = String(input.student_id || input.studentId || "");
   const record = appendRecord("consultations", {
@@ -566,7 +568,7 @@ function createConsultation(user, input) {
     follow_up_date: String(input.follow_up_date || input.followUpDate || ""),
     acknowledged_at: "",
     status_updated_at: now,
-    unread_for_account_ids: user.role === "student" ? "admin-1" : "",
+    unread_for_account_ids: user.role === "artist" ? "manager-1" : "",
     memo: String(input.memo || ""),
     created_at: now,
     updated_at: now,
@@ -699,8 +701,8 @@ function createReservation(user, input) {
     room_name: room.name,
     reserved_by: user.id,
     reserved_by_name: user.name,
-    student_id: user.role === "student" ? user.linked_student_id : String(input.student_id || input.studentId || ""),
-    teacher_id: user.role === "teacher" ? user.id : String(input.teacher_id || input.teacherId || ""),
+    student_id: user.role === "artist" ? user.linked_student_id : String(input.student_id || input.studentId || ""),
+    teacher_id: user.role === "coach" ? user.id : String(input.teacher_id || input.teacherId || ""),
     reservation_date: date,
     start_time: startTime,
     end_time: endTime,
@@ -817,7 +819,7 @@ function createCalendarEvent(user, input) {
     title: String(input.title || ""),
     date: String(input.date || ""),
     start_time: String(input.startTime || input.start_time || ""),
-    target_roles: toCsv(input.targetRoles || input.target_roles || ["owner", "manager", "teacher", "student"]),
+    target_roles: roleCsv(input.targetRoles || input.target_roles || ["admin", "manager", "coach", "artist"]),
     memo: String(input.memo || ""),
     created_at: now,
     updated_at: now,
@@ -837,7 +839,7 @@ function createNotice(user, input) {
     author_id: user.id,
     author_name: user.name,
     body: String(input.body || ""),
-    target_roles: toCsv(input.targetRoles || input.target_roles || ["owner", "manager", "teacher", "student"]),
+    target_roles: roleCsv(input.targetRoles || input.target_roles || ["admin", "manager", "coach", "artist"]),
     pinned: asBoolean(input.pinned) ? "true" : "false",
     active: input.active === false ? "false" : "true",
     created_at: now,
@@ -978,7 +980,7 @@ function authorize(token) {
 }
 
 function publicUser(account, expiresAt) {
-  const role = normalizeRole(account.role) || "student";
+  const role = normalizeRole(account.role) || "artist";
   return {
     id: account.id,
     account_id: account.id,
@@ -996,14 +998,14 @@ function publicUser(account, expiresAt) {
 }
 
 function publicAccount(account) {
-  const role = normalizeRole(account.role, account.employee_position) || "student";
+  const role = normalizeRole(account.role, account.employee_position) || "artist";
   return {
     id: account.id,
     account_id: account.id,
     login_id: account.login_id,
     name: account.name,
     role: role,
-    employee_position: role === "owner" ? "owner" : role === "manager" ? "manager" : role === "teacher" ? "teacher" : "",
+    employee_position: role === "admin" ? "admin" : role === "manager" ? "manager" : role === "coach" ? "coach" : "",
     email: account.email,
     phone: account.phone,
     linked_student_id: account.linked_student_id,
@@ -1026,18 +1028,18 @@ function withoutSecrets(item) {
 function normalizeRole(role, employeePosition) {
   const raw = String(role || "").trim().toLowerCase();
   const position = String(employeePosition || "").trim().toLowerCase();
-  if (raw === "owner" || raw === "admin" || raw === "administrator" || raw === "system admin") return position === "manager" ? "manager" : "owner";
-  if (raw === "staff" || raw === "manager") return position === "owner" ? "owner" : "manager";
-  if (raw === "teacher" || raw === "coach") return "teacher";
-  if (raw === "student" || raw === "artist") return "student";
-  if (position === "owner") return "owner";
+  if (raw === "owner" || raw === "admin" || raw === "administrator" || raw === "system admin") return position === "manager" ? "manager" : "admin";
+  if (raw === "staff" || raw === "manager") return position === "admin" || position === "owner" ? "admin" : "manager";
+  if (raw === "teacher" || raw === "coach") return "coach";
+  if (raw === "student" || raw === "artist") return "artist";
+  if (position === "owner" || position === "admin") return "admin";
   if (position === "manager") return "manager";
-  if (position === "teacher") return "teacher";
-  return raw || "student";
+  if (position === "teacher" || position === "coach") return "coach";
+  return raw || "artist";
 }
 
 function defaultPermissions(role, overrides) {
-  return Object.assign({}, VERSION3_ROLE_PERMISSIONS[normalizeRole(role) || "student"], overrides || {});
+  return Object.assign({}, VERSION3_ROLE_PERMISSIONS[normalizeRole(role) || "artist"], overrides || {});
 }
 
 function allPermissions(value) {
@@ -1053,7 +1055,7 @@ function mergePermissions(values) {
 
 function can(user, permission) {
   if (!user) return false;
-  if (user.role === "owner") return true;
+  if (user.role === "admin") return true;
   return Boolean(defaultPermissions(user.role, user.permissions)[permission]);
 }
 
@@ -1092,17 +1094,9 @@ function jsonError(error) {
 function seedReferenceData() {
   const now = isoNow();
   if (!readRows("settings").some((item) => item.key === "schema_version")) appendRecord("settings", { id: "setting-schema-version", key: "schema_version", value: VERSION3_SCHEMA_VERSION, created_at: now, updated_at: now, deleted_at: "" });
-  if (!readRows("teachers").length) appendRecord("teachers", { id: "teacher-1", account_id: "", name: "대표 강사", major: "보컬", email: "", phone: "", status: "active", memo: "파일럿 기본 강사 데이터", created_at: now, updated_at: now, deleted_at: "" });
-  if (!readRows("rooms").length) {
-    appendRecord("rooms", { id: "room-vocal-a", name: "Vocal A", type: "lesson", capacity: "2", status: "active", memo: "", created_at: now, updated_at: now, deleted_at: "" });
-    appendRecord("rooms", { id: "room-practice-1", name: "Practice 1", type: "practice", capacity: "1", status: "active", memo: "", created_at: now, updated_at: now, deleted_at: "" });
-  }
-  if (!readRows("courses").length) appendRecord("courses", { id: "course-vocal-basic", name: "보컬 베이직", major: "보컬", teacher_id: "teacher-1", status: "active", tuition_amount: "200000", memo: "", created_at: now, updated_at: now, deleted_at: "" });
-  if (!readRows("students").length) appendRecord("students", { id: "student-sample-1", name: "샘플 수강생", birth_date: "", phone: "", major: "보컬", goal: "정규 레슨 적응", status: "active", teacher_id: "teacher-1", teacher_name: "대표 강사", memo: "실명 데이터 입력 전 교체 대상", created_at: now, updated_at: now, deleted_at: "" });
-  if (!readRows("notices").length) appendRecord("notices", { id: "notice-pilot-open", title: "Version.3 파일럿 운영 안내", category: "운영", author_id: "admin-1", author_name: "시스템 관리자", body: "파일럿 기간에는 admin 계정만 로그인합니다.", target_roles: "owner,manager,teacher,student", pinned: "true", active: "true", created_at: now, updated_at: now, deleted_at: "" });
-  upsertPublicSetting("login_notice", "Version.3 파일럿 운영 중입니다.", "admin-1");
+  upsertPublicSetting("login_notice", "계정 요청 및 패스워드 초기화는 매니저에게 문의 바랍니다.", "admin-1");
   upsertPublicSetting("academy_phone", "", "admin-1");
-  upsertPublicSetting("reservation_guide", "예약은 운영자 확인 후 확정됩니다.", "admin-1");
+  upsertPublicSetting("reservation_guide", "공간 예약은 정각부터 1시간 단위로 신청합니다.", "admin-1");
 }
 
 function appendAudit(user, action, targetType, targetId, targetName, metadata) {
@@ -1181,26 +1175,26 @@ function upsertPublicSetting(key, value, actorId) {
 }
 
 function filterStudentsForUser(rows, user) {
-  if (user.role === "student") return rows.filter((item) => item.id === user.linked_student_id);
-  if (user.role === "teacher") return rows.filter((item) => item.teacher_id === user.id || item.teacher_id === teacherIdForAccount(user.id));
+  if (user.role === "artist") return rows.filter((item) => item.id === user.linked_student_id);
+  if (user.role === "coach") return rows.filter((item) => item.teacher_id === user.id || item.teacher_id === teacherIdForAccount(user.id));
   return rows;
 }
 
 function filterLessonsForUser(rows, user, studentIds, studentId, teacherId) {
-  if (user.role === "student") return rows.filter((item) => item.student_id === studentId);
-  if (user.role === "teacher") return rows.filter((item) => item.teacher_id === teacherId || studentIds.indexOf(item.student_id) !== -1);
+  if (user.role === "artist") return rows.filter((item) => item.student_id === studentId);
+  if (user.role === "coach") return rows.filter((item) => item.teacher_id === teacherId || studentIds.indexOf(item.student_id) !== -1);
   return rows;
 }
 
 function filterReservationsForUser(rows, user, studentIds, studentId) {
-  if (user.role === "student") return rows.filter((item) => item.student_id === studentId || item.reserved_by === user.id);
-  if (user.role === "teacher") return rows.filter((item) => item.teacher_id === user.id || item.reserved_by === user.id || studentIds.indexOf(item.student_id) !== -1);
+  if (user.role === "artist") return rows.filter((item) => item.student_id === studentId || item.reserved_by === user.id);
+  if (user.role === "coach") return rows.filter((item) => item.teacher_id === user.id || item.reserved_by === user.id || studentIds.indexOf(item.student_id) !== -1);
   return rows;
 }
 
 function filterConsultationsForUser(rows, user, studentIds, studentId, teacherId) {
-  if (user.role === "student") return rows.filter((item) => item.student_id === studentId);
-  if (user.role === "teacher") return rows.filter((item) => item.assigned_to === teacherId || studentIds.indexOf(item.student_id) !== -1);
+  if (user.role === "artist") return rows.filter((item) => item.student_id === studentId);
+  if (user.role === "coach") return rows.filter((item) => item.assigned_to === teacherId || studentIds.indexOf(item.student_id) !== -1);
   return rows;
 }
 
@@ -1221,7 +1215,7 @@ function buildDashboardWorkQueue(data) {
 }
 
 function activeStudentAccountExists(studentId) {
-  return readRows("accounts").some((item) => item.role === "student" && item.linked_student_id === studentId && item.status === "active");
+  return readRows("accounts").some((item) => normalizeRole(item.role) === "artist" && item.linked_student_id === studentId && item.status === "active");
 }
 
 function teacherIdForAccount(accountId) {
@@ -1245,8 +1239,17 @@ function accountName(accountId) {
 }
 
 function visibleForRole(targetRoles, role) {
-  const roles = String(targetRoles || "").split(",").map((item) => item.trim()).filter(Boolean);
-  return !roles.length || roles.indexOf(role) !== -1;
+  const roles = String(targetRoles || "").split(",").map((item) => normalizeRole(item.trim(), "")).filter(Boolean);
+  return !roles.length || roles.indexOf(normalizeRole(role, "")) !== -1;
+}
+
+function roleCsv(value) {
+  const roles = toCsv(value).split(",").map((item) => normalizeRole(item.trim(), "")).filter(Boolean);
+  const unique = [];
+  roles.forEach((role) => {
+    if (unique.indexOf(role) === -1) unique.push(role);
+  });
+  return (unique.length ? unique : ["admin", "manager", "coach", "artist"]).join(",");
 }
 
 function findReservationConflicts(reservations) {

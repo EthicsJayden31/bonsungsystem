@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { AppShell } from "@/components/layout/app-shell";
 import { ResourcePage } from "@/components/layout/resource-page";
@@ -6,10 +6,10 @@ import { Badge } from "@/components/ui/badge";
 import { hasVersion3Permission } from "@/lib/access-policy";
 import { studentName, useOperationAction, useOperationsData } from "@/lib/operations-data";
 import { useCurrentUser } from "@/lib/use-current-user";
-import { usePreviewRole } from "@/lib/use-preview-role";
+import { useCurrentRole } from "@/lib/use-current-role";
 
 export default function PaymentsPage() {
-  const role = usePreviewRole();
+  const role = useCurrentRole();
   const user = useCurrentUser();
   const { data, source } = useOperationsData(role);
   const saveAction = useOperationAction();
@@ -20,7 +20,7 @@ export default function PaymentsPage() {
     <AppShell area="payments">
       <ResourcePage
         title="수납 상태 관리"
-        description={source === "server" || source === "test" ? "Version.3 서버의 수납 데이터를 표시합니다." : source === "live" ? "전환 세션의 등록결제 데이터를 표시합니다." : source === "fallback" ? "수납 데이터를 불러오지 못했습니다. 서버 연결과 권한을 확인해야 합니다." : "Preview 데이터로 수납 상태 화면을 점검합니다."}
+        description={source === "server" ? "Version.3 서버의 수납 데이터를 표시합니다." : source === "live" ? "전환 세션의 등록결제 데이터를 표시합니다." : source === "fallback" ? "수납 데이터를 불러오지 못했습니다. 서버 연결과 권한을 확인해야 합니다." : "수납 데이터를 확인하고 있습니다."}
         headers={["학생", "항목", "금액", "상태", "납부기한", "확인일", "메모"]}
         rows={data.payments.map((item) => [
           item.studentName || studentName(data, item.studentId),

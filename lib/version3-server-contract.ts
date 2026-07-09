@@ -4,6 +4,7 @@ export type Version3AccountStatus = "active" | "paused" | "invited";
 export type Version3PermissionKey =
   | "manageAccounts"
   | "viewAccounts"
+  | "resetPasswords"
   | "manageOperations"
   | "manageNotices"
   | "managePermissions"
@@ -118,6 +119,7 @@ export const version3PermissionGroups: Array<{
     items: [
       { key: "viewAccounts", label: "계정 현황 보기", description: "계정 목록과 최근 로그인 정보를 볼 수 있습니다." },
       { key: "manageAccounts", label: "계정 생성/상태 관리", description: "계정을 만들고 중지 또는 재개할 수 있습니다." },
+      { key: "resetPasswords", label: "비밀번호 초기화", description: "다른 계정의 임시 비밀번호를 발급할 수 있습니다." },
       { key: "managePermissions", label: "권한 상세 편집", description: "다른 계정의 세부 권한을 바꿀 수 있습니다." },
       { key: "reviewAccountRequests", label: "계정 요청 승인", description: "신규 계정 요청을 검토하고 승인할 수 있습니다." }
     ]
@@ -160,17 +162,17 @@ export const version3PermissionGroups: Array<{
 export const version3PermissionKeys = version3PermissionGroups.flatMap((group) => group.items.map((item) => item.key));
 
 export const version3RoleLabels: Record<Role, string> = {
-  owner: "대표",
-  manager: "매니저",
-  teacher: "강사",
-  student: "수강생"
+  admin: "Admin",
+  manager: "Manager",
+  coach: "Coach",
+  artist: "Artist"
 };
 
-export const version3AccountRoles: Array<{ role: Role; label: string; serverValue: "admin" | "staff" | "teacher" | "student"; employeePosition: "owner" | "manager" | "teacher" | "" }> = [
-  { role: "owner", label: "대표", serverValue: "admin", employeePosition: "owner" },
-  { role: "manager", label: "매니저", serverValue: "staff", employeePosition: "manager" },
-  { role: "teacher", label: "강사", serverValue: "teacher", employeePosition: "teacher" },
-  { role: "student", label: "수강생", serverValue: "student", employeePosition: "" }
+export const version3AccountRoles: Array<{ role: Role; label: string; serverValue: "admin" | "manager" | "coach" | "artist"; employeePosition: "admin" | "manager" | "coach" | "" }> = [
+  { role: "admin", label: "Admin", serverValue: "admin", employeePosition: "admin" },
+  { role: "manager", label: "Manager", serverValue: "manager", employeePosition: "manager" },
+  { role: "coach", label: "Coach", serverValue: "coach", employeePosition: "coach" },
+  { role: "artist", label: "Artist", serverValue: "artist", employeePosition: "" }
 ];
 
 export const version3ConsultationStatuses = ["접수됨", "확인 중", "전달 필요", "종결"] as const;
@@ -204,10 +206,10 @@ export function normalizeAccountStatus(value: unknown): Version3AccountStatus {
 
 export function normalizeAccountRole(role: unknown, employeePosition?: unknown): Role {
   const normalized = normalizeRole(typeof role === "string" ? role : "");
-  if (normalized === "manager" && employeePosition === "owner") return "owner";
   if (normalized) return normalized;
-  if (employeePosition === "owner") return "owner";
+  if (employeePosition === "owner" || employeePosition === "admin") return "admin";
   if (employeePosition === "manager") return "manager";
+  if (employeePosition === "teacher" || employeePosition === "coach") return "coach";
   return "manager";
 }
 

@@ -27,9 +27,10 @@ const areaPermissions: Record<string, Version3PermissionKey | Version3Permission
 };
 
 const defaultPermissionsByRole: Record<Role, Version3Permissions> = {
-  owner: {
+  admin: {
     manageAccounts: true,
     viewAccounts: true,
+    resetPasswords: true,
     manageOperations: true,
     manageNotices: true,
     managePermissions: true,
@@ -52,8 +53,9 @@ const defaultPermissionsByRole: Record<Role, Version3Permissions> = {
     managePublicSettings: true
   },
   manager: {
-    manageAccounts: false,
+    manageAccounts: true,
     viewAccounts: true,
+    resetPasswords: true,
     manageOperations: true,
     manageNotices: true,
     managePermissions: false,
@@ -72,12 +74,13 @@ const defaultPermissionsByRole: Record<Role, Version3Permissions> = {
     viewTeam: true,
     viewMeetings: true,
     viewCalendar: true,
-    reviewAccountRequests: false,
+    reviewAccountRequests: true,
     managePublicSettings: false
   },
-  teacher: {
+  coach: {
     manageAccounts: false,
     viewAccounts: false,
+    resetPasswords: false,
     manageOperations: false,
     manageNotices: false,
     managePermissions: false,
@@ -99,9 +102,10 @@ const defaultPermissionsByRole: Record<Role, Version3Permissions> = {
     reviewAccountRequests: false,
     managePublicSettings: false
   },
-  student: {
+  artist: {
     manageAccounts: false,
     viewAccounts: false,
+    resetPasswords: false,
     manageOperations: false,
     manageNotices: false,
     managePermissions: false,
@@ -126,15 +130,15 @@ const defaultPermissionsByRole: Record<Role, Version3Permissions> = {
 };
 
 const roleOnlyAreas: Record<Role, string[]> = {
-  owner: [],
+  admin: [],
   manager: [],
-  teacher: ["students", "lessons", "attendance", "lesson-notes", "practice-rooms", "notices", "consultations", "profile-settings"],
-  student: ["dashboard", "lessons", "lesson-notes", "practice-rooms", "notices", "consultations", "profile-settings"]
+  coach: ["students", "lessons", "attendance", "lesson-notes", "practice-rooms", "notices", "consultations", "profile-settings"],
+  artist: ["dashboard", "lessons", "lesson-notes", "practice-rooms", "notices", "consultations", "profile-settings"]
 };
 
 export function permissionsFor(user: AccessUser | Role): Version3Permissions {
   const role = typeof user === "string" ? user : user.role;
-  if (role === "owner") return { ...defaultPermissionsByRole.owner };
+  if (role === "admin") return { ...defaultPermissionsByRole.admin };
   return {
     ...defaultPermissionsByRole[role],
     ...(typeof user === "string" ? {} : normalizePermissionOverrides(user.permissions))
@@ -144,14 +148,14 @@ export function permissionsFor(user: AccessUser | Role): Version3Permissions {
 export function hasVersion3Permission(user: AccessUser | Role | null, key: Version3PermissionKey) {
   if (!user) return false;
   const role = typeof user === "string" ? user : user.role;
-  if (role === "owner") return true;
+  if (role === "admin") return true;
   return Boolean(permissionsFor(user)[key]);
 }
 
 export function canAccessVersion3Area(user: AccessUser | Role | null, area: string) {
   if (!user) return false;
   const role = typeof user === "string" ? user : user.role;
-  if (role === "owner") return true;
+  if (role === "admin") return true;
 
   const requirement = areaPermissions[area];
   if (requirement === null) return true;

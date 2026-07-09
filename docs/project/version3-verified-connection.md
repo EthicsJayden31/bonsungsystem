@@ -1,57 +1,19 @@
-# Version.3 verified server connection
+# Version.3 서버 연결 확인
 
-This note explains the final connection step between the public GitHub Pages UI and the external Version.3 server.
+외부 Version.3 서버를 GitHub Pages 또는 Vercel UI에 연결하기 전에 다음을 확인합니다.
 
-## When to use this
-
-Use `Verify External Version.3 Server` when you only want to test a hosted server URL.
-
-Use `Deploy GitHub Pages Preview` with the optional `server_url` input when the server is ready for the public UI to use.
-
-## Required server URL
-
-The `server_url` input must be a real external HTTPS URL, for example:
-
-```text
-https://bonsung-version3.example.com
+```bash
+VERSION3_API_BASE_URL=https://your-version3-server.example pnpm run verify:version3-release
+VERSION3_SERVER_VERIFY_BASE_URL=https://your-version3-server.example pnpm run verify:version3-server
 ```
 
-Do not use local addresses such as `http://127.0.0.1:4303` or `http://localhost:4303`.
+정상 조건:
 
-## What the workflow checks
+- API 주소가 HTTPS입니다.
+- API 주소가 localhost가 아닙니다.
+- `/health`가 Version.3 서비스를 반환합니다.
+- Admin, Manager, Coach, Artist 권한 검증이 통과합니다.
+- 데이터 저장소가 지속 모드입니다.
+- 더미/프리뷰 데이터 fallback이 없습니다.
 
-`Deploy GitHub Pages Preview` runs these checks before changing the public UI configuration when `server_url` is provided:
-
-1. `verify:version3-release`
-   - Confirms the URL is a public HTTPS URL.
-   - Confirms transition-only flags are not being used for a real release.
-
-2. `verify:version3-server`
-   - Confirms the server answers `/health`.
-   - Confirms login, accounts, roles, notices, one-way consultations, audit logs, export/import, backups, and data quality endpoints work.
-
-## What changes after checks pass
-
-After both checks pass, the workflow saves the verified URL as the GitHub repository variable:
-
-```text
-VERSION3_API_BASE_URL
-```
-
-If `save_verified_server_url` is true, future GitHub Pages builds keep using the verified server URL. The same workflow run also receives the value as:
-
-```text
-NEXT_PUBLIC_VERSION3_API_BASE_URL
-```
-
-That makes the public Version.3 UI use the verified external server instead of Apps Script or local preview data.
-
-## After deployment
-
-Open the temporary inspection page:
-
-```text
-https://ethicsjayden31.github.io/bonsungsystem/version3-inspection.html
-```
-
-Enter the same server URL and run the `/health` check. Then open `/login/` and sign in with a real Version.3 account.
+연결이 확인되면 `NEXT_PUBLIC_VERSION3_API_BASE_URL`에 같은 주소를 설정합니다. Vercel UI와 API를 같은 프로젝트에서 운영할 때는 `/api/version3`을 사용합니다.

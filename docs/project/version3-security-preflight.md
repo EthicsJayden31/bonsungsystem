@@ -1,30 +1,32 @@
-# Version.3 security preflight
+# Version.3 보안 사전 점검
 
-This note captures the immediate security baseline for the public GitHub Pages UI and the separate Version.3 server.
-
-## Applied baseline
-
-- Next.js is pinned to `15.5.18`, the patched 15.x release from the May 2026 security release.
-- React and React DOM are on `19.2.7`.
-- `@next/eslint-plugin-next` and `eslint-config-next` match the Next.js version.
-- PostCSS is overridden to `8.5.16` to avoid the current XSS advisory on older transitive versions.
-- The GitHub Pages UI remains a static export with `images.unoptimized=true`, so it does not expose the Next Image Optimization API.
-- Vercel builds keep Next.js server output enabled unless `GITHUB_PAGES=true`, allowing `/api/version3/*` to run as a Vercel Function.
-- Dependabot is enabled for npm and GitHub Actions updates.
-
-## Local checks
-
-Run these before deployment:
+## 공개 배포 전 확인
 
 ```bash
-pnpm run verify:security-baseline
-pnpm run audit:prod
 pnpm run typecheck
 pnpm run lint
-pnpm run build:pages
-pnpm run verify:surfaces
+pnpm run verify:version3-production-env
+pnpm run verify:version3-server
+pnpm run verify:version3-cleanup
 ```
 
-## Operational follow-up
+## 비밀값 관리
 
-If the public app was online while using an affected Next.js release, rotate deployment secrets after redeploying the patched build. Prioritize `VERSION3_OWNER_INITIAL_PASSWORD`, `VERSION3_LOCAL_SERVER_PASSWORD`, `VERSION3_DATABASE_URL`, hosting tokens, and GitHub Pages deployment credentials.
+다음 값은 Git, README, 공개 문서, 브라우저 번들에 넣지 않습니다.
+
+- `VERSION3_ADMIN_INITIAL_PASSWORD`
+- `VERSION3_LOCAL_SERVER_PASSWORD`
+- `VERSION3_SESSION_SECRET`
+- `VERSION3_DATABASE_URL`
+- `VERSION3_GOOGLE_SERVICE_ACCOUNT_JSON`
+- `VERSION3_GOOGLE_PRIVATE_KEY`
+- `VERSION3_APPS_SCRIPT_SYNC_PASSWORD`
+- `CRON_SECRET`
+
+## 운영 원칙
+
+- 운영 저장소는 `memory`를 사용하지 않습니다.
+- 운영 CORS는 공식 UI origin만 허용합니다.
+- 세션 토큰은 해시 저장소를 사용합니다.
+- 데이터 내보내기에는 비밀번호와 세션 원문이 포함되면 안 됩니다.
+- 보안 패치 후에는 Admin 초기 비밀번호, 저장소 secret, 배포 토큰을 회전합니다.

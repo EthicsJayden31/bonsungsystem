@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { FormEvent, useState } from "react";
 import { AppShell } from "@/components/layout/app-shell";
@@ -10,10 +10,10 @@ import { DataTable } from "@/components/ui/table";
 import { hasVersion3Permission } from "@/lib/access-policy";
 import { useOperationAction, useOperationsData } from "@/lib/operations-data";
 import { useCurrentUser } from "@/lib/use-current-user";
-import { usePreviewRole } from "@/lib/use-preview-role";
+import { useCurrentRole } from "@/lib/use-current-role";
 
 export default function TasksPage() {
-  const role = usePreviewRole();
+  const role = useCurrentRole();
   const user = useCurrentUser();
   const { data, source } = useOperationsData(role);
   const saveAction = useOperationAction();
@@ -67,7 +67,7 @@ export default function TasksPage() {
     <AppShell area="tasks">
       <ResourcePage
         title="내부 업무"
-        description={source === "server" || source === "test" ? "Version.3 서버의 내부 업무 데이터를 표시합니다." : source === "live" ? "전환 세션의 내 업무 데이터를 표시합니다." : source === "fallback" ? "내부 업무 데이터를 불러오지 못했습니다. 서버 연결과 권한을 확인해야 합니다." : "Preview 데이터로 내부 업무 화면을 점검합니다."}
+        description={source === "server" ? "Version.3 서버의 내부 업무 데이터를 표시합니다." : source === "live" ? "전환 세션의 내 업무 데이터를 표시합니다." : source === "fallback" ? "내부 업무 데이터를 불러오지 못했습니다. 서버 연결과 권한을 확인해야 합니다." : "내부 업무 데이터를 확인하고 있습니다."}
         headers={["업무", "담당자", "마감일", "상태", "우선순위", "메모"]}
         rows={data.tasks.map((task) => [task.title, task.assignee || "-", task.dueDate || "-", <Badge key={task.id}>{task.status || "할일"}</Badge>, task.priority || "보통", task.memo || "-"])}
         emptyTitle="표시할 업무가 없습니다"
@@ -88,7 +88,7 @@ export default function TasksPage() {
       />
       <Section
         title="근태 · 회의 · 일정"
-        description={source === "server" || source === "test" ? "Version.3 서버에 저장된 내부 운영 기록을 확인하고 새 기록을 남깁니다." : "Preview 또는 점검 데이터로 내부 운영 흐름을 확인합니다."}
+        description={source === "server" ? "Version.3 서버에 저장된 내부 운영 기록을 확인하고 새 기록을 남깁니다." : "운영 데이터 연결 상태를 기준으로 내부 운영 흐름을 확인합니다."}
       >
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
           <div className="space-y-5">
@@ -207,10 +207,10 @@ export default function TasksPage() {
               <label className="mt-3 block">
                 <span className="text-xs font-bold text-ink">대상</span>
                 <select className="mt-1 h-11 w-full rounded-xl border border-line bg-white px-3 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/15" disabled={!canManageCalendar || saveAction.pending} name="targetRoles">
-                  <option value="owner,manager,teacher,student">전체</option>
-                  <option value="owner,manager">운영진</option>
-                  <option value="teacher">강사</option>
-                  <option value="student">수강생</option>
+                  <option value="admin,manager,coach,artist">전체</option>
+                  <option value="admin,manager">운영진</option>
+                  <option value="coach">Coach</option>
+                  <option value="artist">Artist</option>
                 </select>
               </label>
               <label className="mt-3 block">
@@ -277,9 +277,9 @@ function formatDateTime(value: string) {
 }
 
 function roleText(value: string) {
-  if (value === "owner") return "대표";
+  if (value === "admin") return "Admin";
   if (value === "manager") return "매니저";
-  if (value === "teacher") return "강사";
-  if (value === "student") return "수강생";
+  if (value === "coach") return "Coach";
+  if (value === "artist") return "Artist";
   return value;
 }

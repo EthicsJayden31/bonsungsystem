@@ -1,4 +1,4 @@
-name: Deploy GitHub Pages Preview
+name: Deploy Version.3 UI
 
 on:
   push:
@@ -52,20 +52,20 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Check browser JavaScript syntax
-        run: |
-          node --check pages-preview/config.js
-          node --check pages-preview/app.js
-          cp google-apps-script/Code.gs /tmp/bonsung-code.js
-          node --check /tmp/bonsung-code.js
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Verify cleanup boundaries
+        run: pnpm verify:version3-cleanup
 
       - name: Verify Version.3 release configuration
         if: github.event_name != 'pull_request' && (vars.VERSION3_API_BASE_URL != '' || inputs.server_url != '') && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/codex/v1-intranet')
         env:
           VERSION3_API_BASE_URL: ${{ inputs.server_url || vars.VERSION3_API_BASE_URL }}
           NEXT_PUBLIC_ENABLE_APPS_SCRIPT_TRANSITION: ${{ vars.ENABLE_APPS_SCRIPT_TRANSITION }}
-          NEXT_PUBLIC_ENABLE_LEGACY_PREVIEW: ${{ vars.ENABLE_LEGACY_PREVIEW }}
-          NEXT_PUBLIC_ENABLE_PREVIEW_LOGIN: ${{ vars.ENABLE_PREVIEW_LOGIN }}
           VERSION3_RELEASE_ALLOW_TRANSITION_FLAGS: ${{ vars.VERSION3_RELEASE_ALLOW_TRANSITION_FLAGS }}
         run: pnpm verify:version3-release
 
@@ -73,17 +73,7 @@ jobs:
         env:
           NEXT_PUBLIC_VERSION3_API_BASE_URL: ${{ inputs.server_url || vars.VERSION3_API_BASE_URL }}
           NEXT_PUBLIC_ENABLE_APPS_SCRIPT_TRANSITION: ${{ vars.ENABLE_APPS_SCRIPT_TRANSITION }}
-          NEXT_PUBLIC_ENABLE_LEGACY_PREVIEW: ${{ vars.ENABLE_LEGACY_PREVIEW }}
-          NEXT_PUBLIC_ENABLE_PREVIEW_LOGIN: ${{ vars.ENABLE_PREVIEW_LOGIN }}
         run: pnpm build:pages
-
-      - name: Verify operating surfaces
-        env:
-          NEXT_PUBLIC_ENABLE_LEGACY_PREVIEW: ${{ vars.ENABLE_LEGACY_PREVIEW }}
-        run: pnpm verify:surfaces
-
-      - name: Verify cleanup boundaries
-        run: pnpm verify:version3-cleanup
 
       - name: Verify Version.3 server contract
         if: vars.VERSION3_API_BASE_URL != '' || inputs.server_url != ''
