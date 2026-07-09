@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Section } from "@/components/ui/section";
 import { DataTable } from "@/components/ui/table";
-import { hasVersion3Permission } from "@/lib/access-policy";
+import { hasStagePermission } from "@/lib/access-policy";
 import { useOperationAction, useOperationsData } from "@/lib/operations-data";
 import { useCurrentUser } from "@/lib/use-current-user";
 import { useCurrentRole } from "@/lib/use-current-role";
@@ -19,10 +19,10 @@ export default function TasksPage() {
   const saveAction = useOperationAction();
   const [message, setMessage] = useState("");
   const accessUser = user ?? role;
-  const canManageOperations = hasVersion3Permission(user ?? role, "manageOperations");
-  const canClockWork = hasVersion3Permission(accessUser, "clockWork");
-  const canManageMeetings = hasVersion3Permission(accessUser, "manageMeetings");
-  const canManageCalendar = hasVersion3Permission(accessUser, "manageCalendar");
+  const canManageOperations = hasStagePermission(user ?? role, "manageOperations");
+  const canClockWork = hasStagePermission(accessUser, "clockWork");
+  const canManageMeetings = hasStagePermission(accessUser, "manageMeetings");
+  const canManageCalendar = hasStagePermission(accessUser, "manageCalendar");
 
   async function submitWorkLog(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -67,7 +67,7 @@ export default function TasksPage() {
     <AppShell area="tasks">
       <ResourcePage
         title="내부 업무"
-        description={source === "server" ? "Version.3 서버의 내부 업무 데이터를 표시합니다." : source === "live" ? "전환 세션의 내 업무 데이터를 표시합니다." : source === "fallback" ? "내부 업무 데이터를 불러오지 못했습니다. 서버 연결과 권한을 확인해야 합니다." : "내부 업무 데이터를 확인하고 있습니다."}
+        description={source === "server" ? "본성 스테이지 서버의 내부 업무 데이터를 표시합니다." : source === "live" ? "전환 세션의 내 업무 데이터를 표시합니다." : source === "fallback" ? "내부 업무 데이터를 불러오지 못했습니다. 서버 연결과 권한을 확인해야 합니다." : "내부 업무 데이터를 확인하고 있습니다."}
         headers={["업무", "담당자", "마감일", "상태", "우선순위", "메모"]}
         rows={data.tasks.map((task) => [task.title, task.assignee || "-", task.dueDate || "-", <Badge key={task.id}>{task.status || "할일"}</Badge>, task.priority || "보통", task.memo || "-"])}
         emptyTitle="표시할 업무가 없습니다"
@@ -88,7 +88,7 @@ export default function TasksPage() {
       />
       <Section
         title="근태 · 회의 · 일정"
-        description={source === "server" ? "Version.3 서버에 저장된 내부 운영 기록을 확인하고 새 기록을 남깁니다." : "운영 데이터 연결 상태를 기준으로 내부 운영 흐름을 확인합니다."}
+        description={source === "server" ? "본성 스테이지 서버에 저장된 내부 운영 기록을 확인하고 새 기록을 남깁니다." : "운영 데이터 연결 상태를 기준으로 내부 운영 흐름을 확인합니다."}
       >
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
           <div className="space-y-5">

@@ -1,50 +1,44 @@
-# Version.3 운영 표면
+﻿# 蹂몄꽦 ?ㅽ뀒?댁? ?댁쁺 ?쒕㈃
 
-## 공식 운영 표면
+## 怨듭떇 ?댁쁺 ?쒕㈃
 
-- 화면: `app/`의 Next.js App Router 화면
-- API: `/api/version3` 또는 외부 Version.3 서버
-- 저장소: Google Sheets 어댑터, PostgreSQL + Apps Script 동기화, 또는 지속 파일 저장소
-- 계정 역할: `admin`, `manager`, `coach`, `artist`
+- ?붾㈃: `app/`??Next.js App Router ?붾㈃
+- API: `/api/stage` ?먮뒗 ?몃? 蹂몄꽦 ?ㅽ뀒?댁? ?쒕쾭
+- ??μ냼: Google Sheets ?대뙌?? PostgreSQL + Apps Script ?숆린?? ?먮뒗 吏???뚯씪 ??μ냼
+- 怨꾩젙 ??븷: `admin`, `manager`, `coach`, `artist`
 
-## 제거된 이전 표면
+## ?쒓굅???댁쟾 ?쒕㈃
 
-다음 표면은 더 이상 운영 기준으로 사용하지 않습니다.
+?ㅼ쓬 ?쒕㈃? ???댁긽 ?댁쁺 湲곗??쇰줈 ?ъ슜?섏? ?딆뒿?덈떎.
 
-- `pages-preview/`
 - `google-apps-script/Code.gs`
-- `/version3-test/`
-- `public/version3-inspection.html`
-- `public/version3-offline-inspection.html`
-- Preview/localStorage 계정 초안
-- demo 데이터 자동 보충
+- Preview/localStorage 怨꾩젙 珥덉븞
+- demo ?곗씠???먮룞 蹂댁땐
 
-## 권한 기준
+## 沅뚰븳 湲곗?
 
-- Admin: 전체 데이터, 계정, 권한, 환경 설정, 감사 로그, 백업/가져오기 관리
-- Manager: 운영 데이터, Artist/Coach, 상담, 수강, 수납, 계정 요청 승인, 비밀번호 초기화
-- Coach: 담당 Artist, 수업, 출결, 레슨노트, 예약
-- Artist: 본인 수업, 레슨노트, 예약, 공지, 상담요청
+- Admin: ?꾩껜 ?곗씠?? 怨꾩젙, 沅뚰븳, ?섍꼍 ?ㅼ젙, 媛먯궗 濡쒓렇, 諛깆뾽/媛?몄삤湲?愿由?- Manager: ?댁쁺 ?곗씠?? Artist/Coach, ?곷떞, ?섍컯, ?섎궔, 怨꾩젙 ?붿껌 ?뱀씤, 鍮꾨?踰덊샇 珥덇린??- Coach: ?대떦 Artist, ?섏뾽, 異쒓껐, ?덉뒯?명듃, ?덉빟
+- Artist: 蹂몄씤 ?섏뾽, ?덉뒯?명듃, ?덉빟, 怨듭?, ?곷떞?붿껌
 
-## 데이터 기준
+## ?곗씠??湲곗?
 
-서버 호출이 실패하면 화면은 더미 데이터를 대신 보여주지 않습니다. 연결 실패 상태를 표시하고, 운영자가 API와 저장소 상태를 확인해야 합니다.
+?쒕쾭 ?몄텧???ㅽ뙣?섎㈃ ?붾㈃? ?붾? ?곗씠?곕? ???蹂댁뿬二쇱? ?딆뒿?덈떎. ?곌껐 ?ㅽ뙣 ?곹깭瑜??쒖떆?섍퀬, ?댁쁺?먭? API? ??μ냼 ?곹깭瑜??뺤씤?댁빞 ?⑸땲??
 
-서버가 빈 배열을 내려주면 화면도 빈 목록을 보여줍니다. 빈 화면을 채우기 위해 자동 샘플 데이터를 생성하지 않습니다.
+?쒕쾭媛 鍮?諛곗뿴???대젮二쇰㈃ ?붾㈃??鍮?紐⑸줉??蹂댁뿬以띾땲?? 鍮??붾㈃??梨꾩슦湲??꾪빐 ?먮룞 ?섑뵆 ?곗씠?곕? ?앹꽦?섏? ?딆뒿?덈떎.
 
-## 검증 기준
+## 寃利?湲곗?
 
 ```bash
 pnpm run typecheck
 pnpm run lint
-pnpm run verify:version3-server
-pnpm run verify:version3-vercel-api
-pnpm run verify:version3-cleanup
+pnpm run verify:stage-server
+pnpm run verify:stage-vercel-api
+pnpm run verify:stage-cleanup
 pnpm run build
 ```
 
-공개 배포 전에는 실제 HTTPS API 주소로 다음을 실행합니다.
+怨듦컻 諛고룷 ?꾩뿉???ㅼ젣 HTTPS API 二쇱냼濡??ㅼ쓬???ㅽ뻾?⑸땲??
 
 ```bash
-VERSION3_API_BASE_URL=https://your-version3-server.example pnpm run verify:version3-release
+BONSUNG_API_BASE_URL=https://your-stage-server.example pnpm run verify:stage-release
 ```

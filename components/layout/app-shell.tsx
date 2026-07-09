@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { assetPath } from "@/lib/assets";
-import { canAccessVersion3Area } from "@/lib/access-policy";
+import { canAccessStageArea } from "@/lib/access-policy";
 import { type CurrentUser, type Role } from "@/lib/auth-shared";
 import {
   APPS_SCRIPT_ENDPOINT,
@@ -16,8 +16,8 @@ import { clearClientSession, SESSION_CHANGE_EVENT } from "@/lib/client-session";
 import { usePreferences } from "@/lib/preferences";
 import { useCurrentUser } from "@/lib/use-current-user";
 import { UI_LOADING_EVENT, UI_TOAST_EVENT, type UiLoadingDetail, type UiToastDetail } from "@/lib/ui-feedback";
-import { callVersion3Server, hasVersion3ServerSession, logoutVersion3Server, VERSION3_SERVER_SESSION_TOKEN_KEY } from "@/lib/version3-server-client";
-import { ENABLE_APPS_SCRIPT_TRANSITION, ENABLE_BUFFERED_APPS_SCRIPT_SYNC } from "@/lib/version3-runtime-flags";
+import { callStageServer, hasStageServerSession, logoutStageServer, BONSUNG_SERVER_SESSION_TOKEN_KEY } from "@/lib/stage-server-client";
+import { ENABLE_APPS_SCRIPT_TRANSITION, ENABLE_BUFFERED_APPS_SCRIPT_SYNC } from "@/lib/stage-runtime-flags";
 
 type NavItem = {
   href: string;
@@ -108,7 +108,7 @@ const _pageCopy: Record<string, { title: string; description: string; action: st
   "practice-rooms": { title: "공간 예약", description: "강의실과 연습실의 예약 상태를 시각적으로 확인합니다.", action: "예약 추가" },
   accounts: { title: "계정 관리", description: "대표, 매니저, 강사, 수강생 계정과 학생 연결을 관리합니다.", action: "계정 입력" },
   payments: { title: "수납", description: "청구, 입금, 미납, 환불 상태를 분리해 확인합니다.", action: "결제 등록" },
-  "data-quality": { title: "데이터 점검", description: "Version.3 서버 운영 데이터의 누락, 중복, 참조 오류를 확인합니다.", action: "점검 새로고침" },
+  "data-quality": { title: "데이터 점검", description: "본성 스테이지 서버 운영 데이터의 누락, 중복, 참조 오류를 확인합니다.", action: "점검 새로고침" },
   tasks: { title: "내부 운영", description: "업무, 근태, 회의, 일정을 함께 관리합니다.", action: "업무 추가" },
   notices: { title: "공지/문서", description: "운영 기준과 강사 매뉴얼을 정리합니다.", action: "문서 작성" },
   "profile-settings": { title: "개인화 설정", description: "내 화면 방식, 시작 화면, 메뉴 표시 방식을 조정합니다.", action: "설정 저장" }
@@ -211,11 +211,11 @@ function useAppsScriptConnectionStatus(): DataConnectionStatus {
     let timer: number | undefined;
 
     async function check() {
-      if (ENABLE_BUFFERED_APPS_SCRIPT_SYNC && hasVersion3ServerSession()) {
+      if (ENABLE_BUFFERED_APPS_SCRIPT_SYNC && hasStageServerSession()) {
         if (active) setStatus((current) => (current === "connected" ? "connected" : "unstable"));
 
         try {
-          const sync = await callVersion3Server<BufferedSyncStatus>("/sync/status");
+          const sync = await callStageServer<BufferedSyncStatus>("/sync/status");
           const connected = Boolean(sync.enabled && sync.configured && sync.status === "connected" && !sync.outbox?.lastError);
           const unstable = Boolean(sync.enabled && sync.configured && (sync.status === "pending" || sync.status === "unstable" || sync.outbox?.pending || sync.outbox?.lastError || sync.outbox?.failedAttempts));
           if (active) setStatus(connected ? "connected" : unstable ? "unstable" : "disconnected");
@@ -325,14 +325,14 @@ export function AppShell({ children, area = "dashboard" }: { children: ReactNode
       router.replace("/profile-settings?forcePasswordChange=1");
       return;
     }
-    if (!canAccessVersion3Area(user, area)) {
+    if (!canAccessStageArea(user, area)) {
       router.replace("/dashboard");
     }
   }, [area, pathname, router, user]);
 
   async function logout() {
-    if (window.localStorage.getItem(VERSION3_SERVER_SESSION_TOKEN_KEY)) {
-      await logoutVersion3Server().catch(() => {});
+    if (window.localStorage.getItem(BONSUNG_SERVER_SESSION_TOKEN_KEY)) {
+      await logoutStageServer().catch(() => {});
     }
     const token = ENABLE_APPS_SCRIPT_TRANSITION ? window.localStorage.getItem(APPS_SCRIPT_SESSION_TOKEN_KEY) : "";
     if (token) {
@@ -354,7 +354,7 @@ export function AppShell({ children, area = "dashboard" }: { children: ReactNode
     });
   }
 
-  if (!user || !canAccessVersion3Area(user, area)) {
+  if (!user || !canAccessStageArea(user, area)) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-canvas px-4 text-sm text-muted">
         <LoadingMark label="화면을 준비하고 있습니다." />
@@ -363,7 +363,7 @@ export function AppShell({ children, area = "dashboard" }: { children: ReactNode
   }
 
   const visibleGroups = navGroups
-    .map((group) => ({ ...group, items: group.items.filter((item) => canAccessVersion3Area(user, item.area)) }))
+    .map((group) => ({ ...group, items: group.items.filter((item) => canAccessStageArea(user, item.area)) }))
     .filter((group) => group.items.length > 0);
   const sidebarGroups = filterSidebarGroups(visibleGroups, user.role, menuQuery);
   const compact = preferences.density === "compact";
@@ -774,7 +774,7 @@ function SidebarAccountBadge({ user, onLogout }: { user: CurrentUser; onLogout: 
 }
 
 function accountSettingsHref(user: CurrentUser) {
-  return canAccessVersion3Area(user, "accounts") ? "/accounts" : "/profile-settings";
+  return canAccessStageArea(user, "accounts") ? "/accounts" : "/profile-settings";
 }
 
 function BrandBlock({ compact = false, connectionStatus = "disconnected" }: { compact?: boolean; connectionStatus?: DataConnectionStatus }) {

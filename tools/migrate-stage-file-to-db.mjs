@@ -1,25 +1,25 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { createVersion3StorageAdapter } from "../server/version3-storage.mjs";
+import { createStageStorageAdapter } from "../server/stage-storage.mjs";
 
 const options = parseArgs(process.argv.slice(2));
-const databaseUrl = process.env.VERSION3_DATABASE_URL || "";
-const sourceFile = resolve(process.cwd(), options.file || process.env.VERSION3_LOCAL_DATA_FILE || ".version3-local-data.json");
+const databaseUrl = process.env.BONSUNG_DATABASE_URL || "";
+const sourceFile = resolve(process.cwd(), options.file || process.env.BONSUNG_LOCAL_DATA_FILE || ".stage-local-data.json");
 
 if (!databaseUrl) {
-  fail("VERSION3_DATABASE_URL is required. Set it to the target PostgreSQL connection string before running this migration.");
+  fail("BONSUNG_DATABASE_URL is required. Set it to the target PostgreSQL connection string before running this migration.");
 }
 
 if (!existsSync(sourceFile)) {
-  fail(`Version.3 source file was not found: ${sourceFile}`);
+  fail(`본성 스테이지 source file was not found: ${sourceFile}`);
 }
 
 const snapshot = normalizeSnapshot(JSON.parse(readFileSync(sourceFile, "utf8")));
 const summary = summarize(snapshot);
 
-console.log("Version.3 file-to-Postgres migration");
+console.log("본성 스테이지 file-to-Postgres migration");
 console.log(`- source: ${sourceFile}`);
-console.log(`- target: VERSION3_DATABASE_URL`);
+console.log(`- target: BONSUNG_DATABASE_URL`);
 console.log(`- accounts: ${summary.accounts}`);
 console.log(`- students: ${summary.students}`);
 console.log(`- lessons: ${summary.lessons}`);
@@ -35,7 +35,7 @@ if (!options.yes) {
   fail("Refusing to write without --yes. Re-run with --dry-run first, then --yes when the target is confirmed.");
 }
 
-const adapter = await createVersion3StorageAdapter({
+const adapter = await createStageStorageAdapter({
   driver: "postgres",
   databaseUrl,
   dataFileSetting: "memory",
@@ -44,13 +44,13 @@ const adapter = await createVersion3StorageAdapter({
 
 const existing = await adapter.loadState();
 if (existing && !options.replace) {
-  fail("PostgreSQL already has a version3_state row. Use --replace only after taking an export/backup.");
+  fail("PostgreSQL already has a stage_state row. Use --replace only after taking an export/backup.");
 }
 
 await adapter.saveState(snapshot);
 
 console.log("Migration complete.");
-console.log("Keep the source JSON file as a rollback backup, and verify the server with VERSION3_DATABASE_URL plus pnpm run verify:version3-server.");
+console.log("Keep the source JSON file as a rollback backup, and verify the server with BONSUNG_DATABASE_URL plus pnpm run verify:stage-server.");
 
 function parseArgs(args) {
   const parsed = { file: "", dryRun: false, yes: false, replace: false };
@@ -67,7 +67,7 @@ function parseArgs(args) {
 }
 
 function normalizeSnapshot(value) {
-  if (!value || typeof value !== "object") fail("Source file must contain a Version.3 JSON object.");
+  if (!value || typeof value !== "object") fail("Source file must contain a 본성 스테이지 JSON object.");
   const snapshot = { ...value };
   snapshot.accounts = array(snapshot.accounts).map((account) => ({
     ...account,
@@ -120,6 +120,6 @@ function array(value) {
 }
 
 function fail(message) {
-  console.error(`Version.3 migration failed: ${message}`);
+  console.error(`본성 스테이지 migration failed: ${message}`);
   process.exit(1);
 }

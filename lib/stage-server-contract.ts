@@ -1,7 +1,7 @@
 import { normalizeRole, type Role } from "@/lib/auth-shared";
 
-export type Version3AccountStatus = "active" | "paused" | "invited";
-export type Version3PermissionKey =
+export type StageAccountStatus = "active" | "paused" | "invited";
+export type StagePermissionKey =
   | "manageAccounts"
   | "viewAccounts"
   | "resetPasswords"
@@ -26,9 +26,9 @@ export type Version3PermissionKey =
   | "reviewAccountRequests"
   | "managePublicSettings";
 
-export type Version3Permissions = Partial<Record<Version3PermissionKey, boolean>>;
+export type StagePermissions = Partial<Record<StagePermissionKey, boolean>>;
 
-export type Version3Account = {
+export type StageAccount = {
   id: string;
   loginId: string;
   name: string;
@@ -37,14 +37,14 @@ export type Version3Account = {
   phone: string;
   linkedStudentId: string;
   linkedStudentName?: string;
-  status: Version3AccountStatus;
+  status: StageAccountStatus;
   mustChangePassword: boolean;
-  permissions: Version3Permissions;
+  permissions: StagePermissions;
   lastLoginAt: string;
   createdAt: string;
 };
 
-export type Version3AccountInput = {
+export type StageAccountInput = {
   loginId: string;
   name: string;
   role: Role;
@@ -54,7 +54,7 @@ export type Version3AccountInput = {
   initialPassword: string;
 };
 
-export type Version3AccountHistory = {
+export type StageAccountHistory = {
   id: string;
   accountId: string;
   accountName: string;
@@ -62,12 +62,12 @@ export type Version3AccountHistory = {
   actorName: string;
   action: string;
   role: string;
-  beforePermissions?: Version3Permissions;
-  afterPermissions?: Version3Permissions;
+  beforePermissions?: StagePermissions;
+  afterPermissions?: StagePermissions;
   occurredAt: string;
 };
 
-export type Version3AuditLog = {
+export type StageAuditLog = {
   id: string;
   actorId: string;
   actorName: string;
@@ -79,25 +79,25 @@ export type Version3AuditLog = {
   createdAt: string;
 };
 
-export type Version3DashboardWorkPriority = "urgent" | "high" | "normal";
-export type Version3DashboardWorkTone = "default" | "good" | "warn" | "danger";
-export type Version3DashboardWorkKind = "상담요청" | "출결" | "보강" | "수납" | "계정" | "업무";
+export type StageDashboardWorkPriority = "urgent" | "high" | "normal";
+export type StageDashboardWorkTone = "default" | "good" | "warn" | "danger";
+export type StageDashboardWorkKind = "상담요청" | "출결" | "보강" | "수납" | "계정" | "업무";
 
-export type Version3DashboardWorkItem = {
+export type StageDashboardWorkItem = {
   id: string;
-  kind: Version3DashboardWorkKind;
+  kind: StageDashboardWorkKind;
   sourceType: "consultationRequests" | "attendance" | "payments" | "accounts" | "tasks";
   sourceId: string;
   title: string;
   ownerName: string;
   href: string;
-  priority: Version3DashboardWorkPriority;
-  tone: Version3DashboardWorkTone;
+  priority: StageDashboardWorkPriority;
+  tone: StageDashboardWorkTone;
   status: string;
   dueAt?: string;
 };
 
-export type Version3Notice = {
+export type StageNotice = {
   id: string;
   title: string;
   category: string;
@@ -110,9 +110,9 @@ export type Version3Notice = {
   updatedAt: string;
 };
 
-export const version3PermissionGroups: Array<{
+export const stagePermissionGroups: Array<{
   group: string;
-  items: Array<{ key: Version3PermissionKey; label: string; description: string }>;
+  items: Array<{ key: StagePermissionKey; label: string; description: string }>;
 }> = [
   {
     group: "계정과 권한",
@@ -159,26 +159,26 @@ export const version3PermissionGroups: Array<{
   }
 ];
 
-export const version3PermissionKeys = version3PermissionGroups.flatMap((group) => group.items.map((item) => item.key));
+export const stagePermissionKeys = stagePermissionGroups.flatMap((group) => group.items.map((item) => item.key));
 
-export const version3RoleLabels: Record<Role, string> = {
+export const stageRoleLabels: Record<Role, string> = {
   admin: "Admin",
   manager: "Manager",
   coach: "Coach",
   artist: "Artist"
 };
 
-export const version3AccountRoles: Array<{ role: Role; label: string; serverValue: "admin" | "manager" | "coach" | "artist"; employeePosition: "admin" | "manager" | "coach" | "" }> = [
+export const stageAccountRoles: Array<{ role: Role; label: string; serverValue: "admin" | "manager" | "coach" | "artist"; employeePosition: "admin" | "manager" | "coach" | "" }> = [
   { role: "admin", label: "Admin", serverValue: "admin", employeePosition: "admin" },
   { role: "manager", label: "Manager", serverValue: "manager", employeePosition: "manager" },
   { role: "coach", label: "Coach", serverValue: "coach", employeePosition: "coach" },
   { role: "artist", label: "Artist", serverValue: "artist", employeePosition: "" }
 ];
 
-export const version3ConsultationStatuses = ["접수됨", "확인 중", "전달 필요", "종결"] as const;
-export type Version3ConsultationStatus = (typeof version3ConsultationStatuses)[number];
+export const stageConsultationStatuses = ["접수됨", "확인 중", "전달 필요", "종결"] as const;
+export type StageConsultationStatus = (typeof stageConsultationStatuses)[number];
 
-export const version3ServerEntities = [
+export const stageServerEntities = [
   { name: "accounts", label: "계정", owner: "대표", keyFields: ["id", "loginId", "role", "linkedStudentId", "status", "mustChangePassword"] },
   { name: "accountRequests", label: "계정 요청", owner: "대표", keyFields: ["id", "loginId", "requestedRole", "status", "reviewedAt"] },
   { name: "students", label: "학생", owner: "매니저", keyFields: ["id", "name", "teacherId", "status"] },
@@ -195,10 +195,10 @@ export const version3ServerEntities = [
 ] as const;
 
 export function accountRoleToAppsScript(role: Role) {
-  return version3AccountRoles.find((item) => item.role === role) ?? version3AccountRoles[1];
+  return stageAccountRoles.find((item) => item.role === role) ?? stageAccountRoles[1];
 }
 
-export function normalizeAccountStatus(value: unknown): Version3AccountStatus {
+export function normalizeAccountStatus(value: unknown): StageAccountStatus {
   if (value === false || value === "false" || value === "FALSE" || value === "0") return "paused";
   if (value === "invited") return "invited";
   return "active";
@@ -213,7 +213,7 @@ export function normalizeAccountRole(role: unknown, employeePosition?: unknown):
   return "manager";
 }
 
-export function normalizeConsultationStatus(value: unknown): Version3ConsultationStatus {
+export function normalizeConsultationStatus(value: unknown): StageConsultationStatus {
   if (value === "접수됨" || value === "신규문의" || value === "상담예정") return "접수됨";
   if (value === "확인 중" || value === "확인중") return "확인 중";
   if (value === "전달 필요" || value === "전달필요") return "전달 필요";

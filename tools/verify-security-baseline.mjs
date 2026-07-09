@@ -43,14 +43,14 @@ if (!nextConfig.includes("unoptimized: true")) {
 
 const productionEnvExample = readFileSync(".env.production.example", "utf8");
 const lockfile = readFileSync("pnpm-lock.yaml", "utf8");
-const legacyOwnerPasswordKey = ["VERSION3", "OWNER_INITIAL_PASSWORD"].join("_");
-if (!productionEnvExample.includes("VERSION3_ADMIN_INITIAL_PASSWORD=")) {
-  errors.push(".env.production.example must define VERSION3_ADMIN_INITIAL_PASSWORD.");
+const legacyOwnerPasswordKey = ["BONSUNG", "OWNER_INITIAL_PASSWORD"].join("_");
+if (!productionEnvExample.includes("BONSUNG_ADMIN_INITIAL_PASSWORD=")) {
+  errors.push(".env.production.example must define BONSUNG_ADMIN_INITIAL_PASSWORD.");
 }
 if (productionEnvExample.includes(`${legacyOwnerPasswordKey}=`)) {
   errors.push(`.env.production.example must not use the legacy ${legacyOwnerPasswordKey} name.`);
 }
-if (productionEnvExample.includes("VERSION3_DATABASE_URL=postgres://user:password@host:5432/database") && !productionEnvExample.includes("# VERSION3_DATABASE_URL=")) {
+if (productionEnvExample.includes("BONSUNG_DATABASE_URL=postgres://user:password@host:5432/database") && !productionEnvExample.includes("# BONSUNG_DATABASE_URL=")) {
   errors.push(".env.production.example must not enable a real-looking database URL by default.");
 }
 if (!lockfile.includes("postcss@8.5.16")) {
@@ -58,12 +58,12 @@ if (!lockfile.includes("postcss@8.5.16")) {
 }
 
 if (errors.length) {
-  console.error("Version.3 security baseline verification failed:");
+  console.error("본성 스테이지 security baseline verification failed:");
   for (const error of errors) console.error(`- ${error}`);
   process.exit(1);
 }
 
-console.log("Version.3 security baseline verification passed.");
+console.log("본성 스테이지 security baseline verification passed.");
 
 function cleanVersion(value) {
   return String(value || "").replace(/^[~^]/, "").trim();

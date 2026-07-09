@@ -8,8 +8,8 @@ import {
 } from "@/lib/apps-script-client";
 import { normalizeRole, type CurrentUser } from "@/lib/auth-shared";
 import { CLIENT_ROLE_KEY, SESSION_CHANGE_EVENT } from "@/lib/client-session";
-import { VERSION3_SERVER_SESSION_TOKEN_KEY, VERSION3_SERVER_USER_KEY, type Version3ServerUser } from "@/lib/version3-server-client";
-import { ENABLE_APPS_SCRIPT_TRANSITION } from "@/lib/version3-runtime-flags";
+import { BONSUNG_SERVER_SESSION_TOKEN_KEY, BONSUNG_SERVER_USER_KEY, type StageServerUser } from "@/lib/stage-server-client";
+import { ENABLE_APPS_SCRIPT_TRANSITION } from "@/lib/stage-runtime-flags";
 
 function subscribe(callback: () => void) {
   window.addEventListener("storage", callback);
@@ -22,8 +22,8 @@ function subscribe(callback: () => void) {
 
 function getSnapshot() {
   const role = normalizeRole(window.localStorage.getItem(CLIENT_ROLE_KEY));
-  const serverToken = window.localStorage.getItem(VERSION3_SERVER_SESSION_TOKEN_KEY);
-  const serverUser = serverToken ? window.localStorage.getItem(VERSION3_SERVER_USER_KEY) || "" : "";
+  const serverToken = window.localStorage.getItem(BONSUNG_SERVER_SESSION_TOKEN_KEY);
+  const serverUser = serverToken ? window.localStorage.getItem(BONSUNG_SERVER_USER_KEY) || "" : "";
   const token = ENABLE_APPS_SCRIPT_TRANSITION ? window.localStorage.getItem(APPS_SCRIPT_SESSION_TOKEN_KEY) : "";
   const liveUser = serverUser || (token ? window.localStorage.getItem(APPS_SCRIPT_USER_KEY) || "" : "");
   return JSON.stringify({ role, liveUser });
@@ -48,7 +48,7 @@ function userFromSnapshot(snapshot: string): CurrentUser | null {
 
 function liveSessionUser(role: CurrentUser["role"], value: string): CurrentUser | null {
   try {
-    const user = JSON.parse(value || "null") as (AppsScriptUser & Version3ServerUser) | null;
+    const user = JSON.parse(value || "null") as (AppsScriptUser & StageServerUser) | null;
     const normalizedRole = normalizeRole(user?.role);
     if (!user || normalizedRole !== role || !(user.accountId || user.account_id || user.id) || !user.name) return null;
     return {

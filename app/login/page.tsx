@@ -7,8 +7,8 @@ import { assetPath } from "@/lib/assets";
 import { loginWithAppsScript } from "@/lib/apps-script-client";
 import { clearClientSession, isNextRole, setLiveSession, setServerSession } from "@/lib/client-session";
 import { readPreferences } from "@/lib/preferences";
-import { isVersion3ServerConfigured, loginWithVersion3Server } from "@/lib/version3-server-client";
-import { ENABLE_APPS_SCRIPT_TRANSITION } from "@/lib/version3-runtime-flags";
+import { isStageServerConfigured, loginWithStageServer } from "@/lib/stage-server-client";
+import { ENABLE_APPS_SCRIPT_TRANSITION } from "@/lib/stage-runtime-flags";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -31,11 +31,11 @@ export default function LoginPage() {
     try {
       clearClientSession();
 
-      if (isVersion3ServerConfigured()) {
-        const result = await loginWithVersion3Server(loginId, password);
+      if (isStageServerConfigured()) {
+        const result = await loginWithStageServer(loginId, password);
         setServerSession(result.token, result.user);
         if (!isNextRole(result.user.role)) {
-          setLiveLoginError("Version.3에서 사용할 수 없는 계정 종류입니다.");
+          setLiveLoginError("본성 스테이지에서 사용할 수 없는 계정 종류입니다.");
           return;
         }
 
@@ -47,7 +47,7 @@ export default function LoginPage() {
         const result = await loginWithAppsScript(loginId, password);
         setLiveSession(result.token, result.user);
         if (!isNextRole(result.user.role)) {
-          setLiveLoginError("Version.3에서 사용할 수 없는 계정 종류입니다.");
+          setLiveLoginError("본성 스테이지에서 사용할 수 없는 계정 종류입니다.");
           return;
         }
 
@@ -55,7 +55,7 @@ export default function LoginPage() {
         return;
       }
 
-      setLiveLoginError("Version.3 서버 주소가 설정되어 있지 않습니다.");
+      setLiveLoginError("본성 스테이지 서버 주소가 설정되어 있지 않습니다.");
     } catch (caught) {
       setLiveLoginError(caught instanceof Error ? caught.message : "로그인을 완료하지 못했습니다.");
     } finally {

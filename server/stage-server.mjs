@@ -12,27 +12,27 @@ import {
   bonsungInitialStudents,
   bonsungInitialTeachers
 } from "./bonsung-initial-data.mjs";
-import { appsScriptSyncStatus, markAppsScriptSyncPending, runAppsScriptOutboxSync } from "./version3-apps-script-sync.mjs";
-import { createVersion3StorageAdapter, hashSessionToken } from "./version3-storage.mjs";
+import { appsScriptSyncStatus, markAppsScriptSyncPending, runAppsScriptOutboxSync } from "./stage-apps-script-sync.mjs";
+import { createStageStorageAdapter, hashSessionToken } from "./stage-storage.mjs";
 
-const port = Number(process.env.VERSION3_LOCAL_SERVER_PORT || process.env.PORT || 4303);
-const host = (process.env.VERSION3_SERVER_HOST || "127.0.0.1").trim() || "127.0.0.1";
-const testPassword = process.env.VERSION3_LOCAL_SERVER_PASSWORD || "bonsung1";
-const adminInitialPassword = process.env.VERSION3_ADMIN_INITIAL_PASSWORD || "bonsung_2020_03";
+const port = Number(process.env.BONSUNG_LOCAL_SERVER_PORT || process.env.PORT || 4303);
+const host = (process.env.BONSUNG_SERVER_HOST || "127.0.0.1").trim() || "127.0.0.1";
+const testPassword = process.env.BONSUNG_LOCAL_SERVER_PASSWORD || "bonsung1";
+const adminInitialPassword = process.env.BONSUNG_ADMIN_INITIAL_PASSWORD || "bonsung_2020_03";
 const adminCredentialVersion = "2026-07-09-admin-canonical";
-const dataFileSetting = (process.env.VERSION3_LOCAL_DATA_FILE || ".version3-local-data.json").trim();
-const storage = await createVersion3StorageAdapter({
-  driver: process.env.VERSION3_STORAGE_DRIVER,
-  databaseUrl: process.env.VERSION3_DATABASE_URL,
+const dataFileSetting = (process.env.BONSUNG_LOCAL_DATA_FILE || ".stage-local-data.json").trim();
+const storage = await createStageStorageAdapter({
+  driver: process.env.BONSUNG_STORAGE_DRIVER,
+  databaseUrl: process.env.BONSUNG_DATABASE_URL,
   dataFileSetting,
-  backupEnabled: process.env.VERSION3_DISABLE_LOCAL_BACKUPS !== "true"
+  backupEnabled: process.env.BONSUNG_DISABLE_LOCAL_BACKUPS !== "true"
 });
 const persistenceEnabled = storage.persistenceEnabled;
 const dataFilePath = storage.dataFilePath;
 const backupEnabled = storage.backupEnabled;
 const storageSessionsEnabled = storage.mode === "postgres" || storage.mode === "google-sheets";
-const sessionTtlHours = Math.max(1, Number(process.env.VERSION3_SESSION_TTL_HOURS || 12));
-const allowedOrigins = (process.env.VERSION3_ALLOWED_ORIGINS || "*")
+const sessionTtlHours = Math.max(1, Number(process.env.BONSUNG_SESSION_TTL_HOURS || 12));
+const allowedOrigins = (process.env.BONSUNG_ALLOWED_ORIGINS || "*")
   .split(",")
   .map((origin) => origin.trim())
   .filter(Boolean);
@@ -83,7 +83,7 @@ const sessions = new Map();
 const loginAttempts = new Map();
 let pendingSave = Promise.resolve();
 
-export async function handleVersion3NodeRequest(request, response, options = {}) {
+export async function handleStageNodeRequest(request, response, options = {}) {
   try {
     setCors(request, response);
     if (request.method === "OPTIONS") return send(response, 204, "");
@@ -108,7 +108,7 @@ export async function handleVersion3NodeRequest(request, response, options = {})
     }
 
     const account = await authenticate(request);
-    if (!account) return sendJson(response, 401, { ok: false, error: "Version.3 server session is required." });
+    if (!account) return sendJson(response, 401, { ok: false, error: "본성 스테이지 server session is required." });
 
     if (request.method === "POST" && url.pathname === "/auth/logout") return await logout(response, request, account);
     if (request.method === "POST" && url.pathname === "/auth/change-password") return await changePassword(response, request, account, body);
@@ -129,28 +129,28 @@ export async function handleVersion3NodeRequest(request, response, options = {})
     if (request.method === "PATCH" && /^\/accounts\/[^/]+\/permissions$/.test(url.pathname)) return await requirePermission(response, account, "managePermissions", () => updateAccountPermissions(response, account, url.pathname.split("/")[2], body));
     if (request.method === "PATCH" && /^\/account-requests\/[^/]+\/review$/.test(url.pathname)) return await requirePermission(response, account, "reviewAccountRequests", () => reviewAccountRequest(response, account, url.pathname.split("/")[2], body));
 
-    return sendJson(response, 404, { ok: false, error: `Unknown Version.3 endpoint: ${url.pathname}` });
+    return sendJson(response, 404, { ok: false, error: `Unknown 본성 스테이지 endpoint: ${url.pathname}` });
   } catch (error) {
     const statusCode = Number(error?.statusCode || error?.status || 500);
     return sendJson(response, statusCode >= 400 && statusCode < 600 ? statusCode : 500, { ok: false, error: error instanceof Error ? error.message : String(error) });
   }
 }
 
-export function createVersion3LocalHttpServer() {
-  return createServer((request, response) => handleVersion3NodeRequest(request, response));
+export function createStageLocalHttpServer() {
+  return createServer((request, response) => handleStageNodeRequest(request, response));
 }
 
-export function startVersion3LocalServer() {
-  const server = createVersion3LocalHttpServer();
+export function startStageLocalServer() {
+  const server = createStageLocalHttpServer();
   server.listen(port, host, () => {
-    console.log(`Version.3 server listening on http://${host}:${port}`);
-    console.log(`Version.3 storage driver: ${storage.mode}`);
-    if (persistenceEnabled && storage.mode === "file") console.log(`Version.3 local data file: ${dataFilePath}`);
+    console.log(`본성 스테이지 server listening on http://${host}:${port}`);
+    console.log(`본성 스테이지 storage driver: ${storage.mode}`);
+    if (persistenceEnabled && storage.mode === "file") console.log(`본성 스테이지 local data file: ${dataFilePath}`);
   });
   return server;
 }
 
-if (isDirectExecution()) startVersion3LocalServer();
+if (isDirectExecution()) startStageLocalServer();
 
 function normalizedRequestUrl(request, options = {}) {
   const url = new URL(request.url || "/", `http://${request.headers.host || `127.0.0.1:${port}`}`);
@@ -179,7 +179,7 @@ async function login(response, body) {
     return sendJson(response, 401, { ok: false, error: "Invalid login ID or password." });
   }
 
-  const token = `v3-local-${randomUUID()}`;
+  const token = `stage-local-${randomUUID()}`;
   const expiresAt = new Date(Date.now() + sessionTtlHours * 60 * 60 * 1000).toISOString();
   await createSession(token, { accountId: account.id, expiresAt });
   clearLoginFailures(loginId);
@@ -1026,7 +1026,7 @@ function handleAction(response, account, action, body) {
       studentName: stringValue(input.studentName || account.name),
       guardianName: stringValue(input.guardianName),
       phone: stringValue(input.phone),
-      channel: stringValue(input.channel || "Version.3"),
+      channel: stringValue(input.channel || "본성 스테이지"),
       major: stringValue(input.major),
       goal: stringValue(input.goal || "상담요청"),
       date: new Date().toISOString().slice(0, 10),
@@ -1144,7 +1144,7 @@ function handleAction(response, account, action, body) {
     return sendJson(response, 200, { ok: true, data: notice });
   }
 
-  return sendJson(response, 404, { ok: false, error: `Unsupported Version.3 action: ${action}` });
+  return sendJson(response, 404, { ok: false, error: `Unsupported 본성 스테이지 action: ${action}` });
 }
 
 function dataQualityReport() {
@@ -1191,7 +1191,7 @@ function dataQualityReport() {
 
 function healthReport() {
   return {
-    service: "bonsung-version3-server",
+    service: "bonsung-stage-server",
     status: "ok",
     checkedAt: new Date().toISOString(),
     persistence: {
@@ -1201,7 +1201,7 @@ function healthReport() {
     },
     sync: {
       appsScriptBuffered: Boolean(process.env.NEXT_PUBLIC_ENABLE_BUFFERED_APPS_SCRIPT_SYNC === "true"),
-      appsScriptSyncEnabled: Boolean(process.env.VERSION3_APPS_SCRIPT_SYNC_ENABLED === "true"),
+      appsScriptSyncEnabled: Boolean(process.env.BONSUNG_APPS_SCRIPT_SYNC_ENABLED === "true"),
       outboxSupported: Boolean(storage.supportsSyncOutbox)
     },
     cors: {
@@ -1215,8 +1215,8 @@ async function syncStatusReport() {
 }
 
 async function syncAppsScript(response, request, body, url) {
-  const secret = stringValue(process.env.CRON_SECRET || process.env.VERSION3_CRON_SECRET);
-  const syncEnabled = ["1", "true", "yes", "on"].includes(stringValue(process.env.VERSION3_APPS_SCRIPT_SYNC_ENABLED).toLowerCase());
+  const secret = stringValue(process.env.CRON_SECRET || process.env.BONSUNG_CRON_SECRET);
+  const syncEnabled = ["1", "true", "yes", "on"].includes(stringValue(process.env.BONSUNG_APPS_SCRIPT_SYNC_ENABLED).toLowerCase());
   if (syncEnabled && !secret && process.env.NODE_ENV === "production") {
     return sendJson(response, 503, { ok: false, error: "CRON_SECRET is required for Apps Script sync in production." });
   }
@@ -1236,7 +1236,7 @@ function dataExport(account) {
       name: account.name,
       role: account.role
     },
-    schema: "bonsung-version3-local-v1",
+    schema: "bonsung-stage-local-v1",
     persistence: {
       enabled: persistenceEnabled,
       backupEnabled,
@@ -1248,8 +1248,8 @@ function dataExport(account) {
 }
 
 function exportData(response, account) {
-  addAuditLog(account, "export_data", "system", "data-export", "Version.3 data export", {
-    schema: "bonsung-version3-local-v1",
+  addAuditLog(account, "export_data", "system", "data-export", "본성 스테이지 data export", {
+    schema: "bonsung-stage-local-v1",
     backupEnabled,
     dataFile: persistenceEnabled ? dataFilePath : "memory"
   });
@@ -1289,15 +1289,15 @@ function visibleLessonNotes(account, lessonIds, studentIds) {
 
 async function importData(response, request, account, body) {
   const payload = body.export || body;
-  if (payload.schema !== "bonsung-version3-local-v1") return sendJson(response, 400, { ok: false, error: "Unsupported Version.3 import schema." });
-  if (!payload.data || typeof payload.data !== "object") return sendJson(response, 400, { ok: false, error: "Version.3 import data is required." });
+  if (payload.schema !== "bonsung-stage-local-v1") return sendJson(response, 400, { ok: false, error: "Unsupported 본성 스테이지 import schema." });
+  if (!payload.data || typeof payload.data !== "object") return sendJson(response, 400, { ok: false, error: "본성 스테이지 import data is required." });
 
   const imported = migrateDatabase(createSeedData(), payload.data);
   const passwordResult = hydrateImportedAccountPasswords(imported.accounts || [], stringValue(body.temporaryPassword));
   if (!passwordResult.ok) return sendJson(response, 400, { ok: false, error: passwordResult.error });
 
   replaceDatabase(imported);
-  addAuditLog(account, "import_data", "system", "data-import", "Version.3 data import", {
+  addAuditLog(account, "import_data", "system", "data-import", "본성 스테이지 data import", {
     schema: payload.schema,
     importedAccounts: imported.accounts.length,
     importedStudents: imported.students.length,
@@ -1605,7 +1605,7 @@ function addAuditLog(actor, action, targetType, targetId, targetName, metadata =
 }
 
 function systemActor() {
-  return { id: "system", name: "Version.3 Server" };
+  return { id: "system", name: "본성 스테이지 Server" };
 }
 
 function assertServerRuntimeSafe() {
@@ -1613,19 +1613,19 @@ function assertServerRuntimeSafe() {
   const productionMode = process.env.NODE_ENV === "production" || publicHost;
   if (!productionMode) return;
   if (testPassword === "bonsung1") {
-    throw new Error("Set VERSION3_LOCAL_SERVER_PASSWORD to a non-default value before running a public Version.3 server.");
+    throw new Error("Set BONSUNG_LOCAL_SERVER_PASSWORD to a non-default value before running a public 본성 스테이지 server.");
   }
-  if (!process.env.VERSION3_ADMIN_INITIAL_PASSWORD) {
-    throw new Error("Set VERSION3_ADMIN_INITIAL_PASSWORD before running a public Version.3 server.");
+  if (!process.env.BONSUNG_ADMIN_INITIAL_PASSWORD) {
+    throw new Error("Set BONSUNG_ADMIN_INITIAL_PASSWORD before running a public 본성 스테이지 server.");
   }
   if (allowedOrigins.includes("*")) {
-    throw new Error("Set VERSION3_ALLOWED_ORIGINS to the official Version.3 UI origin before running a public Version.3 server.");
+    throw new Error("Set BONSUNG_ALLOWED_ORIGINS to the official 본성 스테이지 UI origin before running a public 본성 스테이지 server.");
   }
   if (!persistenceEnabled) {
-    throw new Error("Set VERSION3_LOCAL_DATA_FILE to a persistent file before running a public Version.3 server.");
+    throw new Error("Set BONSUNG_LOCAL_DATA_FILE to a persistent file before running a public 본성 스테이지 server.");
   }
   if (storage.mode === "file" && !backupEnabled) {
-    throw new Error("Keep Version.3 data backups enabled before running a public Version.3 server.");
+    throw new Error("Keep 본성 스테이지 data backups enabled before running a public 본성 스테이지 server.");
   }
 }
 
@@ -1822,7 +1822,7 @@ function saveDatabase() {
   pendingSave = pendingSave.catch(() => undefined).then(async () => {
     await storage.saveState(db);
     await markAppsScriptSyncPending(storage).catch((error) => {
-      console.warn(`Version.3 Apps Script sync marker failed: ${error instanceof Error ? error.message : String(error)}`);
+      console.warn(`본성 스테이지 Apps Script sync marker failed: ${error instanceof Error ? error.message : String(error)}`);
     });
   });
   return pendingSave;

@@ -2,10 +2,10 @@ import { createHash, createHmac, createSign } from "node:crypto";
 import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, statSync, writeFileSync } from "node:fs";
 import { basename, dirname, resolve } from "node:path";
 
-export async function createVersion3StorageAdapter(options = {}) {
+export async function createStageStorageAdapter(options = {}) {
   const driver = normalizeStorageDriver(options.driver, options.databaseUrl);
   if (driver === "postgres") {
-    if (!options.databaseUrl) throw new Error("VERSION3_DATABASE_URL is required when VERSION3_STORAGE_DRIVER=postgres.");
+    if (!options.databaseUrl) throw new Error("BONSUNG_DATABASE_URL is required when BONSUNG_STORAGE_DRIVER=postgres.");
     const adapter = new PostgresStorageAdapter(options.databaseUrl);
     await adapter.initialize();
     return adapter;
@@ -17,13 +17,13 @@ export async function createVersion3StorageAdapter(options = {}) {
   }
   if (driver === "memory") return new MemoryStorageAdapter();
   return new FileStorageAdapter({
-    dataFileSetting: options.dataFileSetting || ".version3-local-data.json",
+    dataFileSetting: options.dataFileSetting || ".stage-local-data.json",
     backupEnabled: options.backupEnabled !== false
   });
 }
 
 export function hashSessionToken(token) {
-  const secret = String(process.env.VERSION3_SESSION_SECRET || "");
+  const secret = String(process.env.BONSUNG_SESSION_SECRET || "");
   if (secret) return createHmac("sha256", secret).update(String(token || "")).digest("base64url");
   return createHash("sha256").update(String(token || "")).digest("base64url");
 }
@@ -159,7 +159,7 @@ class PostgresStorageAdapter extends MemoryStorageAdapter {
   mode = "postgres";
   persistenceEnabled = true;
   backupEnabled = true;
-  dataFilePath = "postgres://version3_state";
+  dataFilePath = "postgres://stage_state";
   supportsSyncOutbox = true;
 
   constructor(databaseUrl) {
@@ -172,14 +172,14 @@ class PostgresStorageAdapter extends MemoryStorageAdapter {
     const { Pool } = await import("pg");
     this.pool = new Pool({
       connectionString: this.databaseUrl,
-      max: Number(process.env.VERSION3_DATABASE_POOL_MAX || 5),
+      max: Number(process.env.BONSUNG_DATABASE_POOL_MAX || 5),
       idleTimeoutMillis: 30_000,
       connectionTimeoutMillis: 10_000
     });
     await this.withClient(async (client) => {
       await client.query("set statement_timeout = '10s'");
       await client.query(`
-        create table if not exists version3_state (
+        create table if not exists stage_state (
           id text primary key,
           data jsonb not null,
           revision bigint not null default 0,
@@ -187,7 +187,7 @@ class PostgresStorageAdapter extends MemoryStorageAdapter {
         )
       `);
       await client.query(`
-        create table if not exists version3_sessions (
+        create table if not exists stage_sessions (
           token_hash text primary key,
           account_id text not null,
           expires_at timestamptz not null,
@@ -195,10 +195,10 @@ class PostgresStorageAdapter extends MemoryStorageAdapter {
           last_seen_at timestamptz not null default now()
         )
       `);
-      await client.query("create index if not exists version3_sessions_account_idx on version3_sessions (account_id)");
-      await client.query("create index if not exists version3_sessions_expires_idx on version3_sessions (expires_at)");
+      await client.query("create index if not exists stage_sessions_account_idx on stage_sessions (account_id)");
+      await client.query("create index if not exists stage_sessions_expires_idx on stage_sessions (expires_at)");
       await client.query(`
-        create table if not exists version3_sync_state (
+        create table if not exists stage_sync_state (
           id text primary key,
           pending_revision bigint not null default 0,
           last_synced_revision bigint not null default 0,
@@ -217,7 +217,7 @@ class PostgresStorageAdapter extends MemoryStorageAdapter {
 
   async loadState() {
     return this.withClient(async (client) => {
-      const result = await client.query("select data from version3_state where id = $1", ["main"]);
+      const result = await client.query("select data from stage_state where id = $1", ["main"]);
       return result.rows[0]?.data || null;
     });
   }
@@ -228,12 +228,12 @@ class PostgresStorageAdapter extends MemoryStorageAdapter {
       try {
         await client.query("set local statement_timeout = '10s'");
         await client.query(
-          "insert into version3_state (id, data, revision, updated_at) values ($1, $2::jsonb, 0, now()) on conflict (id) do nothing",
+          "insert into stage_state (id, data, revision, updated_at) values ($1, $2::jsonb, 0, now()) on conflict (id) do nothing",
           ["main", JSON.stringify(snapshot)]
         );
-        await client.query("select revision from version3_state where id = $1 for update", ["main"]);
+        await client.query("select revision from stage_state where id = $1 for update", ["main"]);
         await client.query(
-          "update version3_state set data = $2::jsonb, revision = revision + 1, updated_at = now() where id = $1",
+          "update stage_state set data = $2::jsonb, revision = revision + 1, updated_at = now() where id = $1",
           ["main", JSON.stringify(snapshot)]
         );
         await client.query("commit");
@@ -252,7 +252,7 @@ class PostgresStorageAdapter extends MemoryStorageAdapter {
     await this.withClient(async (client) => {
       await client.query(
         `
-          insert into version3_sessions (token_hash, account_id, expires_at, created_at, last_seen_at)
+          insert into stage_sessions (token_hash, account_id, expires_at, created_at, last_seen_at)
           values ($1, $2, $3, now(), now())
           on conflict (token_hash)
           do update set account_id = excluded.account_id, expires_at = excluded.expires_at, last_seen_at = now()
@@ -265,9 +265,9 @@ class PostgresStorageAdapter extends MemoryStorageAdapter {
   async readSession(tokenHash) {
     if (!tokenHash) return null;
     return this.withClient(async (client) => {
-      await client.query("delete from version3_sessions where expires_at <= now()");
+      await client.query("delete from stage_sessions where expires_at <= now()");
       const result = await client.query(
-        "update version3_sessions set last_seen_at = now() where token_hash = $1 and expires_at > now() returning account_id, expires_at",
+        "update stage_sessions set last_seen_at = now() where token_hash = $1 and expires_at > now() returning account_id, expires_at",
         [tokenHash]
       );
       const row = result.rows[0];
@@ -278,7 +278,7 @@ class PostgresStorageAdapter extends MemoryStorageAdapter {
   async deleteSession(tokenHash) {
     if (!tokenHash) return 0;
     return this.withClient(async (client) => {
-      const result = await client.query("delete from version3_sessions where token_hash = $1", [tokenHash]);
+      const result = await client.query("delete from stage_sessions where token_hash = $1", [tokenHash]);
       return result.rowCount || 0;
     });
   }
@@ -286,7 +286,7 @@ class PostgresStorageAdapter extends MemoryStorageAdapter {
   async deleteAccountSessions(accountId, exceptTokenHash = "") {
     return this.withClient(async (client) => {
       const result = await client.query(
-        "delete from version3_sessions where account_id = $1 and ($2 = '' or token_hash <> $2)",
+        "delete from stage_sessions where account_id = $1 and ($2 = '' or token_hash <> $2)",
         [accountId, exceptTokenHash]
       );
       return result.rowCount || 0;
@@ -296,7 +296,7 @@ class PostgresStorageAdapter extends MemoryStorageAdapter {
   async keepOnlySession(activeTokenHash, accountId) {
     return this.withClient(async (client) => {
       const result = await client.query(
-        "delete from version3_sessions where account_id = $2 and token_hash <> $1",
+        "delete from stage_sessions where account_id = $2 and token_hash <> $1",
         [activeTokenHash, accountId]
       );
       return result.rowCount || 0;
@@ -308,17 +308,17 @@ class PostgresStorageAdapter extends MemoryStorageAdapter {
       await client.query("set statement_timeout = '10s'");
       await client.query(
         `
-          insert into version3_sync_state (id, pending_revision, last_enqueued_at, last_error, updated_at)
+          insert into stage_sync_state (id, pending_revision, last_enqueued_at, last_error, updated_at)
           values ('main', 0, now(), null, now())
           on conflict (id) do nothing
         `
       );
       const result = await client.query(
         `
-          update version3_sync_state
+          update stage_sync_state
           set pending_revision = greatest(
                 pending_revision,
-                coalesce((select revision from version3_state where id = 'main'), pending_revision)
+                coalesce((select revision from stage_state where id = 'main'), pending_revision)
               ),
               last_enqueued_at = now(),
               last_error = case when failed_attempts = 0 then null else last_error end,
@@ -342,7 +342,7 @@ class PostgresStorageAdapter extends MemoryStorageAdapter {
       await client.query("set statement_timeout = '10s'");
       await client.query(
         `
-          insert into version3_sync_state (id, pending_revision, last_synced_revision, updated_at)
+          insert into stage_sync_state (id, pending_revision, last_synced_revision, updated_at)
           values ('main', 0, 0, now())
           on conflict (id) do nothing
         `
@@ -350,7 +350,7 @@ class PostgresStorageAdapter extends MemoryStorageAdapter {
       const result = await client.query(
         `
           select
-            coalesce((select revision from version3_state where id = 'main'), 0) as local_revision,
+            coalesce((select revision from stage_state where id = 'main'), 0) as local_revision,
             pending_revision,
             last_synced_revision,
             syncing_revision,
@@ -360,7 +360,7 @@ class PostgresStorageAdapter extends MemoryStorageAdapter {
             last_success_at,
             last_error,
             failed_attempts
-          from version3_sync_state
+          from stage_sync_state
           where id = 'main'
         `
       );
@@ -375,7 +375,7 @@ class PostgresStorageAdapter extends MemoryStorageAdapter {
         await client.query("set local statement_timeout = '10s'");
         await client.query(
           `
-            insert into version3_sync_state (id, pending_revision, last_synced_revision, updated_at)
+            insert into stage_sync_state (id, pending_revision, last_synced_revision, updated_at)
             values ('main', 0, 0, now())
             on conflict (id) do nothing
           `
@@ -390,8 +390,8 @@ class PostgresStorageAdapter extends MemoryStorageAdapter {
               q.syncing_revision,
               q.lease_until,
               q.failed_attempts
-            from version3_state s
-            cross join version3_sync_state q
+            from stage_state s
+            cross join stage_sync_state q
             where s.id = 'main' and q.id = 'main'
             for update
           `
@@ -413,7 +413,7 @@ class PostgresStorageAdapter extends MemoryStorageAdapter {
 
         await client.query(
           `
-            update version3_sync_state
+            update stage_sync_state
             set pending_revision = $1,
                 syncing_revision = $2,
                 lease_until = now() + ($3 || ' seconds')::interval,
@@ -444,7 +444,7 @@ class PostgresStorageAdapter extends MemoryStorageAdapter {
       if (result.ok) {
         await client.query(
           `
-            update version3_sync_state
+            update stage_sync_state
             set last_synced_revision = greatest(last_synced_revision, $1),
                 syncing_revision = null,
                 lease_until = null,
@@ -461,7 +461,7 @@ class PostgresStorageAdapter extends MemoryStorageAdapter {
 
       await client.query(
         `
-          update version3_sync_state
+          update stage_sync_state
           set syncing_revision = null,
               lease_until = null,
               last_error = $2,
@@ -497,12 +497,12 @@ class GoogleSheetsStorageAdapter extends MemoryStorageAdapter {
       serviceAccountJson: options.googleServiceAccountJson,
       serviceAccountJsonFile: options.googleServiceAccountJsonFile
     });
-    this.spreadsheetId = stringEnv(options.googleSheetsSpreadsheetId || process.env.VERSION3_GOOGLE_SHEETS_SPREADSHEET_ID);
+    this.spreadsheetId = stringEnv(options.googleSheetsSpreadsheetId || process.env.BONSUNG_GOOGLE_SHEETS_SPREADSHEET_ID);
     this.serviceAccountEmail = serviceAccount.serviceAccountEmail;
     this.privateKey = serviceAccount.privateKey;
-    this.stateSheet = stringEnv(options.stateSheet || process.env.VERSION3_GOOGLE_SHEETS_STATE_SHEET || "_version3_state");
-    this.sessionsSheet = stringEnv(options.sessionsSheet || process.env.VERSION3_GOOGLE_SHEETS_SESSIONS_SHEET || "_version3_sessions");
-    this.writeMirrors = process.env.VERSION3_GOOGLE_SHEETS_WRITE_MIRRORS !== "false";
+    this.stateSheet = stringEnv(options.stateSheet || process.env.BONSUNG_GOOGLE_SHEETS_STATE_SHEET || "_stage_state");
+    this.sessionsSheet = stringEnv(options.sessionsSheet || process.env.BONSUNG_GOOGLE_SHEETS_SESSIONS_SHEET || "_stage_sessions");
+    this.writeMirrors = process.env.BONSUNG_GOOGLE_SHEETS_WRITE_MIRRORS !== "false";
     this.dataFilePath = this.spreadsheetId ? `google-sheets://${this.spreadsheetId}/${this.stateSheet}` : "google-sheets://missing";
     this.accessToken = "";
     this.accessTokenExpiresAt = 0;
@@ -557,7 +557,7 @@ class GoogleSheetsStorageAdapter extends MemoryStorageAdapter {
       const latest = await this.mainStateRow();
       const latestRevision = latest ? numberValue(latest[1], 0) : 0;
       if (latestRevision !== this.loadedRevision) {
-        const error = new Error("Google Sheets state revision changed before save. Retry the Version.3 action.");
+        const error = new Error("Google Sheets state revision changed before save. Retry the 본성 스테이지 action.");
         error.statusCode = 409;
         throw error;
       }
@@ -578,7 +578,7 @@ class GoogleSheetsStorageAdapter extends MemoryStorageAdapter {
   async initializeState(snapshot, { force = false } = {}) {
     const current = await this.mainStateRow();
     if (current && !force) {
-      const error = new Error("Google Sheets Version.3 state already exists. Use --force to overwrite it.");
+      const error = new Error("Google Sheets 본성 스테이지 state already exists. Use --force to overwrite it.");
       error.statusCode = 409;
       throw error;
     }
@@ -752,13 +752,13 @@ class GoogleSheetsStorageAdapter extends MemoryStorageAdapter {
 export function googleSheetsSetupSummary() {
   return {
     requiredEnv: [
-      "VERSION3_STORAGE_DRIVER=google-sheets",
-      "VERSION3_GOOGLE_SHEETS_SPREADSHEET_ID",
-      "VERSION3_GOOGLE_SERVICE_ACCOUNT_JSON or VERSION3_GOOGLE_SERVICE_ACCOUNT_EMAIL",
-      "VERSION3_GOOGLE_SERVICE_ACCOUNT_JSON or VERSION3_GOOGLE_PRIVATE_KEY",
-      "VERSION3_SESSION_SECRET"
+      "BONSUNG_STORAGE_DRIVER=google-sheets",
+      "BONSUNG_GOOGLE_SHEETS_SPREADSHEET_ID",
+      "BONSUNG_GOOGLE_SERVICE_ACCOUNT_JSON or BONSUNG_GOOGLE_SERVICE_ACCOUNT_EMAIL",
+      "BONSUNG_GOOGLE_SERVICE_ACCOUNT_JSON or BONSUNG_GOOGLE_PRIVATE_KEY",
+      "BONSUNG_SESSION_SECRET"
     ],
-    requiredTabs: ["_version3_state", "_version3_sessions", ...mirrorSheetNames()],
+    requiredTabs: ["_stage_state", "_stage_sessions", ...mirrorSheetNames()],
     stateHeaders: ["state_id", "revision", "updated_at", "data_json"],
     sessionHeaders: ["token_hash", "account_id", "expires_at", "created_at", "last_seen_at", "revoked_at"]
   };
@@ -766,23 +766,23 @@ export function googleSheetsSetupSummary() {
 
 export function googleServiceAccountCredentials(values = {}) {
   const inlineJson = parseGoogleServiceAccountJson(
-    values.serviceAccountJson || process.env.VERSION3_GOOGLE_SERVICE_ACCOUNT_JSON,
-    "VERSION3_GOOGLE_SERVICE_ACCOUNT_JSON"
+    values.serviceAccountJson || process.env.BONSUNG_GOOGLE_SERVICE_ACCOUNT_JSON,
+    "BONSUNG_GOOGLE_SERVICE_ACCOUNT_JSON"
   );
   const fileJson = parseGoogleServiceAccountJsonFile(
-    values.serviceAccountJsonFile || process.env.VERSION3_GOOGLE_SERVICE_ACCOUNT_JSON_FILE
+    values.serviceAccountJsonFile || process.env.BONSUNG_GOOGLE_SERVICE_ACCOUNT_JSON_FILE
   );
 
   return {
     serviceAccountEmail: stringEnv(
       values.serviceAccountEmail ||
-      process.env.VERSION3_GOOGLE_SERVICE_ACCOUNT_EMAIL ||
+      process.env.BONSUNG_GOOGLE_SERVICE_ACCOUNT_EMAIL ||
       inlineJson.client_email ||
       fileJson.client_email
     ),
     privateKey: restorePrivateKey(
       values.privateKey ||
-      process.env.VERSION3_GOOGLE_PRIVATE_KEY ||
+      process.env.BONSUNG_GOOGLE_PRIVATE_KEY ||
       inlineJson.private_key ||
       fileJson.private_key
     )
@@ -797,10 +797,10 @@ export function missingGoogleSheetsEnv(values = {}) {
     serviceAccountJson: values.serviceAccountJson,
     serviceAccountJsonFile: values.serviceAccountJsonFile
   });
-  if (!stringEnv(values.spreadsheetId || process.env.VERSION3_GOOGLE_SHEETS_SPREADSHEET_ID)) missing.push("VERSION3_GOOGLE_SHEETS_SPREADSHEET_ID");
-  if (!serviceAccount.serviceAccountEmail) missing.push("VERSION3_GOOGLE_SERVICE_ACCOUNT_EMAIL or VERSION3_GOOGLE_SERVICE_ACCOUNT_JSON");
-  if (!serviceAccount.privateKey) missing.push("VERSION3_GOOGLE_PRIVATE_KEY or VERSION3_GOOGLE_SERVICE_ACCOUNT_JSON");
-  if (!stringEnv(process.env.VERSION3_SESSION_SECRET)) missing.push("VERSION3_SESSION_SECRET");
+  if (!stringEnv(values.spreadsheetId || process.env.BONSUNG_GOOGLE_SHEETS_SPREADSHEET_ID)) missing.push("BONSUNG_GOOGLE_SHEETS_SPREADSHEET_ID");
+  if (!serviceAccount.serviceAccountEmail) missing.push("BONSUNG_GOOGLE_SERVICE_ACCOUNT_EMAIL or BONSUNG_GOOGLE_SERVICE_ACCOUNT_JSON");
+  if (!serviceAccount.privateKey) missing.push("BONSUNG_GOOGLE_PRIVATE_KEY or BONSUNG_GOOGLE_SERVICE_ACCOUNT_JSON");
+  if (!stringEnv(process.env.BONSUNG_SESSION_SECRET)) missing.push("BONSUNG_SESSION_SECRET");
   return missing;
 }
 
@@ -808,10 +808,10 @@ function parseGoogleServiceAccountJsonFile(value) {
   const file = stringEnv(value);
   if (!file) return {};
   try {
-    return parseGoogleServiceAccountJson(readFileSync(resolve(file), "utf8"), "VERSION3_GOOGLE_SERVICE_ACCOUNT_JSON_FILE");
+    return parseGoogleServiceAccountJson(readFileSync(resolve(file), "utf8"), "BONSUNG_GOOGLE_SERVICE_ACCOUNT_JSON_FILE");
   } catch (error) {
     if (String(error?.message || "").includes("service account JSON")) throw error;
-    throw new Error(`Google Sheets service account JSON file in VERSION3_GOOGLE_SERVICE_ACCOUNT_JSON_FILE could not be read.`);
+    throw new Error(`Google Sheets service account JSON file in BONSUNG_GOOGLE_SERVICE_ACCOUNT_JSON_FILE could not be read.`);
   }
 }
 

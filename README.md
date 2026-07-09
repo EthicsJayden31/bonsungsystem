@@ -1,58 +1,58 @@
-# 본성 스테이지(통합 관리 시스템) 구축 현황
+﻿# 蹂몄꽦 ?ㅽ뀒?댁?(?듯빀 愿由??쒖뒪?? 援ъ텞 ?꾪솴
 
-본성 스테이지는 본성뮤직아카데미 운영을 위한 Version.3 통합 관리 시스템입니다. 현재 방향은 테스트용 더미 페이지가 아니라, 공식 Next.js 화면이 Version.3 API에 로그인하고 운영 데이터를 서버 저장소에 저장하는 실제 인트라넷 시스템입니다.
+蹂몄꽦 ?ㅽ뀒?댁???蹂몄꽦裕ㅼ쭅?꾩뭅?곕? ?댁쁺???꾪븳 蹂몄꽦 ?ㅽ뀒?댁? ?듯빀 愿由??쒖뒪?쒖엯?덈떎. ?꾩옱 諛⑺뼢? ?뚯뒪?몄슜 ?붾? ?섏씠吏媛 ?꾨땲?? 怨듭떇 Next.js ?붾㈃??蹂몄꽦 ?ㅽ뀒?댁? API??濡쒓렇?명븯怨??댁쁺 ?곗씠?곕? ?쒕쾭 ??μ냼????ν븯???ㅼ젣 ?명듃?쇰꽬 ?쒖뒪?쒖엯?덈떎.
 
-## 코드 구조
+## 肄붾뱶 援ъ“
 
-| 경로 | 내용 |
+| 寃쎈줈 | ?댁슜 |
 | --- | --- |
-| `app/` | 로그인, 홈, 대시보드, Artist, Coach, 상담, 수업, 출결, 레슨노트, 예약, 수납, 계정, 데이터 점검 화면 |
-| `components/` | 공통 레이아웃, 사이드바, 모바일 메뉴, 표, 카드, 상세 패널, 예약 보드 |
-| `lib/` | 역할/권한, 세션, 서버 클라이언트, 데이터 변환, 화면별 데이터 접근 로직 |
-| `server/` | Version.3 API 서버, 계정/권한 처리, 저장소 어댑터, 감사 로그, 백업, Apps Script 동기화 |
-| `api/version3/` | Vercel에서 Version.3 서버를 API Function으로 실행하는 진입점 |
-| `apps-script/` | Google Apps Script 기반 운영 저장소/동기화 코드 |
-| `tools/` | 로컬 서버 실행, Google Sheets 설정, 운영 검증, 배포 검증 도구 |
-| `docs/` | 배포, 저장소, 운영 표면, 보안 점검 문서 |
+| `app/` | 濡쒓렇?? ?? ??쒕낫?? Artist, Coach, ?곷떞, ?섏뾽, 異쒓껐, ?덉뒯?명듃, ?덉빟, ?섎궔, 怨꾩젙, ?곗씠???먭? ?붾㈃ |
+| `components/` | 怨듯넻 ?덉씠?꾩썐, ?ъ씠?쒕컮, 紐⑤컮??硫붾돱, ?? 移대뱶, ?곸꽭 ?⑤꼸, ?덉빟 蹂대뱶 |
+| `lib/` | ??븷/沅뚰븳, ?몄뀡, ?쒕쾭 ?대씪?댁뼵?? ?곗씠??蹂?? ?붾㈃蹂??곗씠???묎렐 濡쒖쭅 |
+| `server/` | 蹂몄꽦 ?ㅽ뀒?댁? API ?쒕쾭, 怨꾩젙/沅뚰븳 泥섎━, ??μ냼 ?대뙌?? 媛먯궗 濡쒓렇, 諛깆뾽, Apps Script ?숆린??|
+| `api/stage/` | Vercel?먯꽌 蹂몄꽦 ?ㅽ뀒?댁? ?쒕쾭瑜?API Function?쇰줈 ?ㅽ뻾?섎뒗 吏꾩엯??|
+| `apps-script/` | Google Apps Script 湲곕컲 ?댁쁺 ??μ냼/?숆린??肄붾뱶 |
+| `tools/` | 濡쒖뺄 ?쒕쾭 ?ㅽ뻾, Google Sheets ?ㅼ젙, ?댁쁺 寃利? 諛고룷 寃利??꾧뎄 |
+| `docs/` | 諛고룷, ??μ냼, ?댁쁺 ?쒕㈃, 蹂댁븞 ?먭? 臾몄꽌 |
 
-## 구현된 주요 기능
+## 援ы쁽??二쇱슂 湲곕뒫
 
-- 로그인/권한: `Admin`, `Manager`, `Coach`, `Artist` 4개 계정 체계
-- 계정 관리: 계정 생성, 계정 요청 승인/반려, 비밀번호 초기화, 권한 확인, 감사 로그
-- Artist/보호자: Artist 기록, 보호자 연결, 담당 Coach 연결, 계정 연결 상태 확인
-- 상담: 상담요청 접수, 상태 변경, 담당자 배정, 후속 이력
-- 수강/수업: 수강 등록, 프로그램, Coach, 수업 일정, 수업 상태
-- 출결/레슨노트: 출석·지각·결석·보강 필요, 수업별 레슨노트
-- 공간 예약: 공간 예약 데이터 구조와 충돌 방지 로직
-- 수납/등록: 등록·재등록, 납부 상태, 확인 필요 항목
-- 내부 운영: 업무, 근태, 회의, 일정, 공지, 운영 환경 설정
-- 데이터 관리: 가져오기/내보내기, 백업 목록, Google Sheets 저장소, 감사 로그
+- 濡쒓렇??沅뚰븳: `Admin`, `Manager`, `Coach`, `Artist` 4媛?怨꾩젙 泥닿퀎
+- 怨꾩젙 愿由? 怨꾩젙 ?앹꽦, 怨꾩젙 ?붿껌 ?뱀씤/諛섎젮, 鍮꾨?踰덊샇 珥덇린?? 沅뚰븳 ?뺤씤, 媛먯궗 濡쒓렇
+- Artist/蹂댄샇?? Artist 湲곕줉, 蹂댄샇???곌껐, ?대떦 Coach ?곌껐, 怨꾩젙 ?곌껐 ?곹깭 ?뺤씤
+- ?곷떞: ?곷떞?붿껌 ?묒닔, ?곹깭 蹂寃? ?대떦??諛곗젙, ?꾩냽 ?대젰
+- ?섍컯/?섏뾽: ?섍컯 ?깅줉, ?꾨줈洹몃옩, Coach, ?섏뾽 ?쇱젙, ?섏뾽 ?곹깭
+- 異쒓껐/?덉뒯?명듃: 異쒖꽍쨌吏媛겶룰껐?씲룸낫媛??꾩슂, ?섏뾽蹂??덉뒯?명듃
+- 怨듦컙 ?덉빟: 怨듦컙 ?덉빟 ?곗씠??援ъ“? 異⑸룎 諛⑹? 濡쒖쭅
+- ?섎궔/?깅줉: ?깅줉쨌?щ벑濡? ?⑸? ?곹깭, ?뺤씤 ?꾩슂 ??ぉ
+- ?대? ?댁쁺: ?낅Т, 洹쇳깭, ?뚯쓽, ?쇱젙, 怨듭?, ?댁쁺 ?섍꼍 ?ㅼ젙
+- ?곗씠??愿由? 媛?몄삤湲??대낫?닿린, 諛깆뾽 紐⑸줉, Google Sheets ??μ냼, 媛먯궗 濡쒓렇
 
-## 계정 역할
+## 怨꾩젙 ??븷
 
-- `Admin`: 시스템 관리 계정입니다. 전체 데이터, 계정, 권한, 환경 설정, 로그 확인을 담당합니다.
-- `Manager`: 대표·직원·매니저 운영 계정입니다. Artist, Coach, 상담, 수강, 수납, 계정 요청과 비밀번호 초기화를 처리합니다.
-- `Coach`: 강사 계정입니다. 담당 Artist, 수업, 출결, 레슨노트, 예약 중심으로 사용합니다.
-- `Artist`: 수강생 계정입니다. 본인 수업, 레슨노트, 예약, 공지, 상담요청 중심으로 사용합니다.
+- `Admin`: ?쒖뒪??愿由?怨꾩젙?낅땲?? ?꾩껜 ?곗씠?? 怨꾩젙, 沅뚰븳, ?섍꼍 ?ㅼ젙, 濡쒓렇 ?뺤씤???대떦?⑸땲??
+- `Manager`: ??쑣룹쭅?먃룸ℓ?덉? ?댁쁺 怨꾩젙?낅땲?? Artist, Coach, ?곷떞, ?섍컯, ?섎궔, 怨꾩젙 ?붿껌怨?鍮꾨?踰덊샇 珥덇린?붾? 泥섎━?⑸땲??
+- `Coach`: 媛뺤궗 怨꾩젙?낅땲?? ?대떦 Artist, ?섏뾽, 異쒓껐, ?덉뒯?명듃, ?덉빟 以묒떖?쇰줈 ?ъ슜?⑸땲??
+- `Artist`: ?섍컯??怨꾩젙?낅땲?? 蹂몄씤 ?섏뾽, ?덉뒯?명듃, ?덉빟, 怨듭?, ?곷떞?붿껌 以묒떖?쇰줈 ?ъ슜?⑸땲??
 
-기존 `owner`, `teacher`, `student` 값은 저장 데이터 마이그레이션 과정에서 각각 `admin`, `coach`, `artist`로 정규화됩니다.
+湲곗〈 `owner`, `teacher`, `student` 媛믪? ????곗씠??留덉씠洹몃젅?댁뀡 怨쇱젙?먯꽌 媛곴컖 `admin`, `coach`, `artist`濡??뺢퇋?붾맗?덈떎.
 
-## 테스트 안내
+## ?뚯뒪???덈궡
 
-로컬에서 공식 UI와 Version.3 서버를 함께 실행합니다.
+濡쒖뺄?먯꽌 怨듭떇 UI? 蹂몄꽦 ?ㅽ뀒?댁? ?쒕쾭瑜??④퍡 ?ㅽ뻾?⑸땲??
 
 ```bash
-pnpm run dev:version3
+pnpm run dev:stage
 ```
 
-기본 접속 주소는 다음과 같습니다.
+湲곕낯 ?묒냽 二쇱냼???ㅼ쓬怨?媛숈뒿?덈떎.
 
 ```text
 UI: http://127.0.0.1:3000/login/
 Server: http://127.0.0.1:4303
 ```
 
-로컬 기본 계정 ID는 다음과 같습니다.
+濡쒖뺄 湲곕낯 怨꾩젙 ID???ㅼ쓬怨?媛숈뒿?덈떎.
 
 ```text
 admin
@@ -61,56 +61,49 @@ coach
 artist
 ```
 
-검증 명령은 다음을 사용합니다.
+寃利?紐낅졊? ?ㅼ쓬???ъ슜?⑸땲??
 
 ```bash
 pnpm run typecheck
 pnpm run lint
-pnpm run verify:version3-server
-pnpm run verify:version3-vercel-api
-pnpm run verify:version3-cleanup
+pnpm run verify:stage-server
+pnpm run verify:stage-vercel-api
+pnpm run verify:stage-cleanup
 pnpm run build
 pnpm run build:pages
 ```
 
-공개 배포 전에는 HTTPS Version.3 API 주소를 지정해 release 검증을 실행합니다.
+怨듦컻 諛고룷 ?꾩뿉??HTTPS 蹂몄꽦 ?ㅽ뀒?댁? API 二쇱냼瑜?吏?뺥빐 release 寃利앹쓣 ?ㅽ뻾?⑸땲??
 
 ```bash
-VERSION3_API_BASE_URL=https://your-version3-server.example pnpm run verify:version3-release
+BONSUNG_API_BASE_URL=https://your-stage-server.example pnpm run verify:stage-release
 ```
 
-## 데이터 관리 방식 안내
+## ?곗씠??愿由?諛⑹떇 ?덈궡
 
-운영 화면은 더 이상 `pages-preview`, `/version3-test`, localStorage 더미 데이터, 별도 오프라인 점검 HTML을 사용하지 않습니다. 실제 화면과 테스트 화면을 따로 만들지 않고, 같은 Next.js 화면이 어떤 저장소를 바라보는지만 달라집니다.
 
-운영 저장소는 다음 방식 중 하나를 사용합니다.
+?댁쁺 ??μ냼???ㅼ쓬 諛⑹떇 以??섎굹瑜??ъ슜?⑸땲??
 
-- Vercel API + Google Sheets 저장소: `VERSION3_STORAGE_DRIVER=google-sheets`
-- Vercel API + PostgreSQL + Apps Script 동기화: PostgreSQL에 먼저 저장하고 Apps Script로 미러링
-- 외부 Version.3 서버 + 지속 파일 저장소: 서버 호스트의 영구 디스크에 JSON 저장
+- Vercel API + Google Sheets ??μ냼: `BONSUNG_STORAGE_DRIVER=google-sheets`
+- Vercel API + PostgreSQL + Apps Script ?숆린?? PostgreSQL??癒쇱? ??ν븯怨?Apps Script濡?誘몃윭留?- ?몃? 蹂몄꽦 ?ㅽ뀒?댁? ?쒕쾭 + 吏???뚯씪 ??μ냼: ?쒕쾭 ?몄뒪?몄쓽 ?곴뎄 ?붿뒪?ъ뿉 JSON ???
+?댁쁺 鍮꾨?媛믪? README??怨듦컻 臾몄꽌??湲곕줉?섏? ?딆뒿?덈떎. ?뱁엳 Admin 珥덇린 鍮꾨?踰덊샇, Google ?쒕퉬??怨꾩젙 JSON, ?몄뀡 secret, Apps Script URL/鍮꾨?踰덊샇, ?곗씠?곕쿋?댁뒪 URL? Vercel ?먮뒗 ?쒕쾭 ?섍꼍 蹂?섎줈 愿由ы빀?덈떎.
 
-운영 비밀값은 README나 공개 문서에 기록하지 않습니다. 특히 Admin 초기 비밀번호, Google 서비스 계정 JSON, 세션 secret, Apps Script URL/비밀번호, 데이터베이스 URL은 Vercel 또는 서버 환경 변수로 관리합니다.
-
-주요 환경 변수는 다음과 같습니다.
+二쇱슂 ?섍꼍 蹂?섎뒗 ?ㅼ쓬怨?媛숈뒿?덈떎.
 
 ```text
-NEXT_PUBLIC_VERSION3_API_BASE_URL=/api/version3
-VERSION3_LOCAL_SERVER_PASSWORD=<manager-coach-artist-seed-password>
-VERSION3_ADMIN_INITIAL_PASSWORD=<admin-initial-password>
-VERSION3_STORAGE_DRIVER=google-sheets
-VERSION3_GOOGLE_SHEETS_SPREADSHEET_ID=<spreadsheet-id>
-VERSION3_GOOGLE_SERVICE_ACCOUNT_JSON=<service-account-json>
-VERSION3_SESSION_SECRET=<long-random-secret>
+NEXT_PUBLIC_BONSUNG_API_BASE_URL=/api/stage
+BONSUNG_LOCAL_SERVER_PASSWORD=<manager-coach-artist-seed-password>
+BONSUNG_ADMIN_INITIAL_PASSWORD=<admin-initial-password>
+BONSUNG_STORAGE_DRIVER=google-sheets
+BONSUNG_GOOGLE_SHEETS_SPREADSHEET_ID=<spreadsheet-id>
+BONSUNG_GOOGLE_SERVICE_ACCOUNT_JSON=<service-account-json>
+BONSUNG_SESSION_SECRET=<long-random-secret>
 ```
 
-## 배포 기준
+## 諛고룷 湲곗?
 
-GitHub Pages 정적 배포는 공식 UI를 배포하고, 실제 데이터 처리는 `NEXT_PUBLIC_VERSION3_API_BASE_URL`이 가리키는 Version.3 API가 담당합니다. Vercel 배포에서는 `/api/version3` API Function을 사용해 UI와 서버 계약을 같은 프로젝트 안에서 운영할 수 있습니다.
+GitHub Pages ?뺤쟻 諛고룷??怨듭떇 UI瑜?諛고룷?섍퀬, ?ㅼ젣 ?곗씠??泥섎━??`NEXT_PUBLIC_BONSUNG_API_BASE_URL`??媛由ы궎??蹂몄꽦 ?ㅽ뀒?댁? API媛 ?대떦?⑸땲?? Vercel 諛고룷?먯꽌??`/api/stage` API Function???ъ슜??UI? ?쒕쾭 怨꾩빟??媛숈? ?꾨줈?앺듃 ?덉뿉???댁쁺?????덉뒿?덈떎.
 
-운영 배포에서는 다음이 없어야 합니다.
+?댁쁺 諛고룷?먯꽌???ㅼ쓬???놁뼱???⑸땲??
 
-- `/version3-test`
-- `pages-preview`
-- `public/version3-offline-inspection.html`
-- localStorage 기반 더미 운영 데이터
-- `owner`, `teacher`, `student`를 실제 역할명으로 쓰는 계정 데이터
+- localStorage 湲곕컲 ?붾? ?댁쁺 ?곗씠??- `owner`, `teacher`, `student`瑜??ㅼ젣 ??븷紐낆쑝濡??곕뒗 怨꾩젙 ?곗씠??

@@ -1,0 +1,100 @@
+name: Build 본성 스테이지 Server Image
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - Dockerfile
+      - .dockerignore
+      - server/stage-server.mjs
+      - server/stage-storage.mjs
+      - tools/migrate-stage-file-to-db.mjs
+      - tools/verify-stage-production-env.mjs
+      - .github/workflows/stage-server-image.yml
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: stage-server-image
+  cancel-in-progress: false
+
+env:
+  IMAGE_NAME: ghcr.io/ethicsjayden31/bonsung-stage-server
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify production environment example
+        env:
+          NODE_ENV: production
+          BONSUNG_SERVER_HOST: 0.0.0.0
+          BONSUNG_LOCAL_SERVER_PASSWORD: replace-with-safe-ci-password
+          BONSUNG_ADMIN_INITIAL_PASSWORD: replace-with-safe-admin-password
+          BONSUNG_ALLOWED_ORIGINS: https://ethicsjayden31.github.io
+          BONSUNG_LOCAL_DATA_FILE: /data/stage-data.json
+          BONSUNG_SESSION_TTL_HOURS: 12
+        run: node tools/verify-stage-production-env.mjs
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix=sha-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build 본성 스테이지 server image for smoke test
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          load: true
+          tags: bonsung-stage-server:smoke
+
+      - name: Smoke test 본성 스테이지 server container
+        run: |
+          docker run -d --name stage-smoke -p 4303:4303 \
+            -e NODE_ENV=production \
+            -e BONSUNG_SERVER_HOST=0.0.0.0 \
+            -e BONSUNG_LOCAL_SERVER_PASSWORD=replace-with-safe-ci-password \
+            -e BONSUNG_ADMIN_INITIAL_PASSWORD=replace-with-safe-admin-password \
+            -e BONSUNG_ALLOWED_ORIGINS=https://ethicsjayden31.github.io \
+            -e BONSUNG_LOCAL_DATA_FILE=/data/stage-data.json \
+            -e BONSUNG_SESSION_TTL_HOURS=12 \
+            bonsung-stage-server:smoke
+          for attempt in 1 2 3 4 5 6 7 8 9 10; do
+            if curl --fail --silent http://127.0.0.1:4303/health; then
+              docker rm -f stage-smoke
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs stage-smoke
+          docker rm -f stage-smoke
+          exit 1
+
+      - name: Build and push 본성 스테이지 server image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}

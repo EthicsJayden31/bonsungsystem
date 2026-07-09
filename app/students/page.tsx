@@ -5,13 +5,13 @@ import { AppShell } from "@/components/layout/app-shell";
 import { ResourcePage, type MobileListCard } from "@/components/layout/resource-page";
 import { StudentDetailPanel } from "@/components/students/student-detail-panel";
 import { Badge } from "@/components/ui/badge";
-import { hasVersion3Permission } from "@/lib/access-policy";
+import { hasStagePermission } from "@/lib/access-policy";
 import { useAccountsData } from "@/lib/accounts-data";
 import { assetPath } from "@/lib/assets";
 import { teacherName, useOperationAction, useOperationsData, type DataSource } from "@/lib/operations-data";
 import { useCurrentUser } from "@/lib/use-current-user";
 import { useCurrentRole } from "@/lib/use-current-role";
-import type { Version3Account } from "@/lib/version3-server-contract";
+import type { StageAccount } from "@/lib/stage-server-contract";
 
 export default function StudentsPage() {
   const role = useCurrentRole();
@@ -20,7 +20,7 @@ export default function StudentsPage() {
   const accounts = useAccountsData();
   const saveAction = useOperationAction();
   const data = operations.data;
-  const canManageStudents = hasVersion3Permission(user ?? role, "manageStudents") || role === "admin" || role === "manager";
+  const canManageStudents = hasStagePermission(user ?? role, "manageStudents") || role === "admin" || role === "manager";
   const [selectedStudentId, setSelectedStudentId] = useState("");
 
   useEffect(() => {
@@ -39,7 +39,7 @@ export default function StudentsPage() {
     [data.students, selectedStudentId]
   );
   const studentAccounts = useMemo(() => {
-    const map = new Map<string, Version3Account>();
+    const map = new Map<string, StageAccount>();
     accounts.accounts
       .filter((account) => account.role === "artist" && account.linkedStudentId)
       .forEach((account) => map.set(account.linkedStudentId, account));
@@ -140,7 +140,7 @@ export default function StudentsPage() {
           onSubmit={canManageStudents ? saveStudentAndMaybeCreateAccount : undefined}
           submitDisabled={saveAction.pending}
           submitLabel={saveAction.pending ? "저장 중" : "학생 저장"}
-          submitHelp="Version.3 서버 세션에서는 학생 기록이 별도 서버에 저장되고, 등록 후 수강생 계정 생성 흐름으로 바로 이어질 수 있습니다."
+          submitHelp="본성 스테이지 서버 세션에서는 학생 기록이 별도 서버에 저장되고, 등록 후 수강생 계정 생성 흐름으로 바로 이어질 수 있습니다."
           showForm={canManageStudents}
           fields={[
             { label: "이름", name: "name" },
@@ -160,7 +160,7 @@ export default function StudentsPage() {
 
 function SourceNote({ source, error }: { source: DataSource; error?: string }) {
   const text = source === "server"
-    ? "Version.3 서버의 학생 데이터를 표시합니다."
+    ? "본성 스테이지 서버의 학생 데이터를 표시합니다."
     : source === "live"
       ? "전환 세션의 학생 데이터를 표시합니다."
       : source === "fallback"
@@ -201,7 +201,7 @@ function studentRow({
   onOpen
 }: {
   student: { id: string; name: string; major: string; status: string; phone: string; memo: string };
-  account?: Version3Account;
+  account?: StageAccount;
   canManageStudents: boolean;
   role: string | null;
   teacher: string;
@@ -237,7 +237,7 @@ function studentRow({
   ];
 }
 
-function StudentAccountCell({ account, studentId }: { account?: Version3Account; studentId: string }) {
+function StudentAccountCell({ account, studentId }: { account?: StageAccount; studentId: string }) {
   if (!account) {
     return (
       <a className="inline-flex rounded-xl border border-accent/25 bg-accent/10 px-3 py-1.5 text-xs font-bold text-accent transition hover:bg-accent/15" href={accountCreatePath(studentId)}>
@@ -260,7 +260,7 @@ function StudentDetailButton({ studentId, onOpen }: { studentId: string; onOpen:
   );
 }
 
-function studentAccountText(account?: Version3Account) {
+function studentAccountText(account?: StageAccount) {
   if (!account) return "계정 필요";
   if (account.status === "paused") return "계정 중지";
   if (account.status === "invited") return "초안";

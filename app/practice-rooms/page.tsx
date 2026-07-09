@@ -5,7 +5,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { ResourcePage, type MobileListCard } from "@/components/layout/resource-page";
 import { RoomReservationBoard, type RoomReservationSelection } from "@/components/rooms/room-reservation-board";
 import { Badge } from "@/components/ui/badge";
-import { hasVersion3Permission } from "@/lib/access-policy";
+import { hasStagePermission } from "@/lib/access-policy";
 import { roomName, useOperationAction, useOperationsData } from "@/lib/operations-data";
 import { useCurrentUser } from "@/lib/use-current-user";
 import { useCurrentRole } from "@/lib/use-current-role";
@@ -16,7 +16,7 @@ export default function PracticeRoomsPage() {
   const { data, source } = useOperationsData(role);
   const saveAction = useOperationAction();
   const accessUser = user ?? role;
-  const canReserveRoom = hasVersion3Permission(accessUser, "reserveLessonRoom") || hasVersion3Permission(accessUser, "reservePracticeRoom");
+  const canReserveRoom = hasStagePermission(accessUser, "reserveLessonRoom") || hasStagePermission(accessUser, "reservePracticeRoom");
   const [selection, setSelection] = useState<RoomReservationSelection | null>(null);
   const [selectionResetKey, setSelectionResetKey] = useState(0);
   const reservationPurposeOptions = role === "artist"
@@ -80,7 +80,7 @@ export default function PracticeRoomsPage() {
 
         <ResourcePage
           title="예약 목록과 등록"
-          description={source === "server" ? "Version.3 서버의 공간/예약 데이터를 표시합니다." : source === "live" ? "전환 세션의 공간/예약 데이터를 표시합니다." : source === "fallback" ? "공간/예약 데이터를 불러오지 못했습니다. 서버 연결과 권한을 확인해야 합니다." : "공간/예약 데이터를 확인하고 있습니다."}
+          description={source === "server" ? "본성 스테이지 서버의 공간/예약 데이터를 표시합니다." : source === "live" ? "전환 세션의 공간/예약 데이터를 표시합니다." : source === "fallback" ? "공간/예약 데이터를 불러오지 못했습니다. 서버 연결과 권한을 확인해야 합니다." : "공간/예약 데이터를 확인하고 있습니다."}
           headers={["공간", "예약자", "사용 시간", "상태", "메모"]}
           mobileCards={mobileCards}
           initialValues={reservationInitialValues}
@@ -96,7 +96,7 @@ export default function PracticeRoomsPage() {
           onSubmit={canReserveRoom ? saveReservation : undefined}
           submitDisabled={saveAction.pending}
           submitLabel={saveAction.pending ? "저장 중" : "예약 저장"}
-          submitHelp="공간은 이름 또는 ID로 입력할 수 있습니다. Version.3 서버는 같은 시간대 중복 예약을 거부합니다."
+          submitHelp="공간은 이름 또는 ID로 입력할 수 있습니다. 본성 스테이지 서버는 같은 시간대 중복 예약을 거부합니다."
           formId="reservation-form"
           showForm={canReserveRoom}
           fields={[

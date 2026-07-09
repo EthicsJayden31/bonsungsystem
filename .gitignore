@@ -8,9 +8,9 @@ out
 coverage
 dist
 *.tsbuildinfo
-.version3-local-data.json
-.version3-local-data.json.*.tmp
-version3-data.json
-version3-data.json.*.tmp
+.stage-local-data.json
+.stage-local-data.json.*.tmp
+stage-data.json
+stage-data.json.*.tmp
 *.bak
 tmp-*.log

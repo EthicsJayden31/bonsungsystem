@@ -1,37 +1,37 @@
 ﻿import { spawn } from "node:child_process";
 
-const serverPort = process.env.VERSION3_LOCAL_SERVER_PORT || "4303";
-const nextPort = process.env.VERSION3_NEXT_PORT || "3000";
+const serverPort = process.env.BONSUNG_LOCAL_SERVER_PORT || "4303";
+const nextPort = process.env.BONSUNG_NEXT_PORT || "3000";
 const serverUrl = `http://127.0.0.1:${serverPort}`;
 const pnpm = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
-const adminPassword = process.env.VERSION3_ADMIN_INITIAL_PASSWORD || "bonsung_2020_03";
-const defaultSeedPassword = process.env.VERSION3_LOCAL_SERVER_PASSWORD || "bonsung1";
+const adminPassword = process.env.BONSUNG_ADMIN_INITIAL_PASSWORD || "bonsung_2020_03";
+const defaultSeedPassword = process.env.BONSUNG_LOCAL_SERVER_PASSWORD || "bonsung1";
 
 const children = [];
 
 start(
-  "Version.3 local server",
+  "본성 스테이지 local server",
   process.execPath,
-  ["server/version3-local-server.mjs"],
+  ["server/stage-server.mjs"],
   {
     ...process.env,
-    VERSION3_LOCAL_SERVER_PORT: serverPort,
-    VERSION3_LOCAL_SERVER_PASSWORD: defaultSeedPassword,
-    VERSION3_ADMIN_INITIAL_PASSWORD: adminPassword
+    BONSUNG_LOCAL_SERVER_PORT: serverPort,
+    BONSUNG_LOCAL_SERVER_PASSWORD: defaultSeedPassword,
+    BONSUNG_ADMIN_INITIAL_PASSWORD: adminPassword
   }
 );
 
 start(
-  "Next Version.3 UI",
+  "Next 본성 스테이지 UI",
   pnpm,
   ["dev", "--hostname", "127.0.0.1", "--port", nextPort],
   {
     ...process.env,
-    NEXT_PUBLIC_VERSION3_API_BASE_URL: process.env.NEXT_PUBLIC_VERSION3_API_BASE_URL || serverUrl
+    NEXT_PUBLIC_BONSUNG_API_BASE_URL: process.env.NEXT_PUBLIC_BONSUNG_API_BASE_URL || serverUrl
   }
 );
 
-console.log(`Version.3 local mode`);
+console.log(`본성 스테이지 local mode`);
 console.log(`- UI: http://127.0.0.1:${nextPort}/login/`);
 console.log(`- Server: ${serverUrl}`);
 console.log(`- Admin seed password: ${adminPassword}`);

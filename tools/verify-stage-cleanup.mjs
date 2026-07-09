@@ -12,10 +12,10 @@ const requiredGitignoreEntries = [
   ".env",
   ".env*.local",
   "*.tsbuildinfo",
-  ".version3-local-data.json",
-  ".version3-local-data.json.*.tmp",
-  "version3-data.json",
-  "version3-data.json.*.tmp",
+  ".stage-local-data.json",
+  ".stage-local-data.json.*.tmp",
+  "stage-data.json",
+  "stage-data.json.*.tmp",
   "*.bak"
 ];
 
@@ -24,7 +24,7 @@ const requiredDockerignoreEntries = [
   "out",
   ".env",
   ".env*.local",
-  ".version3-local-data.json",
+  ".stage-local-data.json",
   "*.bak"
 ];
 
@@ -34,12 +34,12 @@ assertNoTrackedForbiddenFiles();
 assertNoVisibleForbiddenWorktreeFiles();
 
 if (errors.length) {
-  console.error("Version.3 cleanup verification failed:");
+  console.error("본성 스테이지 cleanup verification failed:");
   for (const error of errors) console.error(`- ${error}`);
   process.exit(1);
 }
 
-console.log("Version.3 cleanup verification passed.");
+console.log("본성 스테이지 cleanup verification passed.");
 
 function assertIgnoreEntries(file, entries) {
   const contents = readIfExists(file);
@@ -65,7 +65,7 @@ function assertNoTrackedForbiddenFiles() {
   const deleted = new Set(git(["ls-files", "--deleted"]).split(/\r?\n/).filter(Boolean));
   const bad = tracked.filter((path) => isForbiddenPath(path) && !deleted.has(path));
   if (bad.length) {
-    errors.push(`Repository must not track generated/private Version.3 artifacts: ${bad.join(", ")}.`);
+    errors.push(`Repository must not track generated/private 본성 스테이지 artifacts: ${bad.join(", ")}.`);
   }
 }
 
@@ -99,10 +99,10 @@ function isForbiddenPath(path) {
     normalized === "node_modules" ||
     normalized.startsWith("node_modules/") ||
     normalized.endsWith(".tsbuildinfo") ||
-    name === ".version3-local-data.json" ||
-    name.startsWith(".version3-local-data.json.") ||
-    name === "version3-data.json" ||
-    name.startsWith("version3-data.json.") ||
+    name === ".stage-local-data.json" ||
+    name.startsWith(".stage-local-data.json.") ||
+    name === "stage-data.json" ||
+    name.startsWith("stage-data.json.") ||
     name.endsWith(".bak")
   );
 }

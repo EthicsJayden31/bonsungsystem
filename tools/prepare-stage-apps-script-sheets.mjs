@@ -49,9 +49,9 @@ const seed = buildSeed({
 if (args.printJson) {
   process.stdout.write(`${JSON.stringify(seed, null, 2)}\n`);
 } else {
-  const outDir = args.out || "version3-apps-script-sheets-export";
+  const outDir = args.out || "stage-apps-script-sheets-export";
   mkdirSync(outDir, { recursive: true });
-  writeFileSync(join(outDir, "version3-apps-script-sheets.seed.json"), `${JSON.stringify(seed, null, 2)}\n`, "utf8");
+  writeFileSync(join(outDir, "stage-apps-script-sheets.seed.json"), `${JSON.stringify(seed, null, 2)}\n`, "utf8");
   for (const [tableName, headers] of Object.entries(TABLES)) {
     writeFileSync(join(outDir, `${tableName}.csv`), toCsv(headers, seed.rows[tableName] || []), "utf8");
   }
@@ -99,8 +99,8 @@ function buildSeed({ now, adminPassword, salt }) {
     actor_role: "admin",
     action: "seed_apps_script_tabs",
     target_type: "system",
-    target_id: "version3",
-    target_name: "Version.3",
+    target_id: "stage",
+    target_name: "본성 스테이지",
     metadata_json: JSON.stringify({ accountSeed: "admin-only", operationRows: "empty" }),
     created_at: now,
     updated_at: now

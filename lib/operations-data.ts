@@ -24,13 +24,13 @@ import type {
   WorkLog
 } from "@/lib/operations-types";
 import { normalizeRole, type Role } from "@/lib/auth-shared";
-import { canAccessVersion3Area, hasVersion3Permission, type AccessUser } from "@/lib/access-policy";
+import { canAccessStageArea, hasStagePermission, type AccessUser } from "@/lib/access-policy";
 import { APPS_SCRIPT_ENDPOINT, APPS_SCRIPT_REQUEST_TIMEOUT_MS, APPS_SCRIPT_SESSION_TOKEN_KEY } from "@/lib/apps-script-client";
 import { useCurrentUser } from "@/lib/use-current-user";
 import { loadingMessageForAction, setGlobalLoading, showUiToast, successMessageForAction } from "@/lib/ui-feedback";
-import { normalizeConsultationStatus, type Version3AuditLog, type Version3DashboardWorkItem, type Version3DashboardWorkPriority, type Version3DashboardWorkTone } from "@/lib/version3-server-contract";
-import { callVersion3Server, hasVersion3ServerSession, version3ServerEndpoint } from "@/lib/version3-server-client";
-import { ENABLE_APPS_SCRIPT_TRANSITION } from "@/lib/version3-runtime-flags";
+import { normalizeConsultationStatus, type StageAuditLog, type StageDashboardWorkItem, type StageDashboardWorkPriority, type StageDashboardWorkTone } from "@/lib/stage-server-contract";
+import { callStageServer, hasStageServerSession, stageServerEndpoint } from "@/lib/stage-server-client";
+import { ENABLE_APPS_SCRIPT_TRANSITION } from "@/lib/stage-runtime-flags";
 
 const SESSION_TOKEN_KEY = APPS_SCRIPT_SESSION_TOKEN_KEY;
 
@@ -93,7 +93,7 @@ export type OperationsData = {
   accountRequests: AccountRequest[];
   publicSettings: PublicSettings;
   notices: Notice[];
-  dashboardWorkQueue?: Version3DashboardWorkItem[];
+  dashboardWorkQueue?: StageDashboardWorkItem[];
   overview?: LiveOverview;
 };
 
@@ -188,7 +188,7 @@ const emptyOperationsData: OperationsData = {
 
 export type AuditLogsState = {
   source: DataSource;
-  logs: Version3AuditLog[];
+  logs: StageAuditLog[];
   error: string;
   hasLiveSession: boolean;
   endpoint: string;
@@ -211,8 +211,8 @@ export function useOperationAction(): OperationActionState {
     setError("");
     setGlobalLoading(true, loadingMessageForAction(action));
     try {
-      const result = hasVersion3ServerSession()
-        ? await callVersion3Server<T>(`/actions/${encodeURIComponent(action)}`, { method: "POST", body: payload })
+      const result = hasStageServerSession()
+        ? await callStageServer<T>(`/actions/${encodeURIComponent(action)}`, { method: "POST", body: payload })
         : await runAppsScriptAction<T>(action, payload);
       showUiToast(successMessageForAction(action));
       return result;
@@ -230,8 +230,8 @@ export function useOperationAction(): OperationActionState {
   return {
     pending,
     error,
-    hasLiveSession: typeof window !== "undefined" && (hasVersion3ServerSession() || (ENABLE_APPS_SCRIPT_TRANSITION && Boolean(window.localStorage.getItem(SESSION_TOKEN_KEY)))),
-    endpoint: hasVersion3ServerSession() ? version3ServerEndpoint() : APPS_SCRIPT_ENDPOINT,
+    hasLiveSession: typeof window !== "undefined" && (hasStageServerSession() || (ENABLE_APPS_SCRIPT_TRANSITION && Boolean(window.localStorage.getItem(SESSION_TOKEN_KEY)))),
+    endpoint: hasStageServerSession() ? stageServerEndpoint() : APPS_SCRIPT_ENDPOINT,
     run
   };
 }
@@ -239,7 +239,7 @@ export function useOperationAction(): OperationActionState {
 async function runAppsScriptAction<T>(action: string, payload: Record<string, unknown>) {
   const token = ENABLE_APPS_SCRIPT_TRANSITION ? window.localStorage.getItem(SESSION_TOKEN_KEY) : "";
   if (!token) {
-    throw new Error("Version.3 서버 로그인 세션이 필요합니다.");
+    throw new Error("본성 스테이지 서버 로그인 세션이 필요합니다.");
   }
   return callAppsScript<T>(action, token, payload);
 }
@@ -258,7 +258,7 @@ export function useOperationsData(role: Role | null): OperationsState {
   useEffect(() => {
     let active = true;
     const token = (ENABLE_APPS_SCRIPT_TRANSITION ? window.localStorage.getItem(SESSION_TOKEN_KEY) : "") || "";
-    if (hasVersion3ServerSession()) {
+    if (hasStageServerSession()) {
       queueMicrotask(() => {
         if (!active) return;
         setState((current) => ({
@@ -267,11 +267,11 @@ export function useOperationsData(role: Role | null): OperationsState {
           data: emptyOperationsData,
           error: "",
           hasLiveSession: true,
-          endpoint: version3ServerEndpoint()
+          endpoint: stageServerEndpoint()
         }));
       });
 
-      callVersion3Server<BootstrapPayload>("/bootstrap")
+      callStageServer<BootstrapPayload>("/bootstrap")
         .then((payload) => {
           if (!active) return;
           setState({
@@ -279,7 +279,7 @@ export function useOperationsData(role: Role | null): OperationsState {
             data: filterOperationsData(normalizeBootstrap(payload, role), accessUser),
             error: "",
             hasLiveSession: true,
-            endpoint: version3ServerEndpoint()
+            endpoint: stageServerEndpoint()
           });
         })
         .catch((error: unknown) => {
@@ -289,7 +289,7 @@ export function useOperationsData(role: Role | null): OperationsState {
             data: emptyOperationsData,
             error: error instanceof Error ? error.message : String(error),
             hasLiveSession: true,
-            endpoint: version3ServerEndpoint()
+            endpoint: stageServerEndpoint()
           });
         });
 
@@ -362,15 +362,15 @@ export function useDataQualityReport(): DataQualityState {
   useEffect(() => {
     let active = true;
     const token = ENABLE_APPS_SCRIPT_TRANSITION ? window.localStorage.getItem(SESSION_TOKEN_KEY) : "";
-    if (hasVersion3ServerSession()) {
-      callVersion3Server<DataQualityReport>("/data-quality")
+    if (hasStageServerSession()) {
+      callStageServer<DataQualityReport>("/data-quality")
         .then((report) => {
           if (!active) return;
-          setState({ source: "server", report: normalizeDataQualityReport(report), error: "", hasLiveSession: true, endpoint: version3ServerEndpoint() });
+          setState({ source: "server", report: normalizeDataQualityReport(report), error: "", hasLiveSession: true, endpoint: stageServerEndpoint() });
         })
         .catch((error: unknown) => {
           if (!active) return;
-          setState({ source: "fallback", report: null, error: error instanceof Error ? error.message : String(error), hasLiveSession: true, endpoint: version3ServerEndpoint() });
+          setState({ source: "fallback", report: null, error: error instanceof Error ? error.message : String(error), hasLiveSession: true, endpoint: stageServerEndpoint() });
         });
 
       return () => { active = false; };
@@ -405,15 +405,15 @@ export function useAuditLogs(): AuditLogsState {
 
   useEffect(() => {
     let active = true;
-    if (hasVersion3ServerSession()) {
-      callVersion3Server<Version3AuditLog[]>("/audit-logs")
+    if (hasStageServerSession()) {
+      callStageServer<StageAuditLog[]>("/audit-logs")
         .then((logs) => {
           if (!active) return;
-          setState({ source: "server", logs, error: "", hasLiveSession: true, endpoint: version3ServerEndpoint() });
+          setState({ source: "server", logs, error: "", hasLiveSession: true, endpoint: stageServerEndpoint() });
         })
         .catch((error: unknown) => {
           if (!active) return;
-          setState({ source: "fallback", logs: [], error: error instanceof Error ? error.message : String(error), hasLiveSession: true, endpoint: version3ServerEndpoint() });
+          setState({ source: "fallback", logs: [], error: error instanceof Error ? error.message : String(error), hasLiveSession: true, endpoint: stageServerEndpoint() });
         });
 
       return () => { active = false; };
@@ -425,7 +425,7 @@ export function useAuditLogs(): AuditLogsState {
       setState({
         source: token ? "live" : "fallback",
         logs: [],
-        error: token ? "감사 로그는 Version.3 별도 서버 세션에서 확인합니다." : "",
+        error: token ? "감사 로그는 본성 스테이지 별도 서버 세션에서 확인합니다." : "",
         hasLiveSession: Boolean(token),
         endpoint: token ? APPS_SCRIPT_ENDPOINT : ""
       });
@@ -555,11 +555,11 @@ function filterOperationsData(data: OperationsData, user: AccessUser | Role | nu
   });
   const roleScopedLessonIds = new Set(roleScopedLessons.map((lesson) => lesson.id));
 
-  const visibleStudents = hasVersion3Permission(user, "viewStudents") ? roleScopedStudents : [];
+  const visibleStudents = hasStagePermission(user, "viewStudents") ? roleScopedStudents : [];
   const visibleStudentIds = new Set(visibleStudents.map((student) => student.id));
-  const canViewLessonLogs = hasVersion3Permission(user, "viewLessonLogs");
-  const canViewReservations = hasVersion3Permission(user, "viewReservations");
-  const canViewPayments = hasVersion3Permission(user, "viewPayments");
+  const canViewLessonLogs = hasStagePermission(user, "viewLessonLogs");
+  const canViewReservations = hasStagePermission(user, "viewReservations");
+  const canViewPayments = hasStagePermission(user, "viewPayments");
 
   const visibleConsultations = data.consultations.filter((item) => {
     if (role === "artist") return item.studentId === studentId || item.studentName === studentName(data, studentId);
@@ -567,17 +567,17 @@ function filterOperationsData(data: OperationsData, user: AccessUser | Role | nu
     return true;
   });
   const visibleConsultationIds = new Set(visibleConsultations.map((item) => item.id));
-  const visibleDashboardWorkQueue = data.dashboardWorkQueue?.filter((item) => canAccessVersion3Area(user, areaFromHref(item.href)));
+  const visibleDashboardWorkQueue = data.dashboardWorkQueue?.filter((item) => canAccessStageArea(user, areaFromHref(item.href)));
 
   return {
     ...data,
-    teachers: hasVersion3Permission(user, "viewTeam") ? data.teachers : [],
+    teachers: hasStagePermission(user, "viewTeam") ? data.teachers : [],
     students: visibleStudents,
     guardians: data.guardians.filter((guardian) => visibleStudentIds.has(guardian.studentId)),
     consultations: visibleConsultations,
     consultationHistory: data.consultationHistory.filter((item) => visibleConsultationIds.has(item.consultationId)),
     enrollments: data.enrollments.filter((item) => {
-      if (!hasVersion3Permission(user, "manageOperations") && role !== "coach" && role !== "artist") return false;
+      if (!hasStagePermission(user, "manageOperations") && role !== "coach" && role !== "artist") return false;
       if (role === "artist") return false;
       if (role === "coach") return item.teacherId === teacherId || roleScopedStudentIds.has(item.studentId);
       return true;
@@ -604,15 +604,15 @@ function filterOperationsData(data: OperationsData, user: AccessUser | Role | nu
           return true;
         })
       : [],
-    tasks: hasVersion3Permission(user, "manageOperations") ? data.tasks : [],
-    workLogs: hasVersion3Permission(user, "viewTeam")
-      ? data.workLogs.filter((item) => hasVersion3Permission(user, "manageOperations") || item.accountId === userId)
+    tasks: hasStagePermission(user, "manageOperations") ? data.tasks : [],
+    workLogs: hasStagePermission(user, "viewTeam")
+      ? data.workLogs.filter((item) => hasStagePermission(user, "manageOperations") || item.accountId === userId)
       : [],
-    meetings: hasVersion3Permission(user, "viewMeetings") ? data.meetings : [],
-    calendarEvents: hasVersion3Permission(user, "viewCalendar")
+    meetings: hasStagePermission(user, "viewMeetings") ? data.meetings : [],
+    calendarEvents: hasStagePermission(user, "viewCalendar")
       ? data.calendarEvents.filter((item) => !item.targetRoles.length || item.targetRoles.includes(role))
       : [],
-    accountRequests: hasVersion3Permission(user, "reviewAccountRequests") ? data.accountRequests : [],
+    accountRequests: hasStagePermission(user, "reviewAccountRequests") ? data.accountRequests : [],
     publicSettings: data.publicSettings,
     notices: data.notices.filter((notice) => canViewNotice(role, notice.targetRoles)),
     dashboardWorkQueue: visibleDashboardWorkQueue
@@ -916,7 +916,7 @@ function mapConsultation(item: LiveRecord): Consultation {
   };
 }
 
-function mapDashboardWorkItem(item: LiveRecord): Version3DashboardWorkItem {
+function mapDashboardWorkItem(item: LiveRecord): StageDashboardWorkItem {
   const sourceType = stringValue(item.source_type || item.sourceType);
   const sourceId = stringValue(item.source_id || item.sourceId);
   return {
@@ -1071,22 +1071,22 @@ export function roomName(data: OperationsData, id: string) {
   return data.rooms.find((room) => room.id === id)?.name || id;
 }
 
-function dashboardWorkKind(value: string): Version3DashboardWorkItem["kind"] {
+function dashboardWorkKind(value: string): StageDashboardWorkItem["kind"] {
   if (value === "상담요청" || value === "출결" || value === "보강" || value === "수납" || value === "계정" || value === "업무") return value;
   return "업무";
 }
 
-function dashboardSourceType(value: string): Version3DashboardWorkItem["sourceType"] {
+function dashboardSourceType(value: string): StageDashboardWorkItem["sourceType"] {
   if (value === "consultationRequests" || value === "attendance" || value === "payments" || value === "accounts" || value === "tasks") return value;
   return "tasks";
 }
 
-function dashboardPriority(value: unknown): Version3DashboardWorkPriority {
+function dashboardPriority(value: unknown): StageDashboardWorkPriority {
   if (value === "urgent" || value === "high" || value === "normal") return value;
   return "normal";
 }
 
-function dashboardTone(value: unknown): Version3DashboardWorkTone {
+function dashboardTone(value: unknown): StageDashboardWorkTone {
   if (value === "default" || value === "good" || value === "warn" || value === "danger") return value;
   return "default";
 }

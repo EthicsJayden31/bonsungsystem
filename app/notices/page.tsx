@@ -2,10 +2,10 @@
 
 import { AppShell } from "@/components/layout/app-shell";
 import { ResourcePage } from "@/components/layout/resource-page";
-import { hasVersion3Permission } from "@/lib/access-policy";
+import { hasStagePermission } from "@/lib/access-policy";
 import type { Notice } from "@/lib/operations-types";
 import { useOperationAction, useOperationsData } from "@/lib/operations-data";
-import { version3RoleLabels } from "@/lib/version3-server-contract";
+import { stageRoleLabels } from "@/lib/stage-server-contract";
 import { useCurrentUser } from "@/lib/use-current-user";
 import { useCurrentRole } from "@/lib/use-current-role";
 
@@ -14,10 +14,10 @@ export default function NoticesPage() {
   const user = useCurrentUser();
   const { data, source, error } = useOperationsData(role);
   const saveAction = useOperationAction();
-  const sourceLabel = source === "server" ? "Version.3 서버 데이터" : source === "live" ? "전환 데이터" : source === "fallback" ? "연결 실패" : "확인 중";
+  const sourceLabel = source === "server" ? "본성 스테이지 서버 데이터" : source === "live" ? "전환 데이터" : source === "fallback" ? "연결 실패" : "확인 중";
   const accessUser = user ?? role;
   const accessRole = typeof accessUser === "string" ? accessUser : accessUser?.role;
-  const canWriteNotice = (accessRole === "admin" || accessRole === "manager") && hasVersion3Permission(accessUser, "manageNotices");
+  const canWriteNotice = (accessRole === "admin" || accessRole === "manager") && hasStagePermission(accessUser, "manageNotices");
   const visibleNotices = [...data.notices].sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.updatedAt.localeCompare(a.updatedAt));
 
   return (
@@ -32,7 +32,7 @@ export default function NoticesPage() {
         onSubmit={canWriteNotice ? (values) => saveAction.run("createNotice", { notice: values }) : undefined}
         submitDisabled={saveAction.pending}
         submitLabel={saveAction.pending ? "저장 중" : "공지 저장"}
-        submitHelp="공지 작성 권한은 Version.3 기준 대표와 매니저에게만 부여합니다."
+        submitHelp="공지 작성 권한은 본성 스테이지 기준 대표와 매니저에게만 부여합니다."
         showForm={canWriteNotice}
         fields={[
           { label: "제목", name: "title" },
@@ -48,5 +48,5 @@ export default function NoticesPage() {
 
 function noticeTargetLabel(notice: Notice) {
   if (notice.targetRoles.length === 4) return "전체";
-  return notice.targetRoles.map((targetRole) => version3RoleLabels[targetRole as keyof typeof version3RoleLabels]).join(", ");
+  return notice.targetRoles.map((targetRole) => stageRoleLabels[targetRole as keyof typeof stageRoleLabels]).join(", ");
 }

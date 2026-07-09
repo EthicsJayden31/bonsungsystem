@@ -1,15 +1,15 @@
 /**
- * Bonsung Stage Version.3 Apps Script pilot Web App.
+ * Bonsung Stage 본성 스테이지 Apps Script pilot Web App.
  *
  * Deploy as a Web App and connect the Vercel UI with:
  * NEXT_PUBLIC_ENABLE_APPS_SCRIPT_TRANSITION=true
  * NEXT_PUBLIC_APPS_SCRIPT_ENDPOINT=<web-app-url>
  */
-const VERSION3_SCHEMA_VERSION = "2026-07-09-apps-script-pilot";
-const VERSION3_DEFAULT_ADMIN_PASSWORD = "bonsung_2020_03";
-const VERSION3_SESSION_TTL_HOURS = 12;
+const BONSUNG_SCHEMA_VERSION = "2026-07-09-apps-script-pilot";
+const BONSUNG_DEFAULT_ADMIN_PASSWORD = "bonsung_2020_03";
+const BONSUNG_SESSION_TTL_HOURS = 12;
 
-const VERSION3_TABLES = {
+const BONSUNG_TABLES = {
   settings: ["id", "key", "value", "created_at", "updated_at", "deleted_at"],
   accounts: ["id", "login_id", "password_hash", "password_salt", "password_algorithm", "role", "status", "name", "email", "phone", "linked_student_id", "permissions_json", "must_change_password", "last_login_at", "created_at", "updated_at", "deleted_at"],
   account_requests: ["id", "login_id", "password_hash", "password_salt", "password_algorithm", "name", "email", "phone", "requested_role", "linked_student_id", "message", "status", "reviewed_by", "reviewed_at", "review_memo", "created_account_id", "created_at", "updated_at", "deleted_at"],
@@ -37,7 +37,7 @@ const VERSION3_TABLES = {
   sessions: ["id", "token_hash", "account_id", "expires_at", "created_at", "last_seen_at", "revoked_at", "deleted_at"]
 };
 
-const VERSION3_LOCKED_ACTIONS = {
+const BONSUNG_LOCKED_ACTIONS = {
   createAccount: true,
   createReservation: true,
   createLesson: true,
@@ -47,7 +47,7 @@ const VERSION3_LOCKED_ACTIONS = {
   dataImport: true
 };
 
-const VERSION3_PERMISSION_KEYS = [
+const BONSUNG_PERMISSION_KEYS = [
   "manageAccounts",
   "viewAccounts",
   "manageOperations",
@@ -73,7 +73,7 @@ const VERSION3_PERMISSION_KEYS = [
   "managePublicSettings"
 ];
 
-const VERSION3_ROLE_PERMISSIONS = {
+const BONSUNG_ROLE_PERMISSIONS = {
   admin: allPermissions(true),
   manager: mergePermissions({
     manageAccounts: true,
@@ -119,14 +119,14 @@ const VERSION3_ROLE_PERMISSIONS = {
 };
 
 function doGet(event) {
-  return handleVersion3Request(event);
+  return handleStageRequest(event);
 }
 
 function doPost(event) {
-  return handleVersion3Request(event);
+  return handleStageRequest(event);
 }
 
-function handleVersion3Request(event) {
+function handleStageRequest(event) {
   try {
     const request = parseRequest(event);
     const action = String(request.action || "health");
@@ -182,11 +182,11 @@ function dispatchAction(action, request, user) {
 function health() {
   const spreadsheet = getSpreadsheet();
   const present = spreadsheet.getSheets().map((sheet) => sheet.getName());
-  const required = Object.keys(VERSION3_TABLES);
+  const required = Object.keys(BONSUNG_TABLES);
   return {
     ok: true,
     mode: "apps-script-sheets",
-    schemaVersion: VERSION3_SCHEMA_VERSION,
+    schemaVersion: BONSUNG_SCHEMA_VERSION,
     spreadsheetId: spreadsheet.getId(),
     missingTabs: required.filter((name) => present.indexOf(name) === -1),
     accountCount: readRows("accounts").length
@@ -206,7 +206,7 @@ function setupWorkbook(request) {
   if (!accounts.length) {
     const now = isoNow();
     const salt = makeSalt();
-    const password = String(request.password || VERSION3_DEFAULT_ADMIN_PASSWORD);
+    const password = String(request.password || BONSUNG_DEFAULT_ADMIN_PASSWORD);
     appendRecord("accounts", {
       id: "admin-1",
       login_id: String(request.loginId || "admin").trim(),
@@ -219,7 +219,7 @@ function setupWorkbook(request) {
       email: "",
       phone: "",
       linked_student_id: "",
-      permissions_json: JSON.stringify(VERSION3_ROLE_PERMISSIONS.admin),
+      permissions_json: JSON.stringify(BONSUNG_ROLE_PERMISSIONS.admin),
       must_change_password: "true",
       last_login_at: "",
       created_at: now,
@@ -244,7 +244,7 @@ function login(request) {
 
   const now = isoNow();
   const token = makeToken();
-  const expiresAt = isoAfterHours(VERSION3_SESSION_TTL_HOURS);
+  const expiresAt = isoAfterHours(BONSUNG_SESSION_TTL_HOURS);
   appendRecord("sessions", {
     id: makeId("session"),
     token_hash: hashToken(token),
@@ -517,10 +517,10 @@ function dataExport(user) {
 function dataImport(user, data) {
   requireRole(user, ["admin"]);
   Object.keys(data).forEach((tableName) => {
-    if (!VERSION3_TABLES[tableName]) return;
+    if (!BONSUNG_TABLES[tableName]) return;
     replaceRows(tableName, data[tableName]);
   });
-  appendAudit(user, "data_import", "system", "version3", "Version.3", { tables: Object.keys(data) });
+  appendAudit(user, "data_import", "system", "stage", "본성 스테이지", { tables: Object.keys(data) });
   return health();
 }
 
@@ -866,14 +866,14 @@ function updatePublicSettings(user, input) {
 }
 
 function ensureWorkbook() {
-  Object.keys(VERSION3_TABLES).forEach((name) => ensureSheet(name));
+  Object.keys(BONSUNG_TABLES).forEach((name) => ensureSheet(name));
 }
 
 function ensureSheet(name) {
   const spreadsheet = getSpreadsheet();
   let sheet = spreadsheet.getSheetByName(name);
   if (!sheet) sheet = spreadsheet.insertSheet(name);
-  const expected = VERSION3_TABLES[name];
+  const expected = BONSUNG_TABLES[name];
   const current = sheet.getLastColumn() ? sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), expected.length)).getValues()[0].map(String) : [];
   if (!current.filter(Boolean).length) {
     sheet.getRange(1, 1, 1, expected.length).setValues([expected]);
@@ -888,10 +888,10 @@ function ensureSheet(name) {
 }
 
 function getSpreadsheet() {
-  const id = PropertiesService.getScriptProperties().getProperty("VERSION3_SPREADSHEET_ID");
+  const id = PropertiesService.getScriptProperties().getProperty("BONSUNG_SPREADSHEET_ID");
   if (id) return SpreadsheetApp.openById(id);
   const active = SpreadsheetApp.getActiveSpreadsheet();
-  if (!active) throw new Error("VERSION3_SPREADSHEET_ID script property is required for standalone deployment.");
+  if (!active) throw new Error("BONSUNG_SPREADSHEET_ID script property is required for standalone deployment.");
   return active;
 }
 
@@ -1039,11 +1039,11 @@ function normalizeRole(role, employeePosition) {
 }
 
 function defaultPermissions(role, overrides) {
-  return Object.assign({}, VERSION3_ROLE_PERMISSIONS[normalizeRole(role) || "artist"], overrides || {});
+  return Object.assign({}, BONSUNG_ROLE_PERMISSIONS[normalizeRole(role) || "artist"], overrides || {});
 }
 
 function allPermissions(value) {
-  return VERSION3_PERMISSION_KEYS.reduce((memo, key) => {
+  return BONSUNG_PERMISSION_KEYS.reduce((memo, key) => {
     memo[key] = value;
     return memo;
   }, {});
@@ -1068,7 +1068,7 @@ function requireRole(user, roles) {
 }
 
 function runWithOptionalLock(action, callback) {
-  if (!VERSION3_LOCKED_ACTIONS[action]) return callback();
+  if (!BONSUNG_LOCKED_ACTIONS[action]) return callback();
   const lock = LockService.getScriptLock();
   lock.waitLock(30000);
   try {
@@ -1093,7 +1093,7 @@ function jsonError(error) {
 
 function seedReferenceData() {
   const now = isoNow();
-  if (!readRows("settings").some((item) => item.key === "schema_version")) appendRecord("settings", { id: "setting-schema-version", key: "schema_version", value: VERSION3_SCHEMA_VERSION, created_at: now, updated_at: now, deleted_at: "" });
+  if (!readRows("settings").some((item) => item.key === "schema_version")) appendRecord("settings", { id: "setting-schema-version", key: "schema_version", value: BONSUNG_SCHEMA_VERSION, created_at: now, updated_at: now, deleted_at: "" });
   upsertPublicSetting("login_notice", "계정 요청 및 패스워드 초기화는 매니저에게 문의 바랍니다.", "admin-1");
   upsertPublicSetting("academy_phone", "", "admin-1");
   upsertPublicSetting("reservation_guide", "공간 예약은 정각부터 1시간 단위로 신청합니다.", "admin-1");

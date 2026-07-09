@@ -1,13 +1,13 @@
 import type { CurrentUser, Role } from "@/lib/auth-shared";
-import type { Version3PermissionKey, Version3Permissions } from "@/lib/version3-server-contract";
+import type { StagePermissionKey, StagePermissions } from "@/lib/stage-server-contract";
 
 export type AccessUser = Pick<CurrentUser, "role"> & {
   id?: string;
   linkedStudentId?: string;
-  permissions?: Version3Permissions | Record<string, boolean>;
+  permissions?: StagePermissions | Record<string, boolean>;
 };
 
-const areaPermissions: Record<string, Version3PermissionKey | Version3PermissionKey[] | null> = {
+const areaPermissions: Record<string, StagePermissionKey | StagePermissionKey[] | null> = {
   dashboard: null,
   notices: null,
   consultations: null,
@@ -26,7 +26,7 @@ const areaPermissions: Record<string, Version3PermissionKey | Version3Permission
   "data-quality": "manageOperations"
 };
 
-const defaultPermissionsByRole: Record<Role, Version3Permissions> = {
+const defaultPermissionsByRole: Record<Role, StagePermissions> = {
   admin: {
     manageAccounts: true,
     viewAccounts: true,
@@ -136,7 +136,7 @@ const roleOnlyAreas: Record<Role, string[]> = {
   artist: ["dashboard", "lessons", "lesson-notes", "practice-rooms", "notices", "consultations", "profile-settings"]
 };
 
-export function permissionsFor(user: AccessUser | Role): Version3Permissions {
+export function permissionsFor(user: AccessUser | Role): StagePermissions {
   const role = typeof user === "string" ? user : user.role;
   if (role === "admin") return { ...defaultPermissionsByRole.admin };
   return {
@@ -145,14 +145,14 @@ export function permissionsFor(user: AccessUser | Role): Version3Permissions {
   };
 }
 
-export function hasVersion3Permission(user: AccessUser | Role | null, key: Version3PermissionKey) {
+export function hasStagePermission(user: AccessUser | Role | null, key: StagePermissionKey) {
   if (!user) return false;
   const role = typeof user === "string" ? user : user.role;
   if (role === "admin") return true;
   return Boolean(permissionsFor(user)[key]);
 }
 
-export function canAccessVersion3Area(user: AccessUser | Role | null, area: string) {
+export function canAccessStageArea(user: AccessUser | Role | null, area: string) {
   if (!user) return false;
   const role = typeof user === "string" ? user : user.role;
   if (role === "admin") return true;
@@ -161,14 +161,14 @@ export function canAccessVersion3Area(user: AccessUser | Role | null, area: stri
   if (requirement === null) return true;
   if (requirement === undefined) return roleOnlyAreas[role]?.includes(area) ?? false;
   const requiredPermissions = Array.isArray(requirement) ? requirement : [requirement];
-  return requiredPermissions.some((key) => hasVersion3Permission(user, key));
+  return requiredPermissions.some((key) => hasStagePermission(user, key));
 }
 
-function normalizePermissionOverrides(value: unknown): Version3Permissions {
+function normalizePermissionOverrides(value: unknown): StagePermissions {
   if (!value || typeof value !== "object") return {};
-  return Object.entries(value as Record<string, unknown>).reduce<Version3Permissions>((result, [key, permissionValue]) => {
+  return Object.entries(value as Record<string, unknown>).reduce<StagePermissions>((result, [key, permissionValue]) => {
     if (typeof permissionValue === "boolean") {
-      result[key as Version3PermissionKey] = permissionValue;
+      result[key as StagePermissionKey] = permissionValue;
     }
     return result;
   }, {});

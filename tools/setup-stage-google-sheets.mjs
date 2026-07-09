@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 
-import { createVersion3StorageAdapter, googleSheetsSetupSummary, missingGoogleSheetsEnv } from "../server/version3-storage.mjs";
+import { createStageStorageAdapter, googleSheetsSetupSummary, missingGoogleSheetsEnv } from "../server/stage-storage.mjs";
 
 const dryRun = process.argv.includes("--dry-run");
 const summary = googleSheetsSetupSummary();
 const missing = missingGoogleSheetsEnv();
 
-console.log("Version.3 Google Sheets setup");
+console.log("본성 스테이지 Google Sheets setup");
 console.log(`Required tabs: ${summary.requiredTabs.join(", ")}`);
 console.log(`State headers: ${summary.stateHeaders.join(", ")}`);
 console.log(`Session headers: ${summary.sessionHeaders.join(", ")}`);
@@ -21,5 +21,5 @@ if (missing.length) {
   process.exit(1);
 }
 
-await createVersion3StorageAdapter({ driver: "google-sheets" });
-console.log("Version.3 Google Sheets schema verified.");
+await createStageStorageAdapter({ driver: "google-sheets" });
+console.log("본성 스테이지 Google Sheets schema verified.");

@@ -3,10 +3,10 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-const explicitBaseUrl = (process.env.VERSION3_SERVER_VERIFY_BASE_URL || process.env.NEXT_PUBLIC_VERSION3_API_BASE_URL || "").trim();
-const password = process.env.VERSION3_SERVER_VERIFY_PASSWORD || process.env.VERSION3_LOCAL_SERVER_PASSWORD || "bonsung1";
-const adminPassword = process.env.VERSION3_ADMIN_INITIAL_PASSWORD || "bonsung_2020_03";
-const localPort = Number(process.env.VERSION3_LOCAL_SERVER_PORT || 4303);
+const explicitBaseUrl = (process.env.BONSUNG_SERVER_VERIFY_BASE_URL || process.env.NEXT_PUBLIC_BONSUNG_API_BASE_URL || "").trim();
+const password = process.env.BONSUNG_SERVER_VERIFY_PASSWORD || process.env.BONSUNG_LOCAL_SERVER_PASSWORD || "bonsung1";
+const adminPassword = process.env.BONSUNG_ADMIN_INITIAL_PASSWORD || "bonsung_2020_03";
+const localPort = Number(process.env.BONSUNG_LOCAL_SERVER_PORT || 4303);
 let serverProcess;
 let tempDataDir;
 
@@ -14,7 +14,7 @@ try {
   if (!explicitBaseUrl) await assertPublicStartupGuard();
   const baseUrl = explicitBaseUrl || await startLocalServer();
   await runVerification(baseUrl.replace(/\/+$/, ""));
-  console.log(`Version.3 server verification passed: ${baseUrl}`);
+  console.log(`본성 스테이지 server verification passed: ${baseUrl}`);
 } finally {
   if (serverProcess) serverProcess.kill();
   if (tempDataDir) rmSync(tempDataDir, { recursive: true, force: true });
@@ -22,16 +22,16 @@ try {
 
 async function startLocalServer() {
   const url = `http://127.0.0.1:${localPort}`;
-  tempDataDir = mkdtempSync(join(tmpdir(), "bonsung-version3-"));
+  tempDataDir = mkdtempSync(join(tmpdir(), "bonsung-stage-"));
   const tempDataFile = join(tempDataDir, "server-data.json");
-  serverProcess = spawn(process.execPath, ["server/version3-local-server.mjs"], {
+  serverProcess = spawn(process.execPath, ["server/stage-server.mjs"], {
     cwd: process.cwd(),
     env: {
       ...process.env,
-      VERSION3_LOCAL_SERVER_PORT: String(localPort),
-      VERSION3_LOCAL_SERVER_PASSWORD: password,
-      VERSION3_ADMIN_INITIAL_PASSWORD: adminPassword,
-      VERSION3_LOCAL_DATA_FILE: tempDataFile
+      BONSUNG_LOCAL_SERVER_PORT: String(localPort),
+      BONSUNG_LOCAL_SERVER_PASSWORD: password,
+      BONSUNG_ADMIN_INITIAL_PASSWORD: adminPassword,
+      BONSUNG_LOCAL_DATA_FILE: tempDataFile
     },
     stdio: ["ignore", "pipe", "pipe"]
   });
@@ -47,16 +47,16 @@ async function startLocalServer() {
       await delay(250);
     }
   }
-  throw new Error("Local Version.3 server did not start in time.");
+  throw new Error("Local 본성 스테이지 server did not start in time.");
 }
 
 async function runVerification(baseUrl) {
   const health = await request(baseUrl, "/health");
-  assert(health.service === "bonsung-version3-server" && health.status === "ok", "/health must return Version.3 server health.");
+  assert(health.service === "bonsung-stage-server" && health.status === "ok", "/health must return 본성 스테이지 server health.");
   if (explicitBaseUrl) {
-    assert(health.persistence?.enabled === true, "External Version.3 server must use persistent storage.");
-    assert(health.persistence?.backupEnabled === true, "External Version.3 server must keep data backups enabled.");
-    assert(health.cors?.restricted === true, "External Version.3 server must restrict CORS to official UI origins.");
+    assert(health.persistence?.enabled === true, "External 본성 스테이지 server must use persistent storage.");
+    assert(health.persistence?.backupEnabled === true, "External 본성 스테이지 server must keep data backups enabled.");
+    assert(health.cors?.restricted === true, "External 본성 스테이지 server must restrict CORS to official UI origins.");
   }
 
   const admin = await login(baseUrl, "admin", adminPassword);
@@ -117,7 +117,7 @@ async function runVerification(baseUrl) {
         name: "Verification New Student",
         phone: "010-0000-0000",
         major: "Vocal",
-        goal: "Version.3 verification",
+        goal: "본성 스테이지 verification",
         status: "상담중",
         teacherId: "teacher-1",
         teacherName: "황휘현"
@@ -152,7 +152,7 @@ async function runVerification(baseUrl) {
       name: "Verification Requested Student",
       requestedRole: "artist",
       linkedStudentId: accountRequestStudent.id,
-      message: "Please create a Version.3 student account."
+      message: "Please create a 본성 스테이지 student account."
     }
   });
   const approvedRequest = await authorizedRequest(baseUrl, `/account-requests/${encodeURIComponent(accountRequest.id)}/review`, manager.token, {
@@ -221,13 +221,13 @@ async function runVerification(baseUrl) {
   assert(resetTeacher.user.mustChangePassword === true, "Password reset login must require password change.");
 
   const managerBackups = await authorizedRequest(baseUrl, "/data-backups", manager.token, { allowFailure: true });
-  assert(managerBackups?.ok === false, "Only admin accounts must be allowed to list Version.3 backups.");
+  assert(managerBackups?.ok === false, "Only admin accounts must be allowed to list 본성 스테이지 backups.");
   const backupList = await authorizedRequest(baseUrl, "/data-backups", admin.token);
   assert(backupList.backupEnabled === true, "/data-backups must report whether backups are enabled.");
   assert(Array.isArray(backupList.backups), "/data-backups must return a backups array.");
 
   const dataExport = await authorizedRequest(baseUrl, "/data-export", admin.token);
-  assert(dataExport.schema === "bonsung-version3-local-v1", "/data-export must include the Version.3 export schema.");
+  assert(dataExport.schema === "bonsung-stage-local-v1", "/data-export must include the 본성 스테이지 export schema.");
   assert(dataExport.exportedBy.accountId === admin.user.id, "/data-export must include the exporting account.");
   assert(dataExport.data.accounts.every((account) => !("password" in account)), "/data-export must not expose account passwords.");
   const managerImport = await authorizedRequest(baseUrl, "/data-import", manager.token, {
@@ -235,7 +235,7 @@ async function runVerification(baseUrl) {
     body: { export: dataExport },
     allowFailure: true
   });
-  assert(managerImport?.ok === false, "Only admin accounts must import Version.3 data.");
+  assert(managerImport?.ok === false, "Only admin accounts must import 본성 스테이지 data.");
 
   const auditLogs = await authorizedRequest(baseUrl, "/audit-logs", admin.token);
   for (const action of ["create_student", "create_account", "approve_account_request", "create_lesson", "create_lesson_log", "update_consultation_status", "reset_password", "export_data"]) {
@@ -244,19 +244,19 @@ async function runVerification(baseUrl) {
 }
 
 async function assertPublicStartupGuard() {
-  const result = await runGuardedStartup({ NODE_ENV: "production", VERSION3_ALLOWED_ORIGINS: "https://example.com", VERSION3_LOCAL_SERVER_PASSWORD: "bonsung1" });
-  assert(result.code !== 0 && result.output.includes("VERSION3_LOCAL_SERVER_PASSWORD"), "Public startup guard must reject the default server password.");
+  const result = await runGuardedStartup({ NODE_ENV: "production", BONSUNG_ALLOWED_ORIGINS: "https://example.com", BONSUNG_LOCAL_SERVER_PASSWORD: "bonsung1" });
+  assert(result.code !== 0 && result.output.includes("BONSUNG_LOCAL_SERVER_PASSWORD"), "Public startup guard must reject the default server password.");
 }
 
 function runGuardedStartup(env) {
   return new Promise((resolve) => {
-    const child = spawn(process.execPath, ["server/version3-local-server.mjs"], {
+    const child = spawn(process.execPath, ["server/stage-server.mjs"], {
       cwd: process.cwd(),
       env: {
         ...process.env,
         ...env,
-        VERSION3_LOCAL_SERVER_PORT: String(localPort + 1),
-        VERSION3_LOCAL_DATA_FILE: "memory"
+        BONSUNG_LOCAL_SERVER_PORT: String(localPort + 1),
+        BONSUNG_LOCAL_DATA_FILE: "memory"
       },
       stdio: ["ignore", "pipe", "pipe"]
     });

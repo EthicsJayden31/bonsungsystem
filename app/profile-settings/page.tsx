@@ -3,7 +3,7 @@
 import { FormEvent, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/layout/app-shell";
-import { hasVersion3Permission } from "@/lib/access-policy";
+import { hasStagePermission } from "@/lib/access-policy";
 import { APPS_SCRIPT_SESSION_TOKEN_KEY, changeAppsScriptPassword } from "@/lib/apps-script-client";
 import { updateLiveSessionUser, updateServerSessionUser } from "@/lib/client-session";
 import { useOperationAction, useOperationsData } from "@/lib/operations-data";
@@ -11,7 +11,7 @@ import { readPreferences, savePreferences, startPages, type Preferences } from "
 import { setGlobalLoading, showUiToast } from "@/lib/ui-feedback";
 import { useCurrentUser } from "@/lib/use-current-user";
 import { useCurrentRole } from "@/lib/use-current-role";
-import { changeVersion3ServerPassword, hasVersion3ServerSession } from "@/lib/version3-server-client";
+import { changeStageServerPassword, hasStageServerSession } from "@/lib/stage-server-client";
 
 export default function ProfileSettingsPage() {
   const router = useRouter();
@@ -24,8 +24,8 @@ export default function ProfileSettingsPage() {
   const [passwordPending, setPasswordPending] = useState(false);
   const [settingsMessage, setSettingsMessage] = useState("");
   const forcePasswordChange = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("forcePasswordChange") === "1";
-  const hasPasswordSession = hasVersion3ServerSession() || (typeof window !== "undefined" && Boolean(window.localStorage.getItem(APPS_SCRIPT_SESSION_TOKEN_KEY)));
-  const canManagePublicSettings = hasVersion3Permission(user ?? role, "managePublicSettings");
+  const hasPasswordSession = hasStageServerSession() || (typeof window !== "undefined" && Boolean(window.localStorage.getItem(APPS_SCRIPT_SESSION_TOKEN_KEY)));
+  const canManagePublicSettings = hasStagePermission(user ?? role, "managePublicSettings");
 
   function update<K extends keyof Preferences>(key: K, value: Preferences[K]) {
     setPreferences((current) => ({ ...current, [key]: value }));
@@ -45,7 +45,7 @@ export default function ProfileSettingsPage() {
     const confirmPassword = values.confirmPassword || "";
 
     const appsScriptToken = typeof window !== "undefined" ? window.localStorage.getItem(APPS_SCRIPT_SESSION_TOKEN_KEY) || "" : "";
-    if (!hasVersion3ServerSession() && !appsScriptToken) {
+    if (!hasStageServerSession() && !appsScriptToken) {
       setPasswordMessage("로그인 세션에서만 비밀번호를 변경할 수 있습니다.");
       return;
     }
@@ -62,8 +62,8 @@ export default function ProfileSettingsPage() {
     setPasswordMessage("");
     setGlobalLoading(true, "설정 저장 중");
     try {
-      if (hasVersion3ServerSession()) {
-        const result = await changeVersion3ServerPassword(currentPassword, newPassword);
+      if (hasStageServerSession()) {
+        const result = await changeStageServerPassword(currentPassword, newPassword);
         updateServerSessionUser({
           ...result.user,
           mustChangePassword: false,
@@ -124,7 +124,7 @@ export default function ProfileSettingsPage() {
         <div className="max-w-4xl space-y-5">
             {hasPasswordSession ? (
               <SettingCard
-                title={user?.mustChangePassword || forcePasswordChange ? "비밀번호 변경 필요" : "Version.3 계정 보안"}
+                title={user?.mustChangePassword || forcePasswordChange ? "비밀번호 변경 필요" : "본성 스테이지 계정 보안"}
                 description={user?.mustChangePassword || forcePasswordChange ? "임시 비밀번호로 로그인한 계정입니다. 새 비밀번호를 설정해야 다른 운영 화면을 계속 사용할 수 있습니다." : "서버 계정의 비밀번호를 변경합니다."}
               >
                 <form className="grid gap-3 sm:grid-cols-3" onSubmit={submitPasswordChange}>

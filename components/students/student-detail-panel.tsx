@@ -6,14 +6,14 @@ import { DataTable } from "@/components/ui/table";
 import { courseName, teacherName, type OperationsData } from "@/lib/operations-data";
 import type { Guardian, LessonNote } from "@/lib/operations-types";
 import type { Role } from "@/lib/auth-shared";
-import type { Version3Account } from "@/lib/version3-server-contract";
+import type { StageAccount } from "@/lib/stage-server-contract";
 import type { ReactNode } from "react";
 
 type StudentDetailPanelProps = {
   data: OperationsData;
   studentId: string;
   role: Role | null;
-  account?: Version3Account;
+  account?: StageAccount;
   canManageStudents?: boolean;
   onClose: () => void;
 };
@@ -165,7 +165,7 @@ function DetailRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function StudentAccountSummary({ account, studentId }: { account?: Version3Account; studentId: string }) {
+function StudentAccountSummary({ account, studentId }: { account?: StageAccount; studentId: string }) {
   if (!account) {
     return (
       <div className="rounded-xl border border-accent/20 bg-accent/10 p-3">
@@ -285,7 +285,7 @@ function maskTeacherMemo(memo: string) {
   return memo ? "해당 수업 운영에 필요한 범위만 표시" : "-";
 }
 
-function studentAccountText(account: Version3Account) {
+function studentAccountText(account: StageAccount) {
   if (account.status === "paused") return "계정 중지";
   if (account.status === "invited") return "초안";
   if (account.mustChangePassword) return "비밀번호 변경 필요";

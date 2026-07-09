@@ -1,9 +1,9 @@
 import type { OperationsData } from "@/lib/operations-data";
-import type { Version3Account, Version3DashboardWorkItem, Version3DashboardWorkPriority } from "@/lib/version3-server-contract";
+import type { StageAccount, StageDashboardWorkItem, StageDashboardWorkPriority } from "@/lib/stage-server-contract";
 
 const unpaidPaymentStatuses = new Set(["미납", "청구예정", "청구완료", "확인 필요"]);
 
-export function buildDashboardWorkQueue(data: OperationsData, limit = 8, accounts?: Version3Account[]): Version3DashboardWorkItem[] {
+export function buildDashboardWorkQueue(data: OperationsData, limit = 8, accounts?: StageAccount[]): StageDashboardWorkItem[] {
   if (data.dashboardWorkQueue?.length) return data.dashboardWorkQueue.slice(0, limit);
 
   const activeConsultations = data.consultations.filter((item) => item.status !== "종결");
@@ -14,7 +14,7 @@ export function buildDashboardWorkQueue(data: OperationsData, limit = 8, account
   const openTasks = data.tasks.filter((item) => item.status !== "완료");
 
   return [
-    ...activeConsultations.map((item): Version3DashboardWorkItem => ({
+    ...activeConsultations.map((item): StageDashboardWorkItem => ({
       id: `consultation-${item.id}`,
       kind: "상담요청",
       sourceType: "consultationRequests",
@@ -27,7 +27,7 @@ export function buildDashboardWorkQueue(data: OperationsData, limit = 8, account
       status: item.status,
       dueAt: item.followUpDate || item.date || item.statusUpdatedAt
     })),
-    ...pendingAttendance.map((item): Version3DashboardWorkItem => ({
+    ...pendingAttendance.map((item): StageDashboardWorkItem => ({
       id: `attendance-${item.id}`,
       kind: "출결",
       sourceType: "attendance",
@@ -39,7 +39,7 @@ export function buildDashboardWorkQueue(data: OperationsData, limit = 8, account
       tone: "warn",
       status: item.status
     })),
-    ...makeupAttendance.map((item): Version3DashboardWorkItem => ({
+    ...makeupAttendance.map((item): StageDashboardWorkItem => ({
       id: `makeup-${item.id}`,
       kind: "보강",
       sourceType: "attendance",
@@ -51,7 +51,7 @@ export function buildDashboardWorkQueue(data: OperationsData, limit = 8, account
       tone: "warn",
       status: item.status
     })),
-    ...unpaidPayments.map((item): Version3DashboardWorkItem => ({
+    ...unpaidPayments.map((item): StageDashboardWorkItem => ({
       id: `payment-${item.id}`,
       kind: "수납",
       sourceType: "payments",
@@ -64,7 +64,7 @@ export function buildDashboardWorkQueue(data: OperationsData, limit = 8, account
       status: item.status,
       dueAt: item.dueDate
     })),
-    ...missingStudentAccounts.map((student): Version3DashboardWorkItem => ({
+    ...missingStudentAccounts.map((student): StageDashboardWorkItem => ({
       id: `student-account-${student.id}`,
       kind: "계정",
       sourceType: "accounts",
@@ -77,7 +77,7 @@ export function buildDashboardWorkQueue(data: OperationsData, limit = 8, account
       status: "계정 필요",
       dueAt: student.enrolledAt
     })),
-    ...openTasks.map((item): Version3DashboardWorkItem => ({
+    ...openTasks.map((item): StageDashboardWorkItem => ({
       id: `task-${item.id}`,
       kind: "업무",
       sourceType: "tasks",
@@ -107,13 +107,13 @@ export function countOpenTasks(data: OperationsData) {
   return data.tasks.filter((item) => item.status !== "완료").length;
 }
 
-function taskPriority(dueDate: string): Version3DashboardWorkPriority {
+function taskPriority(dueDate: string): StageDashboardWorkPriority {
   if (!dueDate) return "normal";
   const today = new Date().toISOString().slice(0, 10);
   return dueDate <= today ? "urgent" : "normal";
 }
 
-function compareWorkItems(left: Version3DashboardWorkItem, right: Version3DashboardWorkItem) {
+function compareWorkItems(left: StageDashboardWorkItem, right: StageDashboardWorkItem) {
   const priorityDiff = priorityRank(left.priority) - priorityRank(right.priority);
   if (priorityDiff !== 0) return priorityDiff;
   const leftDue = left.dueAt || "9999-12-31";
@@ -122,13 +122,13 @@ function compareWorkItems(left: Version3DashboardWorkItem, right: Version3Dashbo
   return left.id.localeCompare(right.id);
 }
 
-function priorityRank(priority: Version3DashboardWorkPriority) {
+function priorityRank(priority: StageDashboardWorkPriority) {
   if (priority === "urgent") return 0;
   if (priority === "high") return 1;
   return 2;
 }
 
-function studentsWithoutAccounts(data: OperationsData, accounts: Version3Account[]) {
+function studentsWithoutAccounts(data: OperationsData, accounts: StageAccount[]) {
   const linkedStudentIds = new Set(
     accounts
       .filter((account) => account.role === "artist" && account.linkedStudentId)

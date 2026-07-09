@@ -3,19 +3,19 @@
 import { useEffect, useMemo, useState } from "react";
 import { APPS_SCRIPT_ENDPOINT, APPS_SCRIPT_REQUEST_TIMEOUT_MS, APPS_SCRIPT_SESSION_TOKEN_KEY, APPS_SCRIPT_USER_KEY } from "@/lib/apps-script-client";
 import { showUiToast } from "@/lib/ui-feedback";
-import { callVersion3Server, hasVersion3ServerSession } from "@/lib/version3-server-client";
-import { ENABLE_APPS_SCRIPT_TRANSITION } from "@/lib/version3-runtime-flags";
+import { callStageServer, hasStageServerSession } from "@/lib/stage-server-client";
+import { ENABLE_APPS_SCRIPT_TRANSITION } from "@/lib/stage-runtime-flags";
 import {
   accountRoleToAppsScript,
   normalizeAccountRole,
   normalizeAccountStatus,
-  version3PermissionKeys,
-  version3RoleLabels,
-  type Version3Account,
-  type Version3AccountHistory,
-  type Version3AccountInput,
-  type Version3Permissions
-} from "@/lib/version3-server-contract";
+  stagePermissionKeys,
+  stageRoleLabels,
+  type StageAccount,
+  type StageAccountHistory,
+  type StageAccountInput,
+  type StagePermissions
+} from "@/lib/stage-server-contract";
 
 type AccountSource = "loading" | "server" | "live" | "fallback";
 type AccountRecord = Record<string, unknown>;
@@ -28,14 +28,14 @@ type ApiResult<T> = {
 
 export type AccountsState = {
   source: AccountSource;
-  accounts: Version3Account[];
-  accountHistory: Version3AccountHistory[];
+  accounts: StageAccount[];
+  accountHistory: StageAccountHistory[];
   currentAccountId: string;
   error: string;
   hasLiveSession: boolean;
-  createAccount: (input: Version3AccountInput) => Promise<void>;
+  createAccount: (input: StageAccountInput) => Promise<void>;
   resetAccountPassword: (accountId: string, password: string) => Promise<void>;
-  updateAccountPermissions: (accountId: string, permissions: Version3Permissions) => Promise<void>;
+  updateAccountPermissions: (accountId: string, permissions: StagePermissions) => Promise<void>;
   updateAccountStatus: (accountId: string, active: boolean) => Promise<void>;
 };
 
@@ -46,10 +46,10 @@ type AccountsDataOptions = {
 export function useAccountsData(options: AccountsDataOptions = {}): AccountsState {
   const enabled = options.enabled ?? true;
   const [source, setSource] = useState<AccountSource>("loading");
-  const [accounts, setAccounts] = useState<Version3Account[]>([]);
-  const [accountHistory, setAccountHistory] = useState<Version3AccountHistory[]>([]);
+  const [accounts, setAccounts] = useState<StageAccount[]>([]);
+  const [accountHistory, setAccountHistory] = useState<StageAccountHistory[]>([]);
   const [error, setError] = useState("");
-  const hasLiveSession = typeof window !== "undefined" && (hasVersion3ServerSession() || (ENABLE_APPS_SCRIPT_TRANSITION && Boolean(window.localStorage.getItem(APPS_SCRIPT_SESSION_TOKEN_KEY))));
+  const hasLiveSession = typeof window !== "undefined" && (hasStageServerSession() || (ENABLE_APPS_SCRIPT_TRANSITION && Boolean(window.localStorage.getItem(APPS_SCRIPT_SESSION_TOKEN_KEY))));
   const sortedAccounts = useMemo(() => accounts, [accounts]);
 
   useEffect(() => {
@@ -69,13 +69,13 @@ export function useAccountsData(options: AccountsDataOptions = {}): AccountsStat
 
     const token = ENABLE_APPS_SCRIPT_TRANSITION ? window.localStorage.getItem(APPS_SCRIPT_SESSION_TOKEN_KEY) : "";
 
-    if (hasVersion3ServerSession()) {
+    if (hasStageServerSession()) {
       queueMicrotask(() => {
         if (active) setSource("loading");
       });
       Promise.all([
-        callVersion3Server<AccountRecord[]>("/accounts"),
-        callVersion3Server<AccountRecord[]>("/account-history")
+        callStageServer<AccountRecord[]>("/accounts"),
+        callStageServer<AccountRecord[]>("/account-history")
       ])
         .then(([records, historyRecords]) => {
           if (!active) return;
@@ -103,7 +103,7 @@ export function useAccountsData(options: AccountsDataOptions = {}): AccountsStat
         setAccounts([]);
         setAccountHistory([]);
         setSource("fallback");
-        setError("Version.3 서버 또는 Apps Script 로그인 세션이 필요합니다.");
+        setError("본성 스테이지 서버 또는 Apps Script 로그인 세션이 필요합니다.");
       });
       return () => {
         active = false;
@@ -137,7 +137,7 @@ export function useAccountsData(options: AccountsDataOptions = {}): AccountsStat
     };
   }, [enabled]);
 
-  async function createAccount(input: Version3AccountInput) {
+  async function createAccount(input: StageAccountInput) {
     if (input.role === "artist" && !input.linkedStudentId) {
       throw new Error("Artist 계정은 연결할 학생을 선택해야 합니다.");
     }
@@ -145,8 +145,8 @@ export function useAccountsData(options: AccountsDataOptions = {}): AccountsStat
       throw new Error("이미 Artist 계정과 연결된 학생입니다.");
     }
 
-    if (hasVersion3ServerSession()) {
-      const created = await callVersion3Server<AccountRecord>("/accounts", { method: "POST", body: { account: input } });
+    if (hasStageServerSession()) {
+      const created = await callStageServer<AccountRecord>("/accounts", { method: "POST", body: { account: input } });
       setAccounts((current) => [mapServerAccount(created), ...current]);
       await refreshServerAccountHistory();
       setSource("server");
@@ -156,7 +156,7 @@ export function useAccountsData(options: AccountsDataOptions = {}): AccountsStat
     }
 
     const token = ENABLE_APPS_SCRIPT_TRANSITION ? window.localStorage.getItem(APPS_SCRIPT_SESSION_TOKEN_KEY) : "";
-    if (!token) throw new Error("계정 생성은 Version.3 서버 또는 Apps Script 로그인 세션이 필요합니다.");
+    if (!token) throw new Error("계정 생성은 본성 스테이지 서버 또는 Apps Script 로그인 세션이 필요합니다.");
 
     const role = accountRoleToAppsScript(input.role);
     const created = await callAppsScript<AccountRecord>("createAccount", token, {
@@ -179,8 +179,8 @@ export function useAccountsData(options: AccountsDataOptions = {}): AccountsStat
   }
 
   async function updateAccountStatus(accountId: string, active: boolean) {
-    if (hasVersion3ServerSession()) {
-      await callVersion3Server<boolean>(`/accounts/${encodeURIComponent(accountId)}/status`, { method: "PATCH", body: { active } });
+    if (hasStageServerSession()) {
+      await callStageServer<boolean>(`/accounts/${encodeURIComponent(accountId)}/status`, { method: "PATCH", body: { active } });
       patchAccount(accountId, { status: active ? "active" : "paused" });
       await refreshServerAccountHistory();
       setSource("server");
@@ -190,7 +190,7 @@ export function useAccountsData(options: AccountsDataOptions = {}): AccountsStat
     }
 
     const token = ENABLE_APPS_SCRIPT_TRANSITION ? window.localStorage.getItem(APPS_SCRIPT_SESSION_TOKEN_KEY) : "";
-    if (!token) throw new Error("계정 상태 변경은 Version.3 서버 또는 Apps Script 로그인 세션이 필요합니다.");
+    if (!token) throw new Error("계정 상태 변경은 본성 스테이지 서버 또는 Apps Script 로그인 세션이 필요합니다.");
 
     await callAppsScript<boolean>("updateAccountStatus", token, { accountId, active });
     patchAccount(accountId, { status: active ? "active" : "paused" });
@@ -201,8 +201,8 @@ export function useAccountsData(options: AccountsDataOptions = {}): AccountsStat
   }
 
   async function resetAccountPassword(accountId: string, password: string) {
-    if (hasVersion3ServerSession()) {
-      await callVersion3Server<boolean>(`/accounts/${encodeURIComponent(accountId)}/password`, { method: "PATCH", body: { password } });
+    if (hasStageServerSession()) {
+      await callStageServer<boolean>(`/accounts/${encodeURIComponent(accountId)}/password`, { method: "PATCH", body: { password } });
       patchAccount(accountId, { mustChangePassword: true, status: "active" });
       await refreshServerAccountHistory();
       setSource("server");
@@ -212,7 +212,7 @@ export function useAccountsData(options: AccountsDataOptions = {}): AccountsStat
     }
 
     const token = ENABLE_APPS_SCRIPT_TRANSITION ? window.localStorage.getItem(APPS_SCRIPT_SESSION_TOKEN_KEY) : "";
-    if (!token) throw new Error("비밀번호 초기화는 Version.3 서버 또는 Apps Script 로그인 세션이 필요합니다.");
+    if (!token) throw new Error("비밀번호 초기화는 본성 스테이지 서버 또는 Apps Script 로그인 세션이 필요합니다.");
 
     await callAppsScript<boolean>("resetAccountPassword", token, { accountId, password });
     patchAccount(accountId, { mustChangePassword: true, status: "active" });
@@ -222,10 +222,10 @@ export function useAccountsData(options: AccountsDataOptions = {}): AccountsStat
     showUiToast("비밀번호 초기화 완료");
   }
 
-  async function updateAccountPermissions(accountId: string, permissions: Version3Permissions) {
+  async function updateAccountPermissions(accountId: string, permissions: StagePermissions) {
     const nextPermissions = normalizePermissions(permissions);
-    if (hasVersion3ServerSession()) {
-      await callVersion3Server<boolean>(`/accounts/${encodeURIComponent(accountId)}/permissions`, { method: "PATCH", body: { permissions: nextPermissions } });
+    if (hasStageServerSession()) {
+      await callStageServer<boolean>(`/accounts/${encodeURIComponent(accountId)}/permissions`, { method: "PATCH", body: { permissions: nextPermissions } });
       patchAccount(accountId, { permissions: nextPermissions });
       await refreshServerAccountHistory();
       setSource("server");
@@ -235,7 +235,7 @@ export function useAccountsData(options: AccountsDataOptions = {}): AccountsStat
     }
 
     const token = ENABLE_APPS_SCRIPT_TRANSITION ? window.localStorage.getItem(APPS_SCRIPT_SESSION_TOKEN_KEY) : "";
-    if (!token) throw new Error("권한 변경은 Version.3 서버 또는 Apps Script 로그인 세션이 필요합니다.");
+    if (!token) throw new Error("권한 변경은 본성 스테이지 서버 또는 Apps Script 로그인 세션이 필요합니다.");
 
     await callAppsScript<boolean>("updateAccountPermissions", token, { accountId, permissions: nextPermissions });
     patchAccount(accountId, { permissions: nextPermissions });
@@ -245,7 +245,7 @@ export function useAccountsData(options: AccountsDataOptions = {}): AccountsStat
     showUiToast("권한 저장 완료");
   }
 
-  function patchAccount(accountId: string, patch: Partial<Version3Account>) {
+  function patchAccount(accountId: string, patch: Partial<StageAccount>) {
     setAccounts((current) => current.map((account) => (account.id === accountId ? { ...account, ...patch } : account)));
   }
 
@@ -255,7 +255,7 @@ export function useAccountsData(options: AccountsDataOptions = {}): AccountsStat
   }
 
   async function refreshServerAccountHistory() {
-    const historyRecords = await callVersion3Server<AccountRecord[]>("/account-history");
+    const historyRecords = await callStageServer<AccountRecord[]>("/account-history");
     setAccountHistory(historyRecords.map(mapServerAccountHistory));
   }
 
@@ -293,7 +293,7 @@ function readCurrentAccountId() {
   }
 }
 
-function mapServerAccount(item: AccountRecord): Version3Account {
+function mapServerAccount(item: AccountRecord): StageAccount {
   const linkedStudentId = stringValue(item.linkedStudentId || item.linked_student_id);
   return {
     id: stringValue(item.id || item.accountId || item.account_id),
@@ -312,7 +312,7 @@ function mapServerAccount(item: AccountRecord): Version3Account {
   };
 }
 
-function mapServerAccountHistory(item: AccountRecord): Version3AccountHistory {
+function mapServerAccountHistory(item: AccountRecord): StageAccountHistory {
   return {
     id: stringValue(item.id || item.historyId || item.history_id || item.event_id),
     accountId: stringValue(item.accountId || item.account_id || item.target_id),
@@ -352,7 +352,7 @@ async function callAppsScript<T>(action: string, token: string, payload: Record<
   }
 }
 
-function mapAccount(item: AccountRecord): Version3Account {
+function mapAccount(item: AccountRecord): StageAccount {
   const linkedStudentId = stringValue(item.linked_student_id || item.linkedStudentId);
   return {
     id: stringValue(item.account_id || item.id),
@@ -371,7 +371,7 @@ function mapAccount(item: AccountRecord): Version3Account {
   };
 }
 
-function mapAccountHistory(item: AccountRecord): Version3AccountHistory {
+function mapAccountHistory(item: AccountRecord): StageAccountHistory {
   return {
     id: stringValue(item.history_id || item.event_id || item.id),
     accountId: stringValue(item.account_id || item.target_id || item.accountId),
@@ -394,15 +394,15 @@ function truthyValue(value: unknown) {
   return value === true || value === "true" || value === "TRUE" || value === "1" || value === 1;
 }
 
-function normalizePermissions(value: unknown): Version3Permissions {
+function normalizePermissions(value: unknown): StagePermissions {
   if (!value || typeof value !== "object") return {};
   const source = value as Record<string, unknown>;
-  return version3PermissionKeys.reduce<Version3Permissions>((result, key) => {
+  return stagePermissionKeys.reduce<StagePermissions>((result, key) => {
     if (typeof source[key] === "boolean") result[key] = source[key];
     return result;
   }, {});
 }
 
-export function roleLabel(role: Version3Account["role"]) {
-  return version3RoleLabels[role];
+export function roleLabel(role: StageAccount["role"]) {
+  return stageRoleLabels[role];
 }

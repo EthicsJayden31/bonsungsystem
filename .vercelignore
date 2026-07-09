@@ -1,0 +1,11 @@
+.env.local
+.env.*.local
+.env.production
+.env.preview
+.env.development
+.env.vercel
+.stage-local-data.json
+.bonsung-stage-data*.bak
+*.bak
+.next
+node_modules

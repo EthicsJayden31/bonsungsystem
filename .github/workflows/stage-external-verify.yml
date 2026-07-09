@@ -1,10 +1,10 @@
-name: Verify External Version.3 Server
+name: Verify External 본성 스테이지 Server
 
 on:
   workflow_dispatch:
     inputs:
       server_url:
-        description: "External HTTPS Version.3 server URL"
+        description: "External HTTPS 본성 스테이지 server URL"
         required: true
         type: string
 
@@ -12,7 +12,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: version3-external-verify
+  group: stage-external-verify
   cancel-in-progress: false
 
 jobs:
@@ -37,11 +37,11 @@ jobs:
 
       - name: Verify release URL shape
         env:
-          VERSION3_API_BASE_URL: ${{ inputs.server_url }}
-        run: pnpm verify:version3-release
+          BONSUNG_API_BASE_URL: ${{ inputs.server_url }}
+        run: pnpm verify:stage-release
 
       - name: Verify external server contract
         env:
-          VERSION3_SERVER_VERIFY_BASE_URL: ${{ inputs.server_url }}
-        run: pnpm verify:version3-server
+          BONSUNG_SERVER_VERIFY_BASE_URL: ${{ inputs.server_url }}
+        run: pnpm verify:stage-server
 

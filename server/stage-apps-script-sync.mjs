@@ -28,18 +28,18 @@ const APPS_SCRIPT_TABLES = {
 };
 
 export function appsScriptSyncConfig(storage) {
-  const enabled = truthyEnv(process.env.VERSION3_APPS_SCRIPT_SYNC_ENABLED);
-  const endpoint = stringEnv(process.env.VERSION3_APPS_SCRIPT_ENDPOINT || process.env.NEXT_PUBLIC_APPS_SCRIPT_ENDPOINT);
-  const loginId = stringEnv(process.env.VERSION3_APPS_SCRIPT_SYNC_LOGIN_ID || "admin");
-  const password = stringEnv(process.env.VERSION3_APPS_SCRIPT_SYNC_PASSWORD);
-  const includeAccounts = truthyEnv(process.env.VERSION3_APPS_SCRIPT_SYNC_ACCOUNTS);
-  const timeoutMs = Math.max(5_000, Number(process.env.VERSION3_APPS_SCRIPT_SYNC_TIMEOUT_MS || DEFAULT_SYNC_TIMEOUT_MS));
+  const enabled = truthyEnv(process.env.BONSUNG_APPS_SCRIPT_SYNC_ENABLED);
+  const endpoint = stringEnv(process.env.BONSUNG_APPS_SCRIPT_ENDPOINT || process.env.NEXT_PUBLIC_APPS_SCRIPT_ENDPOINT);
+  const loginId = stringEnv(process.env.BONSUNG_APPS_SCRIPT_SYNC_LOGIN_ID || "admin");
+  const password = stringEnv(process.env.BONSUNG_APPS_SCRIPT_SYNC_PASSWORD);
+  const includeAccounts = truthyEnv(process.env.BONSUNG_APPS_SCRIPT_SYNC_ACCOUNTS);
+  const timeoutMs = Math.max(5_000, Number(process.env.BONSUNG_APPS_SCRIPT_SYNC_TIMEOUT_MS || DEFAULT_SYNC_TIMEOUT_MS));
   const supportedStorage = Boolean(storage?.supportsSyncOutbox);
   const missing = [];
-  if (!endpoint) missing.push("VERSION3_APPS_SCRIPT_ENDPOINT or NEXT_PUBLIC_APPS_SCRIPT_ENDPOINT");
-  if (!loginId) missing.push("VERSION3_APPS_SCRIPT_SYNC_LOGIN_ID");
-  if (!password) missing.push("VERSION3_APPS_SCRIPT_SYNC_PASSWORD");
-  if (!supportedStorage) missing.push("VERSION3_STORAGE_DRIVER=postgres");
+  if (!endpoint) missing.push("BONSUNG_APPS_SCRIPT_ENDPOINT or NEXT_PUBLIC_APPS_SCRIPT_ENDPOINT");
+  if (!loginId) missing.push("BONSUNG_APPS_SCRIPT_SYNC_LOGIN_ID");
+  if (!password) missing.push("BONSUNG_APPS_SCRIPT_SYNC_PASSWORD");
+  if (!supportedStorage) missing.push("BONSUNG_STORAGE_DRIVER=postgres");
 
   return {
     enabled,
@@ -95,7 +95,7 @@ export async function runAppsScriptOutboxSync(storage, options = {}) {
     throw error;
   }
   if (typeof storage?.claimPendingSync !== "function" || typeof storage?.completePendingSync !== "function") {
-    const error = new Error("Apps Script sync requires a durable Version.3 outbox.");
+    const error = new Error("Apps Script sync requires a durable 본성 스테이지 outbox.");
     error.statusCode = 503;
     throw error;
   }
@@ -106,7 +106,7 @@ export async function runAppsScriptOutboxSync(storage, options = {}) {
   }
 
   try {
-    const data = version3SnapshotToAppsScriptTables(claim.snapshot, { includeAccounts: config.includeAccounts });
+    const data = stageSnapshotToAppsScriptTables(claim.snapshot, { includeAccounts: config.includeAccounts });
     const result = await pushDataImport(config, data);
     await storage.completePendingSync(claim.revision, { ok: true });
     return {
@@ -122,7 +122,7 @@ export async function runAppsScriptOutboxSync(storage, options = {}) {
   }
 }
 
-export function version3SnapshotToAppsScriptTables(snapshot, options = {}) {
+export function stageSnapshotToAppsScriptTables(snapshot, options = {}) {
   const state = snapshot && typeof snapshot === "object" ? snapshot : {};
   const teachersById = new Map((state.teachers || []).map((item) => [stringValue(item.id || item.accountId), item]));
   const studentsById = new Map((state.students || []).map((item) => [stringValue(item.id), item]));
@@ -529,7 +529,7 @@ function publicSettingsRows(settings = {}) {
 }
 
 function accountRows(accounts = []) {
-  const tempPassword = stringEnv(process.env.VERSION3_APPS_SCRIPT_ACCOUNT_TEMP_PASSWORD);
+  const tempPassword = stringEnv(process.env.BONSUNG_APPS_SCRIPT_ACCOUNT_TEMP_PASSWORD);
   return rowsFor([
     "id", "login_id", "password_hash", "password_salt", "password_algorithm", "role", "status", "name", "email", "phone", "linked_student_id", "permissions_json", "must_change_password", "last_login_at", "created_at", "updated_at", "deleted_at"
   ], accounts, (item) => {

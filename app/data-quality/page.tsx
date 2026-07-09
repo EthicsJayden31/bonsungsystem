@@ -6,12 +6,12 @@ import { Badge } from "@/components/ui/badge";
 import { Section } from "@/components/ui/section";
 import { DataTable } from "@/components/ui/table";
 import { useAuditLogs, useDataQualityReport, type DataQualityCheck, type DataQualityIssue, type DataQualityReport } from "@/lib/operations-data";
-import { callVersion3Server } from "@/lib/version3-server-client";
-import type { Version3AuditLog } from "@/lib/version3-server-contract";
+import { callStageServer } from "@/lib/stage-server-client";
+import type { StageAuditLog } from "@/lib/stage-server-contract";
 
 const sourceLabel = {
   loading: "점검 중",
-  server: "Version.3 서버 데이터",
+  server: "본성 스테이지 서버 데이터",
   live: "전환 연결층 데이터",
   fallback: "연결 실패"
 };
@@ -35,12 +35,12 @@ export default function DataQualityPage() {
     setExportState("pending");
     setExportMessage("");
     try {
-      const payload = await callVersion3Server<Record<string, unknown>>("/data-export");
+      const payload = await callStageServer<Record<string, unknown>>("/data-export");
       const exportedAt = typeof payload.exportedAt === "string" ? payload.exportedAt : new Date().toISOString();
-      const filename = `bonsung-version3-export-${exportedAt.slice(0, 10)}.json`;
+      const filename = `bonsung-stage-export-${exportedAt.slice(0, 10)}.json`;
       downloadJson(filename, payload);
       setExportState("done");
-      setExportMessage("비밀번호가 제거된 Version.3 운영 데이터 내보내기를 생성했습니다.");
+      setExportMessage("비밀번호가 제거된 본성 스테이지 운영 데이터 내보내기를 생성했습니다.");
     } catch (caught) {
       setExportState("error");
       setExportMessage(caught instanceof Error ? caught.message : "운영 데이터를 내보내지 못했습니다.");
@@ -55,7 +55,7 @@ export default function DataQualityPage() {
     setImportMessage("");
     try {
       const parsed = JSON.parse(await file.text()) as Record<string, unknown>;
-      const result = await callVersion3Server<{ summary?: { accounts?: number; students?: number }; temporaryPasswordApplied?: number }>("/data-import", {
+      const result = await callStageServer<{ summary?: { accounts?: number; students?: number }; temporaryPasswordApplied?: number }>("/data-import", {
         method: "POST",
         body: {
           export: parsed,
@@ -63,7 +63,7 @@ export default function DataQualityPage() {
         }
       });
       setImportState("done");
-      setImportMessage(`Version.3 운영 데이터를 가져왔습니다. 계정 ${result.summary?.accounts ?? "-"}개, 학생 ${result.summary?.students ?? "-"}명, 임시 비밀번호 적용 ${result.temporaryPasswordApplied ?? 0}건`);
+      setImportMessage(`본성 스테이지 운영 데이터를 가져왔습니다. 계정 ${result.summary?.accounts ?? "-"}개, 학생 ${result.summary?.students ?? "-"}명, 임시 비밀번호 적용 ${result.temporaryPasswordApplied ?? 0}건`);
       window.setTimeout(() => window.location.reload(), 1200);
     } catch (caught) {
       setImportState("error");
@@ -80,7 +80,7 @@ export default function DataQualityPage() {
           <SummaryCard label="즉시 조치" value={report ? report.summary.blocking ?? 0 : "-"} helper="필수값 중복/충돌" tone="danger" />
           <SummaryCard label="확인 필요" value={report ? report.summary.warning ?? 0 : "-"} helper="참조 불일치 등" tone="warn" />
           <SummaryCard label="끊어진 참조" value={report ? report.summary.brokenReferences ?? 0 : "-"} helper="학생·강사·수업 연결" tone={(report?.summary.brokenReferences ?? 0) ? "warn" : "default"} />
-          <SummaryCard label="감사 로그" value={auditState.source === "server" ? auditState.logs.length : "-"} helper={auditState.source === "server" ? "서버 변경 이력" : "Version.3 서버 필요"} />
+          <SummaryCard label="감사 로그" value={auditState.source === "server" ? auditState.logs.length : "-"} helper={auditState.source === "server" ? "서버 변경 이력" : "본성 스테이지 서버 필요"} />
         </div>
 
         <div className="rounded-2xl border border-line bg-white p-5 shadow-card">
@@ -167,7 +167,7 @@ export default function DataQualityPage() {
             <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-muted">
               {report
                 ? "현재 기준으로 필수값, 중복, 참조, 예약 충돌 점검을 통과했습니다."
-                : "운영 원본 점검은 Version.3 서버 세션에서 실행됩니다."}
+                : "운영 원본 점검은 본성 스테이지 서버 세션에서 실행됩니다."}
             </p>
           </div>
         )}
@@ -175,7 +175,7 @@ export default function DataQualityPage() {
         <div className="rounded-2xl border border-line bg-white p-5 shadow-card">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <h2 className="text-lg font-extrabold tracking-tight text-ink">Version.3 감사 로그</h2>
+              <h2 className="text-lg font-extrabold tracking-tight text-ink">본성 스테이지 감사 로그</h2>
               <p className="mt-1 text-sm leading-6 text-muted">{auditStatusMessage(auditState.source, auditState.error)}</p>
             </div>
             <Badge tone={auditState.source === "server" ? "good" : auditState.source === "fallback" ? "danger" : "warn"}>
@@ -197,7 +197,7 @@ export default function DataQualityPage() {
             </div>
           ) : (
             <p className="mt-4 rounded-xl bg-surface-muted px-4 py-3 text-sm leading-6 text-muted">
-              {auditState.source === "server" ? "아직 표시할 감사 로그가 없습니다." : "감사 로그는 Version.3 별도 서버 로그인 후 표시됩니다."}
+              {auditState.source === "server" ? "아직 표시할 감사 로그가 없습니다." : "감사 로그는 본성 스테이지 별도 서버 로그인 후 표시됩니다."}
             </p>
           )}
         </div>
@@ -231,7 +231,7 @@ function buildOperationsReadinessItems(
       id: "server",
       label: "별도 서버 연결",
       badge: dataSource === "server" ? "연결됨" : "확인 필요",
-      detail: dataSource === "server" ? "Version.3 서버에서 운영 데이터 품질 결과를 받았습니다." : "공개 운영 전에는 Version.3 서버 세션으로 확인해야 합니다.",
+      detail: dataSource === "server" ? "본성 스테이지 서버에서 운영 데이터 품질 결과를 받았습니다." : "공개 운영 전에는 본성 스테이지 서버 세션으로 확인해야 합니다.",
       status: dataSource === "server" ? "good" : "danger"
     },
     {
@@ -259,7 +259,7 @@ function buildOperationsReadinessItems(
       id: "audit",
       label: "감사 로그",
       badge: auditSource === "server" ? `${auditLogs}건` : "서버 필요",
-      detail: auditSource === "server" ? "계정, 상담요청, 공지, 데이터 변경 이력을 서버 감사 로그로 확인할 수 있습니다." : "감사 로그는 Version.3 서버 세션에서만 운영 증거로 봅니다.",
+      detail: auditSource === "server" ? "계정, 상담요청, 공지, 데이터 변경 이력을 서버 감사 로그로 확인할 수 있습니다." : "감사 로그는 본성 스테이지 서버 세션에서만 운영 증거로 봅니다.",
       status: auditSource === "server" && auditLogs ? "good" : "warn"
     },
     {
@@ -285,17 +285,17 @@ function SummaryCard({ label, value, helper, tone = "default" }: { label: string
 
 function statusMessage(source: keyof typeof sourceLabel, error: string) {
   if (source === "loading") return "운영 데이터 점검 결과를 불러오는 중입니다.";
-  if (source === "server") return "Version.3 별도 서버 기준 점검 결과입니다.";
+  if (source === "server") return "본성 스테이지 별도 서버 기준 점검 결과입니다.";
   if (source === "live") return "전환 연결층 데이터 기준 점검 결과입니다.";
   if (source === "fallback") return `연결 또는 권한 확인이 필요합니다. ${error}`;
   return "운영 원본 점검 결과를 확인하고 있습니다.";
 }
 
 function auditStatusMessage(source: keyof typeof sourceLabel, error: string) {
-  if (source === "server") return "계정, 상담요청, 공지, 세션 변경 이력을 Version.3 서버 기준으로 표시합니다.";
+  if (source === "server") return "계정, 상담요청, 공지, 세션 변경 이력을 본성 스테이지 서버 기준으로 표시합니다.";
   if (source === "fallback") return `감사 로그를 불러오지 못했습니다. ${error}`;
-  if (source === "live") return "전환 세션에서는 Version.3 서버 감사 로그를 표시하지 않습니다.";
-  return "Version.3 서버 세션이 없어서 감사 로그를 표시하지 않습니다.";
+  if (source === "live") return "전환 세션에서는 본성 스테이지 서버 감사 로그를 표시하지 않습니다.";
+  return "본성 스테이지 서버 세션이 없어서 감사 로그를 표시하지 않습니다.";
 }
 
 function severityBadge(issue: DataQualityIssue) {
@@ -346,7 +346,7 @@ function auditTargetLabel(targetType: string) {
   return targetType || "대상";
 }
 
-function auditMetadata(log: Version3AuditLog) {
+function auditMetadata(log: StageAuditLog) {
   const metadata = log.metadata || {};
   const parts = Object.entries(metadata)
     .filter(([, value]) => value != null && value !== "" && typeof value !== "object")

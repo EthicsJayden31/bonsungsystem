@@ -74,7 +74,7 @@ export function ResourcePage({
       return;
     }
 
-    setStatus({ tone: "info", message: "Version.3 운영 서버에 저장을 요청하고 있습니다." });
+    setStatus({ tone: "info", message: "본성 스테이지 운영 서버에 저장을 요청하고 있습니다." });
     try {
       await onSubmit(values);
       form.reset();
@@ -158,7 +158,7 @@ export function ResourcePage({
             {submitLabel ?? (onSubmit ? "실사용 저장" : "임시 저장")}
           </button>
           <p className="mt-3 rounded-xl bg-brand/5 px-3 py-2 text-xs leading-5 text-muted">
-            {submitHelp ?? (onSubmit ? "Version.3 서버 세션이 있으면 별도 서버에 저장되고, 전환 세션에서는 기존 연결층으로 저장됩니다." : "저장 권한이 있는 Version.3 계정으로 로그인하면 이 화면에서 직접 등록할 수 있습니다.")}
+            {submitHelp ?? (onSubmit ? "본성 스테이지 서버 세션이 있으면 별도 서버에 저장되고, 전환 세션에서는 기존 연결층으로 저장됩니다." : "저장 권한이 있는 본성 스테이지 계정으로 로그인하면 이 화면에서 직접 등록할 수 있습니다.")}
           </p>
           {status ? <p className={`mt-3 rounded-xl border px-3 py-2 text-xs leading-5 ${statusClass}`}>{status.message}</p> : null}
         </form> : null}

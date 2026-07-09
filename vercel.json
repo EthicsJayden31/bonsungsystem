@@ -1,13 +1,13 @@
 {
   "rewrites": [
     {
-      "source": "/api/version3/:path*",
-      "destination": "/api/version3/[...path]"
+      "source": "/api/stage/:path*",
+      "destination": "/api/stage/[...path]"
     }
   ],
   "crons": [
     {
-      "path": "/api/version3/sync/apps-script",
+      "path": "/api/stage/sync/apps-script",
       "schedule": "0 18 * * *"
     }
   ]

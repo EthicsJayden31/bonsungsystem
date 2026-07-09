@@ -6,27 +6,27 @@ import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Section } from "@/components/ui/section";
 import { DataTable } from "@/components/ui/table";
-import { hasVersion3Permission } from "@/lib/access-policy";
+import { hasStagePermission } from "@/lib/access-policy";
 import { roleLabel, useAccountsData } from "@/lib/accounts-data";
 import { redirectToAppPath } from "@/lib/client-session";
 import { useOperationsData } from "@/lib/operations-data";
 import { useCurrentUser } from "@/lib/use-current-user";
 import { useCurrentRole } from "@/lib/use-current-role";
-import { callVersion3Server, hasVersion3ServerSession } from "@/lib/version3-server-client";
-import { version3AccountRoles, version3PermissionGroups, version3PermissionKeys, version3ServerEntities, type Version3Account, type Version3AccountHistory, type Version3AccountInput, type Version3Permissions } from "@/lib/version3-server-contract";
+import { callStageServer, hasStageServerSession } from "@/lib/stage-server-client";
+import { stageAccountRoles, stagePermissionGroups, stagePermissionKeys, stageServerEntities, type StageAccount, type StageAccountHistory, type StageAccountInput, type StagePermissions } from "@/lib/stage-server-contract";
 import type { Role } from "@/lib/auth-shared";
 import type { AccountRequest } from "@/lib/operations-types";
 
 const accountSourceLabel = {
   loading: "계정 확인 중",
-  server: "Version.3 서버 계정",
+  server: "본성 스테이지 서버 계정",
   live: "실사용 계정",
   fallback: "계정 연결 실패"
 };
 
 const permissionLabels = Object.fromEntries(
-  version3PermissionGroups.flatMap((group) => group.items.map((item) => [item.key, item.label]))
-) as Record<(typeof version3PermissionKeys)[number], string>;
+  stagePermissionGroups.flatMap((group) => group.items.map((item) => [item.key, item.label]))
+) as Record<(typeof stagePermissionKeys)[number], string>;
 
 export default function AccountsPage() {
   const role = useCurrentRole();
@@ -39,13 +39,13 @@ export default function AccountsPage() {
   const returnToPath = readAccountReturnToPath();
   const [pendingAccountId, setPendingAccountId] = useState("");
   const [permissionAccountId, setPermissionAccountId] = useState("");
-  const [permissionDraft, setPermissionDraft] = useState<Version3Permissions>({});
+  const [permissionDraft, setPermissionDraft] = useState<StagePermissions>({});
   const [requestPendingId, setRequestPendingId] = useState("");
   const accessUser = user ?? role;
-  const canCreateAccount = hasVersion3Permission(accessUser, "manageAccounts");
-  const canManageAccount = hasVersion3Permission(accessUser, "manageAccounts");
-  const canEditPermissions = hasVersion3Permission(accessUser, "managePermissions");
-  const canReviewAccountRequests = hasVersion3Permission(accessUser, "reviewAccountRequests");
+  const canCreateAccount = hasStagePermission(accessUser, "manageAccounts");
+  const canManageAccount = hasStagePermission(accessUser, "manageAccounts");
+  const canEditPermissions = hasStagePermission(accessUser, "managePermissions");
+  const canReviewAccountRequests = hasStagePermission(accessUser, "reviewAccountRequests");
   const canSubmitAccount = canCreateAccount && accountState.hasLiveSession;
   const accountWriteModeLabel = accountState.hasLiveSession ? "계정 생성" : "서버 로그인 필요";
   const linkedStudentCount = useMemo(
@@ -94,7 +94,7 @@ export default function AccountsPage() {
     event.preventDefault();
     const form = event.currentTarget;
     const values = Object.fromEntries(new FormData(form).entries()) as Record<string, string>;
-    const input: Version3AccountInput = {
+    const input: StageAccountInput = {
       loginId: values.loginId?.trim() ?? "",
       name: values.name?.trim() ?? "",
       role: selectedRole,
@@ -132,7 +132,7 @@ export default function AccountsPage() {
     }
   }
 
-  async function toggleAccount(account: Version3Account) {
+  async function toggleAccount(account: StageAccount) {
     if (!canEditPermissions) {
       setMessage("계정 중지와 재개는 대표 권한에서만 진행합니다.");
       return;
@@ -209,7 +209,7 @@ export default function AccountsPage() {
     }
   }
 
-  function togglePermission(key: keyof Version3Permissions) {
+  function togglePermission(key: keyof StagePermissions) {
     if (!selectedPermissionAccount) return;
     setPermissionAccountId(selectedPermissionAccount.id);
     setPermissionDraft({ ...effectivePermissionDraft, [key]: !Boolean(effectivePermissionDraft[key]) });
@@ -227,8 +227,8 @@ export default function AccountsPage() {
       setMessage("계정 요청 승인은 대표 권한에서만 진행합니다.");
       return;
     }
-    if (!hasVersion3ServerSession()) {
-      setMessage("계정 요청 승인은 Version.3 서버 로그인 세션에서만 진행합니다.");
+    if (!hasStageServerSession()) {
+      setMessage("계정 요청 승인은 본성 스테이지 서버 로그인 세션에서만 진행합니다.");
       return;
     }
     const form = event.currentTarget;
@@ -249,7 +249,7 @@ export default function AccountsPage() {
 
     setRequestPendingId(request.id);
     try {
-      await callVersion3Server(`/account-requests/${encodeURIComponent(request.id)}/review`, {
+      await callStageServer(`/account-requests/${encodeURIComponent(request.id)}/review`, {
         method: "PATCH",
         body: {
           decision,
@@ -271,12 +271,12 @@ export default function AccountsPage() {
     <AppShell area="accounts">
       <Section
         title="계정 관리"
-        description="Version.3의 Admin, Manager, Coach, Artist 계정을 한 기준으로 정리합니다. Artist 계정은 학생 기록과 연결되어야 합니다."
+        description="본성 스테이지의 Admin, Manager, Coach, Artist 계정을 한 기준으로 정리합니다. Artist 계정은 학생 기록과 연결되어야 합니다."
       >
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
           <div className="min-w-0 space-y-4">
             <div className="grid gap-3 sm:grid-cols-3">
-              <SummaryCard label="계정 소스" value={accountSourceLabel[accountState.source]} helper={accountState.source === "server" ? "Version.3 서버 연결" : accountState.source === "live" ? "Apps Script 연결" : "서버 세션 필요"} />
+              <SummaryCard label="계정 소스" value={accountSourceLabel[accountState.source]} helper={accountState.source === "server" ? "본성 스테이지 서버 연결" : accountState.source === "live" ? "Apps Script 연결" : "서버 세션 필요"} />
               <SummaryCard label="전체 계정" value={accountState.accounts.length} helper="Admin/Manager/Coach/Artist 합계" />
               <SummaryCard label="연결 가능 학생" value={availableStudents.length} helper={`연결됨 ${linkedStudentCount}명`} />
             </div>
@@ -373,7 +373,7 @@ export default function AccountsPage() {
                 </div>
               </>
             ) : (
-              <EmptyState title="계정 데이터가 없습니다" description="Version.3 서버 또는 Apps Script 계정 연결 상태를 확인해 주세요." />
+              <EmptyState title="계정 데이터가 없습니다" description="본성 스테이지 서버 또는 Apps Script 계정 연결 상태를 확인해 주세요." />
             )}
 
             <div className="rounded-[24px] border border-line bg-white p-5 shadow-card">
@@ -398,10 +398,10 @@ export default function AccountsPage() {
             <div className="rounded-[24px] border border-line bg-white p-5 shadow-card">
               <h2 className="text-lg font-extrabold tracking-tight text-ink">별도 서버 전환 기준</h2>
               <p className="mt-2 text-sm leading-6 text-muted">
-                이 화면의 계정 계약은 이전 시트 구조를 그대로 복사하기보다, Version.3 서버가 가져야 할 최종 엔티티와 권한명을 기준으로 둡니다.
+                이 화면의 계정 계약은 이전 시트 구조를 그대로 복사하기보다, 본성 스테이지 서버가 가져야 할 최종 엔티티와 권한명을 기준으로 둡니다.
               </p>
               <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                {version3ServerEntities.map((entity) => (
+                {stageServerEntities.map((entity) => (
                   <div className="rounded-2xl border border-line bg-surface-muted p-3" key={entity.name}>
                     <p className="text-sm font-extrabold text-ink">{entity.label}</p>
                     <p className="mt-1 text-xs text-muted">담당: {entity.owner}</p>
@@ -417,7 +417,7 @@ export default function AccountsPage() {
               <div>
                 <h2 className="text-lg font-extrabold tracking-tight text-ink">계정 입력</h2>
                 <p className="mt-1 text-xs leading-5 text-muted">
-                  계정은 Version.3 서버 또는 Apps Script 운영 저장소에 생성됩니다.
+                  계정은 본성 스테이지 서버 또는 Apps Script 운영 저장소에 생성됩니다.
                 </p>
               </div>
               <Badge tone={canCreateAccount ? "good" : "warn"}>{canCreateAccount ? "생성 가능" : "Manager 권한 필요"}</Badge>
@@ -441,7 +441,7 @@ export default function AccountsPage() {
                 onChange={(event) => setSelectedRole(event.target.value as Role)}
                   disabled={!canSubmitAccount}
               >
-                {version3AccountRoles.map((item) => (
+                {stageAccountRoles.map((item) => (
                   <option value={item.role} key={item.role}>{item.label}</option>
                 ))}
               </select>
@@ -485,7 +485,7 @@ export default function AccountsPage() {
             {!canCreateAccount ? (
               <p className="mt-3 rounded-xl bg-accent/10 px-3 py-2 text-xs leading-5 text-accent">계정 생성은 Manager 이상 권한에서만 진행합니다.</p>
             ) : !accountState.hasLiveSession ? (
-              <p className="mt-3 rounded-xl bg-accent/10 px-3 py-2 text-xs leading-5 text-accent">Version.3 서버 로그인 세션이 있어야 계정을 생성할 수 있습니다.</p>
+              <p className="mt-3 rounded-xl bg-accent/10 px-3 py-2 text-xs leading-5 text-accent">본성 스테이지 서버 로그인 세션이 있어야 계정을 생성할 수 있습니다.</p>
             ) : null}
 
             <div className="mt-5 border-t border-line pt-5">
@@ -527,7 +527,7 @@ export default function AccountsPage() {
                 </select>
               </label>
               <div className="mt-4 grid gap-4">
-                {version3PermissionGroups.map((group) => (
+                {stagePermissionGroups.map((group) => (
                   <fieldset className="rounded-2xl border border-line bg-surface-muted p-3" disabled={!canEditPermissions || !selectedPermissionAccount} key={group.group}>
                     <legend className="px-1 text-xs font-extrabold text-ink">{group.group}</legend>
                     <div className="mt-2 grid gap-2">
@@ -575,7 +575,7 @@ function SummaryCard({ label, value, helper }: { label: string; value: string | 
   );
 }
 
-function AccountCard({ account, canManage, isCurrent, isPending, onToggle }: { account: Version3Account; canManage: boolean; isCurrent: boolean; isPending: boolean; onToggle: (account: Version3Account) => void }) {
+function AccountCard({ account, canManage, isCurrent, isPending, onToggle }: { account: StageAccount; canManage: boolean; isCurrent: boolean; isPending: boolean; onToggle: (account: StageAccount) => void }) {
   return (
     <article className="rounded-[22px] border border-line bg-white p-4 shadow-card">
       <div className="flex items-start justify-between gap-3">
@@ -595,7 +595,7 @@ function AccountCard({ account, canManage, isCurrent, isPending, onToggle }: { a
   );
 }
 
-function AccountActions({ account, canManage, isCurrent, isPending, onToggle }: { account: Version3Account; canManage: boolean; isCurrent: boolean; isPending: boolean; onToggle: (account: Version3Account) => void }) {
+function AccountActions({ account, canManage, isCurrent, isPending, onToggle }: { account: StageAccount; canManage: boolean; isCurrent: boolean; isPending: boolean; onToggle: (account: StageAccount) => void }) {
   if (account.status === "invited") {
     return <span className="text-xs font-bold text-muted">초안 계정</span>;
   }
@@ -616,7 +616,7 @@ function AccountActions({ account, canManage, isCurrent, isPending, onToggle }: 
   );
 }
 
-function AccountHistoryRow({ item }: { item: Version3AccountHistory }) {
+function AccountHistoryRow({ item }: { item: StageAccountHistory }) {
   const permissionDetail = accountPermissionChangeSummary(item);
   return (
     <div className="grid gap-2 rounded-2xl border border-line bg-surface-muted p-3 text-sm sm:grid-cols-[minmax(0,1fr)_150px] sm:items-center">
@@ -632,7 +632,7 @@ function AccountHistoryRow({ item }: { item: Version3AccountHistory }) {
   );
 }
 
-function statusBadge(account: Version3Account) {
+function statusBadge(account: StageAccount) {
   if (account.status === "paused") return <Badge tone="danger">중지</Badge>;
   if (account.status === "invited") return <Badge tone="warn">초안</Badge>;
   if (account.mustChangePassword) return <Badge tone="warn">비밀번호 변경 필요</Badge>;
@@ -653,11 +653,11 @@ function accountActionLabel(action: string) {
   return action || "계정 변경";
 }
 
-function accountPermissionChangeSummary(item: Version3AccountHistory) {
+function accountPermissionChangeSummary(item: StageAccountHistory) {
   if (item.action !== "update_permissions") return "";
   const before = item.beforePermissions || {};
   const after = item.afterPermissions || {};
-  const changed = version3PermissionKeys
+  const changed = stagePermissionKeys
     .filter((key) => Boolean(before[key]) !== Boolean(after[key]))
     .map((key) => `${permissionLabels[key]} ${after[key] ? "허용" : "제한"}`);
   if (!changed.length) return "권한 변경값 없음";
@@ -696,7 +696,7 @@ function suggestedStudentLoginId(studentId: string) {
   return suffix ? `student${suffix}` : "student";
 }
 
-function statusText(account: Version3Account) {
+function statusText(account: StageAccount) {
   if (account.status === "paused") return "중지";
   if (account.status === "invited") return "초안";
   if (account.mustChangePassword) return "비밀번호 변경 필요";

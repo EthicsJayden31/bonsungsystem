@@ -9,9 +9,9 @@ import { DataTable } from "@/components/ui/table";
 import type { Consultation, ConsultationHistory } from "@/lib/operations-types";
 import { useOperationAction, useOperationsData } from "@/lib/operations-data";
 import { useCurrentRole } from "@/lib/use-current-role";
-import { normalizeConsultationStatus, version3ConsultationStatuses, type Version3ConsultationStatus } from "@/lib/version3-server-contract";
+import { normalizeConsultationStatus, stageConsultationStatuses, type StageConsultationStatus } from "@/lib/stage-server-contract";
 
-type StatusFilter = Version3ConsultationStatus | "전체";
+type StatusFilter = StageConsultationStatus | "전체";
 type AssigneeOption = {
   id: string;
   name: string;
@@ -25,13 +25,13 @@ export default function ConsultationsPage() {
   const requestedConsultationId = useRequestedConsultationId();
   const [message, setMessage] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("전체");
-  const [statusOverrides, setStatusOverrides] = useState<Record<string, Version3ConsultationStatus>>({});
+  const [statusOverrides, setStatusOverrides] = useState<Record<string, StageConsultationStatus>>({});
   const [assigneeOverrides, setAssigneeOverrides] = useState<Record<string, string>>({});
   const [localHistory, setLocalHistory] = useState<ConsultationHistory[]>([]);
   const isStudent = role === "artist";
   const canTriage = role === "admin" || role === "manager";
   const studentName = data.students[0]?.name || "수강생";
-  const sourceLabel = source === "server" ? "Version.3 서버 데이터" : source === "live" ? "전환 데이터" : source === "fallback" ? "연결 실패" : "확인 중";
+  const sourceLabel = source === "server" ? "본성 스테이지 서버 데이터" : source === "live" ? "전환 데이터" : source === "fallback" ? "연결 실패" : "확인 중";
   const assignees = useMemo(() => buildAssignees(data.teachers), [data.teachers]);
   const assigneeNames = useMemo(() => Object.fromEntries(assignees.map((assignee) => [assignee.id, assignee.name])), [assignees]);
   const consultations = useMemo(
@@ -68,7 +68,7 @@ export default function ConsultationsPage() {
     [data.consultationHistory, localHistory, visibleConsultationIds]
   );
   const statusCounts = useMemo(() => {
-    const counts = Object.fromEntries(version3ConsultationStatuses.map((status) => [status, 0])) as Record<Version3ConsultationStatus, number>;
+    const counts = Object.fromEntries(stageConsultationStatuses.map((status) => [status, 0])) as Record<StageConsultationStatus, number>;
     consultations.forEach((item) => {
       counts[normalizeConsultationStatus(item.status)] += 1;
     });
@@ -98,7 +98,7 @@ export default function ConsultationsPage() {
       await saveAction.run("createConsultation", {
         consultation: {
           studentName,
-          channel: "Version.3 상담요청",
+          channel: "본성 스테이지 상담요청",
           major: "보컬",
           goal,
           memo,
@@ -113,7 +113,7 @@ export default function ConsultationsPage() {
     }
   }
 
-  async function updateStatus(consultationId: string, status: Version3ConsultationStatus, assignedTo?: string) {
+  async function updateStatus(consultationId: string, status: StageConsultationStatus, assignedTo?: string) {
     setStatusOverrides((current) => ({ ...current, [consultationId]: status }));
     setMessage("");
 
@@ -165,7 +165,7 @@ export default function ConsultationsPage() {
     }
   }
 
-  function appendLocalHistory(consultationId: string, action: string, status: Version3ConsultationStatus, assignedTo?: string) {
+  function appendLocalHistory(consultationId: string, action: string, status: StageConsultationStatus, assignedTo?: string) {
     const occurredAt = new Date().toISOString();
     setLocalHistory((current) => [
       {
@@ -199,7 +199,7 @@ export default function ConsultationsPage() {
             </div>
             {canTriage ? (
               <div className="grid gap-2 rounded-2xl border border-line bg-white p-3 shadow-card sm:grid-cols-5">
-                {(["전체", ...version3ConsultationStatuses] as StatusFilter[]).map((status) => (
+                {(["전체", ...stageConsultationStatuses] as StatusFilter[]).map((status) => (
                   <button
                     className={`rounded-xl px-3 py-2 text-sm font-extrabold transition ${statusFilter === status ? "bg-brand text-white shadow-sm" : "bg-surface-muted text-muted hover:bg-brand/5 hover:text-brand"}`}
                     key={status}
@@ -420,13 +420,13 @@ function StatusActions({
   onUpdate
 }: {
   assignedTo?: string;
-  current: Version3ConsultationStatus;
+  current: StageConsultationStatus;
   id: string;
-  onUpdate: (consultationId: string, status: Version3ConsultationStatus, assignedTo?: string) => void;
+  onUpdate: (consultationId: string, status: StageConsultationStatus, assignedTo?: string) => void;
 }) {
   return (
     <div className="flex flex-wrap gap-1.5">
-      {version3ConsultationStatuses.map((status) => (
+      {stageConsultationStatuses.map((status) => (
         <button
           className={`rounded-lg border px-2 py-1 text-[11px] font-bold transition ${current === status ? "border-brand bg-brand text-white" : "border-line bg-white text-brand hover:bg-brand/5"}`}
           disabled={current === status}

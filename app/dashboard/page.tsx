@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Section } from "@/components/ui/section";
 import { DataTable } from "@/components/ui/table";
-import { canAccessVersion3Area } from "@/lib/access-policy";
+import { canAccessStageArea } from "@/lib/access-policy";
 import { useAccountsData } from "@/lib/accounts-data";
 import { buildDashboardWorkQueue, countActiveConsultations, countOpenTasks, countPendingAttendance } from "@/lib/dashboard-work-queue";
 import { courseName, studentName, teacherName, useOperationAction, useOperationsData, type DataSource } from "@/lib/operations-data";
@@ -52,14 +52,14 @@ export default function DashboardPage() {
   const accessUser = user ?? role;
   const accessRole = typeof accessUser === "string" ? accessUser : accessUser?.role ?? role;
   const isStudent = accessRole === "artist";
-  const canViewAccounts = canAccessVersion3Area(accessUser, "accounts");
-  const canViewStudents = canAccessVersion3Area(accessUser, "students");
-  const canViewConsultations = canAccessVersion3Area(accessUser, "consultations");
-  const canViewAttendance = canAccessVersion3Area(accessUser, "attendance");
-  const canViewLessonNotes = canAccessVersion3Area(accessUser, "lesson-notes");
-  const canViewReservations = canAccessVersion3Area(accessUser, "practice-rooms");
-  const canViewPayments = canAccessVersion3Area(accessUser, "payments");
-  const canViewTasks = canAccessVersion3Area(accessUser, "tasks");
+  const canViewAccounts = canAccessStageArea(accessUser, "accounts");
+  const canViewStudents = canAccessStageArea(accessUser, "students");
+  const canViewConsultations = canAccessStageArea(accessUser, "consultations");
+  const canViewAttendance = canAccessStageArea(accessUser, "attendance");
+  const canViewLessonNotes = canAccessStageArea(accessUser, "lesson-notes");
+  const canViewReservations = canAccessStageArea(accessUser, "practice-rooms");
+  const canViewPayments = canAccessStageArea(accessUser, "payments");
+  const canViewTasks = canAccessStageArea(accessUser, "tasks");
   const accountState = useAccountsData({ enabled: canViewAccounts });
   const [acknowledgedConsultationIds, setAcknowledgedConsultationIds] = useState<string[]>([]);
   const [alertMessage, setAlertMessage] = useState("");
@@ -95,8 +95,8 @@ export default function DashboardPage() {
     reservations: data.reservations.length,
     payments: unpaid.length,
     notices: recentNotices.length
-  }).filter((card) => canAccessVersion3Area(accessUser, areaFromHref(card.href)));
-  const visibleActions = profile.actions.filter(([, href]) => canAccessVersion3Area(accessUser, areaFromHref(href)));
+  }).filter((card) => canAccessStageArea(accessUser, areaFromHref(card.href)));
+  const visibleActions = profile.actions.filter(([, href]) => canAccessStageArea(accessUser, areaFromHref(href)));
 
   async function acknowledgeConsultation(consultationId: string) {
     setAcknowledgedConsultationIds((current) => (current.includes(consultationId) ? current : [...current, consultationId]));
@@ -264,7 +264,7 @@ export default function DashboardPage() {
             {data.lessonNotes.length ? (
               <DataTable headers={["학생", "강사", "수업일", "다음 목표"]} rows={data.lessonNotes.map((note) => [note.studentName || studentName(data, note.studentId), note.teacherName || teacherName(data, note.teacherId), note.date, note.nextGoal || "-"])} />
             ) : (
-              <EmptyState title="최근 레슨노트가 없습니다" description="Version.3 서버의 레슨노트 응답을 연결해 표시합니다." />
+              <EmptyState title="최근 레슨노트가 없습니다" description="본성 스테이지 서버의 레슨노트 응답을 연결해 표시합니다." />
             )}
           </Panel>
           ) : null}
@@ -449,7 +449,7 @@ function areaFromHref(href: string) {
 function SourceBanner({ source, error, hasLiveSession }: { source: DataSource; error: string; hasLiveSession: boolean }) {
   const label = {
     loading: "데이터 확인 중",
-    server: "Version.3 서버 데이터",
+    server: "본성 스테이지 서버 데이터",
     live: "전환 연결층 데이터",
     fallback: "연결 실패"
   }[source];
@@ -462,7 +462,7 @@ function SourceBanner({ source, error, hasLiveSession }: { source: DataSource; e
           <p className="text-sm font-extrabold text-ink">데이터 소스</p>
           <p className="mt-1 text-xs leading-5 text-muted">
             {source === "server"
-              ? "Version.3 별도 서버 세션을 사용해 운영 데이터를 먼저 불러옵니다."
+              ? "본성 스테이지 별도 서버 세션을 사용해 운영 데이터를 먼저 불러옵니다."
               : source === "fallback"
               ? "운영 데이터를 불러오지 못했습니다. 서버 연결과 권한을 확인해야 합니다."
               : hasLiveSession

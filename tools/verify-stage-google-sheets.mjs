@@ -1,17 +1,17 @@
 #!/usr/bin/env node
 
-import { createVersion3StorageAdapter, hashSessionToken, missingGoogleSheetsEnv } from "../server/version3-storage.mjs";
+import { createStageStorageAdapter, hashSessionToken, missingGoogleSheetsEnv } from "../server/stage-storage.mjs";
 
 const missing = missingGoogleSheetsEnv();
 if (missing.length) {
-  console.log(`Version.3 Google Sheets verification skipped: setup-needed (${missing.join(", ")})`);
+  console.log(`본성 스테이지 Google Sheets verification skipped: setup-needed (${missing.join(", ")})`);
   process.exit(0);
 }
 
-const storage = await createVersion3StorageAdapter({ driver: "google-sheets" });
+const storage = await createStageStorageAdapter({ driver: "google-sheets" });
 const state = await storage.loadState();
 if (!state) {
-  console.log("Version.3 Google Sheets connection verified, but _version3_state is empty. Run migrate:version3-google-sheets.");
+  console.log("본성 스테이지 Google Sheets connection verified, but _stage_state is empty. Run migrate:stage-google-sheets.");
   process.exit(0);
 }
 
@@ -27,6 +27,6 @@ if (!session || session.accountId !== "verify-google-sheets") {
   throw new Error("Google Sheets session round-trip failed.");
 }
 
-console.log("Version.3 Google Sheets verification passed.");
+console.log("본성 스테이지 Google Sheets verification passed.");
 console.log(`State accounts: ${Array.isArray(state.accounts) ? state.accounts.length : 0}`);
 console.log("Session storage: hashed token round-trip passed.");

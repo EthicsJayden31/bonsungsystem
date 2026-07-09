@@ -8,6 +8,6 @@ dist
 *.tsbuildinfo
 .env
 .env*.local
-.version3-local-data.json
-.version3-local-data.json.*.tmp
+.stage-local-data.json
+.stage-local-data.json.*.tmp
 *.bak

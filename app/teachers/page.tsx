@@ -5,7 +5,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { ResourcePage, type MobileListCard } from "@/components/layout/resource-page";
 import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/ui/table";
-import { hasVersion3Permission } from "@/lib/access-policy";
+import { hasStagePermission } from "@/lib/access-policy";
 import { courseName, studentName, useOperationAction, useOperationsData } from "@/lib/operations-data";
 import { useCurrentUser } from "@/lib/use-current-user";
 import { useCurrentRole } from "@/lib/use-current-role";
@@ -15,7 +15,7 @@ export default function TeachersPage() {
   const user = useCurrentUser();
   const { data, source, error } = useOperationsData(role);
   const saveAction = useOperationAction();
-  const canManageOperations = hasVersion3Permission(user ?? role, "manageOperations");
+  const canManageOperations = hasStagePermission(user ?? role, "manageOperations");
   const [selectedTeacherId, setSelectedTeacherId] = useState("");
 
   useEffect(() => {
@@ -143,7 +143,7 @@ export default function TeachersPage() {
           onSubmit={canManageOperations ? (values) => saveAction.run("createTeacher", { teacher: values }) : undefined}
           submitDisabled={saveAction.pending}
           submitLabel={saveAction.pending ? "저장 중" : "강사 저장"}
-          submitHelp="Version.3 서버 세션에서는 강사 기록이 별도 서버에 저장됩니다. 강사 계정 생성과 권한 부여는 계정 관리에서 이어서 처리합니다."
+          submitHelp="본성 스테이지 서버 세션에서는 강사 기록이 별도 서버에 저장됩니다. 강사 계정 생성과 권한 부여는 계정 관리에서 이어서 처리합니다."
           showForm={canManageOperations}
           fields={[
             { label: "강사명", name: "name" },
@@ -161,7 +161,7 @@ function SourceNote({ source, error }: { source: string; error?: string }) {
     <div className="rounded-2xl border border-line bg-white p-4 shadow-card">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm font-semibold text-ink">
-          {source === "server" ? "Version.3 서버의 강사 데이터를 표시합니다." : source === "live" ? "전환 세션의 강사 데이터를 표시합니다." : source === "fallback" ? "강사 데이터를 불러오지 못했습니다. 서버 연결과 권한을 확인해야 합니다." : "강사 데이터를 확인하고 있습니다."}
+          {source === "server" ? "본성 스테이지 서버의 강사 데이터를 표시합니다." : source === "live" ? "전환 세션의 강사 데이터를 표시합니다." : source === "fallback" ? "강사 데이터를 불러오지 못했습니다. 서버 연결과 권한을 확인해야 합니다." : "강사 데이터를 확인하고 있습니다."}
         </p>
         <Badge tone={source === "server" || source === "live" ? "good" : source === "fallback" ? "warn" : "default"}>
           {source === "server" ? "서버 데이터" : source === "live" ? "전환 데이터" : source === "fallback" ? "연결 실패" : "확인 중"}

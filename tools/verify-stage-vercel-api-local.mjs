@@ -5,27 +5,27 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-const tempDir = mkdtempSync(join(tmpdir(), "version3-vercel-api-"));
-const port = Number(process.env.VERSION3_VERCEL_API_VERIFY_PORT || 4347);
+const tempDir = mkdtempSync(join(tmpdir(), "stage-vercel-api-"));
+const port = Number(process.env.BONSUNG_VERCEL_API_VERIFY_PORT || 4347);
 
-process.env.VERSION3_STORAGE_DRIVER = "file";
-process.env.VERSION3_LOCAL_DATA_FILE = join(tempDir, "version3-data.json");
-process.env.VERSION3_DISABLE_LOCAL_BACKUPS = "true";
-process.env.VERSION3_LOCAL_SERVER_PASSWORD = "bonsung1";
-process.env.VERSION3_ADMIN_INITIAL_PASSWORD = "admin-test-123";
-process.env.VERSION3_ALLOWED_ORIGINS = "http://127.0.0.1:3000,http://localhost:3000";
+process.env.BONSUNG_STORAGE_DRIVER = "file";
+process.env.BONSUNG_LOCAL_DATA_FILE = join(tempDir, "stage-data.json");
+process.env.BONSUNG_DISABLE_LOCAL_BACKUPS = "true";
+process.env.BONSUNG_LOCAL_SERVER_PASSWORD = "bonsung1";
+process.env.BONSUNG_ADMIN_INITIAL_PASSWORD = "admin-test-123";
+process.env.BONSUNG_ALLOWED_ORIGINS = "http://127.0.0.1:3000,http://localhost:3000";
 
-const apiModule = await import("../api/version3/[...path].js");
+const apiModule = await import("../api/stage/[...path].js");
 const handler = apiModule.default || apiModule.handler;
-if (typeof handler !== "function") throw new Error("Version.3 Vercel API handler was not exported as a function.");
+if (typeof handler !== "function") throw new Error("본성 스테이지 Vercel API handler was not exported as a function.");
 
 const server = createServer((request, response) => handler(request, response));
 
 try {
   await listen(server, port);
-  const baseUrl = `http://127.0.0.1:${port}/api/version3`;
+  const baseUrl = `http://127.0.0.1:${port}/api/stage`;
   const health = await request(baseUrl, "/health");
-  assert(health.service === "bonsung-version3-server", "Vercel API health must return Version.3 service.");
+  assert(health.service === "bonsung-stage-server", "Vercel API health must return 본성 스테이지 service.");
 
   const login = await request(baseUrl, "/auth/login", {
     method: "POST",
@@ -66,7 +66,7 @@ try {
   });
   assert(account.role === "artist" && account.linkedStudentId === student.id, "Vercel API must create linked Artist accounts.");
 
-  console.log(`Version.3 Vercel API local verification passed: ${baseUrl}`);
+  console.log(`본성 스테이지 Vercel API local verification passed: ${baseUrl}`);
 } finally {
   await close(server);
   rmSync(tempDir, { recursive: true, force: true });
