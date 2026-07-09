@@ -8,7 +8,7 @@
   "crons": [
     {
       "path": "/api/version3/sync/apps-script",
-      "schedule": "* * * * *"
+      "schedule": "0 18 * * *"
     }
   ]
 }

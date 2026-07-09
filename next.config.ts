@@ -2,9 +2,23 @@ import type { NextConfig } from "next";
 
 const isGithubPages = process.env.GITHUB_PAGES === "true";
 const githubPagesExport = isGithubPages ? { output: "export" as const } : {};
+const vercelRuntimeRedirects = isGithubPages
+  ? {}
+  : {
+      async redirects() {
+        return [
+          {
+            source: "/",
+            destination: "/login",
+            permanent: false
+          }
+        ];
+      }
+    };
 
 const nextConfig: NextConfig = {
   ...githubPagesExport,
+  ...vercelRuntimeRedirects,
   trailingSlash: isGithubPages,
   images: {
     unoptimized: true
