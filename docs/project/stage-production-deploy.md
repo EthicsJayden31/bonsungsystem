@@ -1,10 +1,10 @@
-﻿# 蹂몄꽦 ?ㅽ뀒?댁? ?댁쁺 諛고룷 泥댄겕由ъ뒪??
+# 蹂몄꽦 ?ㅽ뀒?댁? ?댁쁺 諛고룷 泥댄겕由ъ뒪??
 ## 1. ?꾩닔 ?섍꼍 蹂??
 ```text
 NODE_ENV=production
 NEXT_PUBLIC_BONSUNG_API_BASE_URL=/api/stage
 BONSUNG_SERVER_HOST=0.0.0.0
-BONSUNG_ALLOWED_ORIGINS=https://ethicsjayden31.github.io
+BONSUNG_ALLOWED_ORIGINS=https://bonsungsystem.vercel.app
 BONSUNG_LOCAL_SERVER_PASSWORD=<manager-coach-artist-seed-password>
 BONSUNG_ADMIN_INITIAL_PASSWORD=<admin-initial-password>
 BONSUNG_SESSION_TTL_HOURS=12

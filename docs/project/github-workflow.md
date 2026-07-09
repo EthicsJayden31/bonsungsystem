@@ -3,7 +3,7 @@
 ## Repository
 
 - 저장소: `EthicsJayden31/bonsungsystem`
-- 운영 Pages 주소: `https://ethicsjayden31.github.io/bonsungsystem/`
+- 운영 Vercel 주소: `https://bonsungsystem.vercel.app/`
 - 기본 작업 브랜치 접두사: `codex/`
 
 ## Issue 작성

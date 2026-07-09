@@ -95,7 +95,7 @@ Lovable은 빠르게 풀스택 후보를 만들고 본성 스테이지 계약과
 - 외부 호스팅에서는 `BONSUNG_SERVER_HOST=0.0.0.0`을 사용합니다.
 - 운영 데이터 파일은 `/data/stage-data.json`처럼 컨테이너 밖 디스크에 두어야 합니다.
 - `BONSUNG_LOCAL_SERVER_PASSWORD`는 반드시 기본값이 아닌 긴 임시 비밀번호로 설정합니다.
-- `BONSUNG_ALLOWED_ORIGINS`에는 공식 Pages origin만 넣습니다. 예: `https://ethicsjayden31.github.io`
+- `BONSUNG_ALLOWED_ORIGINS`에는 공식 Vercel origin만 넣습니다. 예: `https://bonsungsystem.vercel.app`
 - Render 예시는 `/data` 디스크를 붙여 JSON 운영 데이터가 컨테이너 재시작으로 사라지지 않게 합니다.
 
 이 Docker/Render 방식은 Base44나 Lovable 확정 전의 실제 서버 후보 검증용입니다. 장기 최종 운영에서는 관리형 DB, 백업/복구 절차, 접근 로그, 관리자 계정 발급 절차를 별도로 확정해야 합니다.

@@ -5,7 +5,7 @@ GitHub Pages??蹂몄꽦 ?ㅽ뀒?댁???怨듭떇 Next.js UI瑜??뺤쟻 ?뚯씪濡
 ## ?댁쁺 二쇱냼
 
 ```text
-https://ethicsjayden31.github.io/bonsungsystem/
+https://bonsungsystem.vercel.app/
 ```
 
 ## 諛고룷 ?먮쫫
