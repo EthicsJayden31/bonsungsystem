@@ -13,7 +13,7 @@ module.exports = async function handler(request, response) {
     response.end(JSON.stringify({
       ok: false,
       error: setupRequired ? "stage_api_setup_required" : "stage_api_startup_failed",
-      message: setupRequired ? message : "본성 스테이지 API startup failed."
+      message: setupRequired ? "운영 데이터 저장소 설정이 아직 완료되지 않았습니다. 관리자에게 문의해 주세요." : "본성 스테이지 API startup failed."
     }));
   }
 };
@@ -41,6 +41,7 @@ function isSetupRequiredError(message) {
     "Set BONSUNG_STORAGE_DRIVER",
     "Set BONSUNG_LOCAL_DATA_FILE",
     "Keep 본성 스테이지 data backups enabled",
+    "Google Sheets storage is missing required environment values",
     "Google Sheets service account JSON",
     "BONSUNG_DATABASE_URL is required"
   ].some((pattern) => message.includes(pattern));

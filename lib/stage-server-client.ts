@@ -109,9 +109,7 @@ async function requestStageServer<T>(path: string, options: ServerRequestOptions
 
     const parsed = (await response.json()) as ServerResult<T> | T;
     if (!response.ok) {
-      const message = isServerResult<T>(parsed)
-        ? parsed.message || parsed.error || `본성 스테이지 서버 응답 오류 (${response.status})`
-        : `본성 스테이지 서버 응답 오류 (${response.status})`;
+      const message = friendlyStageServerError(parsed, response.status);
       throw new Error(message);
     }
     if (isServerResult<T>(parsed)) {
@@ -126,4 +124,13 @@ async function requestStageServer<T>(path: string, options: ServerRequestOptions
 
 function isServerResult<T>(value: ServerResult<T> | T): value is ServerResult<T> {
   return Boolean(value && typeof value === "object" && ("ok" in value || "data" in value || "error" in value));
+}
+
+function friendlyStageServerError<T>(parsed: ServerResult<T> | T, status: number) {
+  if (isServerResult<T>(parsed) && parsed.error === "stage_api_setup_required") {
+    return "운영 데이터 저장소 설정이 아직 완료되지 않았습니다. 관리자에게 문의해 주세요.";
+  }
+  return isServerResult<T>(parsed)
+    ? parsed.message || parsed.error || `본성 스테이지 서버 응답 오류 (${status})`
+    : `본성 스테이지 서버 응답 오류 (${status})`;
 }
